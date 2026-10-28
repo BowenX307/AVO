@@ -1,0 +1,22 @@
+[project]
+name = "avo"
+version = "0.1.0"
+description = "Share one screen with an agent: box what to work on, confirm what it is unsure about."
+authors = [
+    { name = "BowenX307", email = "xiaobowenlyf@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "mss>=10.2.0",
+    "openai>=3.40.0",
+    "pillow>=13.0.0",
+    "pyautogui>=0.9.54",
+    "python-dotenv>=1.2.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.8,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
