@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <title>AVO overlay</title>
+    <style>
+      :root {
+        --skin: #24381a; /* avocado skin */
+        --flesh: #b8dc6a; /* avocado flesh */
+        --pit: #8a5a2b;
+        --glide: 450ms;
+      }
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+        pointer-events: none;
+        user-select: none;
+        font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      }
+
+      /* ---- agent cursor ---- */
+      #cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        transform: translate(-100px, -100px);
+        transition: transform var(--glide) cubic-bezier(0.22, 1, 0.36, 1), opacity 250ms ease;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+        z-index: 3;
+      }
+      #cursor.on { opacity: 1; }
+      #cursor svg { display: block; }
+      #cursor .tag {
+        position: absolute;
+        left: 18px;
+        top: 22px;
+        padding: 1px 7px;
+        border-radius: 9px;
+        background: var(--skin);
+        color: var(--flesh);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+      #cursor .chip {
+        position: absolute;
+        left: 18px;
+        top: 46px;
+        max-width: 360px;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: rgba(20, 28, 16, 0.88);
+        color: #fff;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+      #cursor .chip.on { opacity: 1; transform: none; }
+
+      /* ---- click ripple ---- */
+      .ripple {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        margin: -22px 0 0 -22px;
+        border-radius: 50%;
+        border: 3px solid var(--flesh);
+        box-shadow: 0 0 0 2px var(--skin);
+        animation: ripple 600ms ease-out forwards;
+        z-index: 2;
+      }
+      @keyframes ripple {
+        from { transform: scale(0.3); opacity: 1; }
+        to { transform: scale(1.6); opacity: 0; }
+      }
+
+      /* ---- status caption ---- */
+      #caption {
+        position: absolute;
+        left: 50%;
+        bottom: 112px; /* clear of the Dock */
+        transform: translate(-50%, 8px);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 70%;
+        padding: 9px 16px;
+        border-radius: 14px;
+        background: rgba(20, 28, 16, 0.86);
+        color: #fff;
+        font-size: 15px;
+        opacity: 0;
+        transition: opacity 220ms ease, transform 220ms ease;
+        z-index: 4;
+      }
+      #caption.on { opacity: 1; transform: translate(-50%, 0); }
+      #caption .dot {
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--flesh);
+        box-shadow: inset 0 0 0 3px var(--skin);
+      }
+      #caption.busy .dot { animation: pulse 1s ease-in-out infinite; }
+      @keyframes pulse { 50% { transform: scale(0.6); opacity: 0.5; } }
+      #caption .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <div id="cursor">
+      <svg width="24" height="30" viewBox="0 0 24 30" aria-hidden="true">
+        <path d="M2 2 L2 24 L8 18.5 L12.5 28 L16.5 26.2 L12 17 L20 17 Z"
+              style="fill: var(--flesh); stroke: var(--skin)" stroke-width="2" stroke-linejoin="round" />
+        <circle cx="7" cy="12" r="2.6" style="fill: var(--pit)" />
+      </svg>
+      <span class="tag">AVO</span>
+      <span class="chip"></span>
+    </div>
+    <div id="caption"><span class="dot"></span><span class="text"></span></div>
+
+    <script>
+      const cursor = document.getElementById("cursor");
+      const chip = cursor.querySelector(".chip");
+      const caption = document.getElementById("caption");
+      const captionText = caption.querySelector(".text");
+
+      let pos = null;
+      let chipTimer = null;
+      let hideTimer = null;
+
+      const KEY_GLYPHS = {
+        cmd: "⌘", command: "⌘", meta: "⌘", super: "⌘",
+        ctrl: "⌃", control: "⌃", alt: "⌥", option: "⌥", shift: "⇧",
+        enter: "↩", return: "↩", tab: "⇥", esc: "esc", escape: "esc",
+        backspace: "⌫", delete: "⌦", space: "space",
+        up: "↑", down: "↓", left: "←", right: "→",
+        arrowup: "↑", arrowdown: "↓", arrowleft: "←", arrowright: "→",
+      };
+
+      function moveTo(x, y, ms = 450) {
+        clearTimeout(hideTimer);
+        if (!pos) {
+          // First appearance: start from screen centre so the glide is visible.
+          cursor.style.transition = "none";
+          cursor.style.transform = `translate(${innerWidth / 2}px, ${innerHeight / 2}px)`;
+          cursor.getBoundingClientRect(); // commit the start position
+          cursor.style.transition = "";
+        }
+        cursor.style.setProperty("--glide", `${ms}ms`);
+        cursor.classList.add("on");
+        cursor.style.transform = `translate(${x}px, ${y}px)`;
+        pos = { x, y };
+      }
+
+      function ripple(x, y) {
+        const r = document.createElement("div");
+        r.className = "ripple";
+        r.style.left = `${x}px`;
+        r.style.top = `${y}px`;
+        document.body.appendChild(r);
+        r.addEventListener("animationend", () => r.remove());
+      }
+
+      function showChip(text, ms = 1600) {
+        chip.textContent = text;
+        chip.classList.add("on");
+        clearTimeout(chipTimer);
+        chipTimer = setTimeout(() => chip.classList.remove("on"), ms);
+      }
+
+      function status(text, busy) {
+        captionText.textContent = text;
+        caption.classList.toggle("busy", !!busy);
+        caption.classList.add("on");
+      }
+
+      function hideAll() {
+        cursor.classList.remove("on");
+        caption.classList.remove("on");
+        pos = null;
+      }
+
+      window.avo.onEvent((m) => {
+        switch (m.type) {
+          case "move":
+            moveTo(m.x, m.y, m.ms);
+            break;
+          case "click":
+            moveTo(m.x, m.y, 0);
+            ripple(m.x, m.y);
+            if (m.button && m.button !== "left") showChip(`${m.button} click`);
+            break;
+          case "keys":
+            showChip(m.keys.map((k) => KEY_GLYPHS[k.toLowerCase()] || k.toUpperCase()).join(" "));
+            break;
+          case "type":
+            showChip(`输入：${m.text}`, 2200);
+            break;
+          case "scroll":
+            showChip(m.dy > 0 ? "scroll ↓" : "scroll ↑");
+            break;
+          case "status":
+            status(m.text, m.busy);
+            break;
+          case "done":
+            status(m.text, false);
+            hideTimer = setTimeout(hideAll, m.ms ?? 4000);
+            break;
+          case "hide":
+            hideAll();
+            break;
+        }
+      });
+    </script>
+  </body>
+</html>

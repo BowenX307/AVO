@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from avo.driver import MacDriver
+from avo.overlay import Overlay
 
 MODEL = "muse-spark-1.3"
 BASE_URL = "https://api.meta.ai/v1"
@@ -124,9 +125,10 @@ def computer_calls(response) -> list[dict]:
     return [item.model_dump() for item in response.output if item.type == "computer_call"]
 
 
-def ask_model(client: OpenAI, label: str, **kwargs):
+def ask_model(client: OpenAI, overlay: Overlay, label: str, **kwargs):
     """responses.create with a visible waiting line, so a slow reply doesn't look like a hang."""
     print(f"[{label}] waiting for model...", end="", flush=True)
+    overlay.send("status", text="AVO 思考中…", busy=True)
     t0 = time.time()
     response = client.responses.create(model=MODEL, tools=[{"type": "computer"}], **kwargs)
     print(f" {time.time() - t0:.1f}s")
@@ -135,10 +137,12 @@ def ask_model(client: OpenAI, label: str, **kwargs):
 
 def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
     client = make_client()
-    driver = MacDriver()
+    overlay = Overlay()
+    driver = MacDriver(overlay=overlay)
     log = RunLog(task)
     started = time.time()
     print(f"run dir: {log.dir}")
+    print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
 
     result = "stopped: step budget reached"
     step = 0
@@ -147,6 +151,7 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
         log.screenshot(0, png)
         response = ask_model(
             client,
+            overlay,
             "1",
             instructions=SYSTEM_PROMPT,
             input=[
@@ -175,6 +180,7 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
             log.response(step, response, {"actions": actions})
             if response.output_text:
                 print(f"[{step}] model: {response.output_text}")
+                overlay.send("status", text=response.output_text.strip(), busy=False)
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
             if checks and not approve_safety_checks(step, checks, auto_ack):
@@ -188,6 +194,7 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
 
             response = ask_model(
                 client,
+                overlay,
                 str(step + 1),
                 previous_response_id=response.id,
                 input=[
@@ -208,4 +215,6 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
     finally:
         log.summary(result, step, time.time() - started)
         print(f"result: {result}")
+        overlay.send("done", text=result.strip())
+        overlay.close()
     return result

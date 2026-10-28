@@ -19,10 +19,13 @@ import mss
 import pyautogui
 from PIL import Image
 
+from avo.overlay import Overlay
+
 SHOT_WIDTH = 1280
 ACTION_PAUSE = 0.3  # seconds between actions in one batch
 WAIT_SECONDS = 1.0  # duration of a "wait" action
 SCROLL_PX_PER_LINE = 20  # screen points per pyautogui scroll unit (rough)
+GLIDE_MS = 450  # overlay cursor travel time before each pointer action
 
 pyautogui.FAILSAFE = True  # slam the mouse into a screen corner to abort
 pyautogui.PAUSE = 0.05
@@ -76,9 +79,10 @@ class Geometry:
 
 
 class MacDriver:
-    def __init__(self, shot_width: int = SHOT_WIDTH):
+    def __init__(self, shot_width: int = SHOT_WIDTH, overlay: Overlay | None = None):
         self.shot_width = shot_width
         self.geometry: Geometry | None = None
+        self.overlay = overlay or Overlay(url=None)
 
     # ---- screenshots -------------------------------------------------------
 
@@ -118,11 +122,19 @@ class MacDriver:
                 time.sleep(ACTION_PAUSE)
             self._execute_one(action)
 
+    def _point(self, x: int, y: int) -> None:
+        """Glide the overlay cursor to (x, y) so the user sees where we're going."""
+        if self.overlay.active:
+            self.overlay.send("move", x=x, y=y, ms=GLIDE_MS)
+            time.sleep(GLIDE_MS / 1000)
+
     def _execute_one(self, a: dict) -> None:
         kind = a["type"]
         if kind == "click":
             x, y = self.to_screen(a["x"], a["y"])
             button = a.get("button", "left")
+            self._point(x, y)
+            self.overlay.send("click", x=x, y=y, button=button)
             if button in ("back", "forward"):
                 # No mouse back/forward on a trackpad; use the browser shortcut.
                 pyautogui.hotkey("command", "[" if button == "back" else "]", interval=0.05)
@@ -131,19 +143,26 @@ class MacDriver:
                 pyautogui.click(x, y, button=button)
         elif kind == "double_click":
             x, y = self.to_screen(a["x"], a["y"])
+            self._point(x, y)
+            self.overlay.send("click", x=x, y=y, button="double")
             pyautogui.doubleClick(x, y)
         elif kind == "move":
             x, y = self.to_screen(a["x"], a["y"])
+            self._point(x, y)
             pyautogui.moveTo(x, y, duration=0.1)
         elif kind == "drag":
             path = [self.to_screen(p["x"], p["y"]) for p in a["path"]]
+            self._point(*path[0])
             pyautogui.moveTo(*path[0])
             pyautogui.mouseDown()
             for p in path[1:]:
+                self.overlay.send("move", x=p[0], y=p[1], ms=150)
                 pyautogui.moveTo(*p, duration=0.15)
             pyautogui.mouseUp()
         elif kind == "scroll":
             x, y = self.to_screen(a["x"], a["y"])
+            self._point(x, y)
+            self.overlay.send("scroll", dy=a.get("scroll_y") or 0)
             pyautogui.moveTo(x, y)
             g = self.geometry
             to_lines = lambda d: round(d / g.resize / g.retina / SCROLL_PX_PER_LINE)  # noqa: E731
@@ -154,11 +173,13 @@ class MacDriver:
                 pyautogui.hscroll(to_lines(a["scroll_x"]))
         elif kind == "keypress":
             keys = [KEY_MAP.get(k.lower(), k.lower()) for k in a["keys"]]
+            self.overlay.send("keys", keys=keys)
             if len(keys) == 1:
                 pyautogui.press(keys[0])
             else:
                 pyautogui.hotkey(*keys, interval=0.05)
         elif kind == "type":
+            self.overlay.send("type", text=a["text"])
             self._type(a["text"])
         elif kind == "wait":
             time.sleep(WAIT_SECONDS)

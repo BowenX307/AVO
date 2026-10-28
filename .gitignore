@@ -1,7 +1,9 @@
 .env
 runs/
-.venv/
+.venv
 __pycache__/
 *.pyc
 .DS_Store
 .venv.nosync/
+node_modules
+node_modules.nosync/

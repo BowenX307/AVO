@@ -1,0 +1,16 @@
+{
+  "name": "avo-overlay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AVO overlay: transparent always-on-top window that shows what the agent is doing",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^38.8.6"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}
