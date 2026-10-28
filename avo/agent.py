@@ -44,8 +44,12 @@ def approve_safety_checks(checks: list[dict]) -> bool:
     """Ask the human to approve pending safety checks. Never auto-approves."""
     print("\n!! The model raised safety checks before this action:")
     for c in checks:
-        print(f"   [{c.get('code')}] {c.get('message')}  (id={c.get('id')})")
-    answer = input("Continue and acknowledge these checks? Type y to continue: ")
+        print(f"   [{c.get('code')}] {c.get('message')}  (id={str(c.get('id'))[:16]}...)")
+    try:
+        answer = input("Continue and acknowledge these checks? Type y to continue: ")
+    except EOFError:  # no interactive terminal: treat as declined
+        print("(no input available; declining)")
+        return False
     return answer.strip().lower() == "y"
 
 
