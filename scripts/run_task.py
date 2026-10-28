@@ -12,9 +12,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("task", help="what the agent should do")
     parser.add_argument("--max-steps", type=int, default=20)
+    parser.add_argument(
+        "--confirm",
+        action="store_true",
+        help="ask before every action, including routine safety checks",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Fling it into a screen corner to abort.")
-    run(args.task, max_steps=args.max_steps)
+    run(args.task, max_steps=args.max_steps, auto_ack=not args.confirm)
 
 
 if __name__ == "__main__":

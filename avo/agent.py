@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import subprocess
 import sys
 import termios
 import time
@@ -42,23 +43,51 @@ def data_url(png: bytes) -> str:
     return "data:image/png;base64," + base64.b64encode(png).decode()
 
 
-def approve_safety_checks(checks: list[dict]) -> bool:
-    """Ask the human to approve pending safety checks. Never auto-approves."""
+# The generic check Meta attaches to every action. With auto_ack on (the user's
+# standing approval), it is acknowledged without asking; any other code, e.g.
+# malicious_instructions, still needs a human.
+ROUTINE_CHECKS = {"computer_action_requires_confirmation"}
+
+
+def frontmost_app() -> str | None:
+    """Bundle id of the frontmost app, e.g. com.google.Chrome."""
+    asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True).stdout.strip()
+    info = subprocess.run(
+        ["lsappinfo", "info", "-only", "bundleid", asn], capture_output=True, text=True
+    ).stdout
+    return info.split("=", 1)[1].strip().strip('"') if "=" in info else None
+
+
+def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool) -> bool:
+    """Acknowledge routine checks if auto_ack; ask the human about everything else."""
+    unusual = [c for c in checks if not (auto_ack and c.get("code") in ROUTINE_CHECKS)]
+    if not unusual:
+        print(f"[{step}] auto-acknowledged: {', '.join(c.get('code') for c in checks)}")
+        return True
+
     print("\n!! The model raised safety checks before this action:")
-    for c in checks:
+    for c in unusual:
         print(f"   [{c.get('code')}] {c.get('message')}  (id={str(c.get('id'))[:16]}...)")
+    # Answering in the terminal focuses it; hand focus back afterwards so the
+    # agent's keystrokes don't land in the terminal.
+    front = frontmost_app()
     if sys.stdin.isatty():
         # Drop keys pressed while waiting for the model (e.g. a stray Enter),
         # so they can't answer this prompt.
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
-    while True:
-        try:
-            answer = input("Acknowledge and continue? [y/n]: ").strip().lower()
-        except EOFError:  # no interactive terminal: treat as declined
-            print("(no input available; declining)")
-            return False
-        if answer in ("y", "n"):
-            return answer == "y"
+    try:
+        while True:
+            try:
+                answer = input("Acknowledge and continue? [y/n]: ").strip().lower()
+            except EOFError:  # no interactive terminal: treat as declined
+                print("(no input available; declining)")
+                return False
+            if answer in ("y", "n"):
+                return answer == "y"
+    finally:
+        if front:
+            subprocess.run(["open", "-b", front])
+            time.sleep(0.5)
 
 
 class RunLog:
@@ -104,7 +133,7 @@ def ask_model(client: OpenAI, label: str, **kwargs):
     return response
 
 
-def run(task: str, max_steps: int = 20) -> str:
+def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
     client = make_client()
     driver = MacDriver()
     log = RunLog(task)
@@ -148,7 +177,7 @@ def run(task: str, max_steps: int = 20) -> str:
                 print(f"[{step}] model: {response.output_text}")
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
-            if checks and not approve_safety_checks(checks):
+            if checks and not approve_safety_checks(step, checks, auto_ack):
                 result = "stopped: safety check declined by user"
                 break
 
