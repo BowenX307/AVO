@@ -33,6 +33,7 @@ name = "avo"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "meta-sam-parser" },
     { name = "mss" },
     { name = "openai" },
     { name = "pillow" },
@@ -43,6 +44,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "meta-sam-parser", specifier = ">=0.0.6" },
     { name = "mss", specifier = ">=10.2.0" },
     { name = "openai", specifier = ">=3.40.0" },
     { name = "pillow", specifier = ">=13.0.0" },
@@ -219,6 +221,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/60/72/394036294ac3226216f73bfa4b14df920eb5baf7fb80fa7e0a0d7ef442a6/jiter-0.18.0-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:44d0d719cd7845e66b01a0cf346ec9882073e710a05e89a5b6d87be47a9dc69c", size = 277797, upload-time = "2026-10-23T13:51:09.324Z" },
     { url = "https://files.pythonhosted.org/packages/ce/80/f0dadedaa9a109f31e8978c7db355593916968d5956f382188a3f8c0888c/jiter-0.18.0-graalpy312-graalpy250_312_native-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4d1d2dc4d930ebc225f488b6b3790acebb2e51b3a165a4a42cc1d05bb927f83e", size = 300192, upload-time = "2026-10-23T13:51:10.551Z" },
     { url = "https://files.pythonhosted.org/packages/93/51/e57dbc6c264ec6557a677189755fe4525d83439237418e3ae59771ac1cde/jiter-0.18.0-graalpy312-graalpy250_312_native-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ebb0c346b6c5d9c033fe9e9b6ed6a1ff6dac0288fe681c3434dde6eb9c264fa1", size = 301141, upload-time = "2026-10-23T13:51:11.882Z" },
+]
+
+[[package]]
+name = "meta-sam-parser"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/bc/af93a1fa4834124816b3fa0165aa9a6c35eb90d11a1dfe7c257992381f44/meta_sam_parser-0.1.0.tar.gz", hash = "sha256:d59ca55993c5975fc8910f29b76e33499bc2870f79e9afcc30c916f17ef3bb40", size = 33694, upload-time = "2026-10-06T18:37:45.432Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/6b/4f079abae8fbef65d08a5f315444ca96a3e267ad017576a97264ee17b26b/meta_sam_parser-0.1.0-py3-none-any.whl", hash = "sha256:eca156907911c56cef3a350ffc81c34b7e70655e5fa3ccdddb77042c541a0152", size = 40810, upload-time = "2026-10-06T18:37:44.229Z" },
 ]
 
 [[package]]
