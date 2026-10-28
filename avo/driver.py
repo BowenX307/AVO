@@ -169,9 +169,11 @@ class MacDriver:
 
     @staticmethod
     def _type(text: str) -> None:
-        if text.isascii():
-            pyautogui.write(text, interval=0.01)
-        else:
-            # pyautogui can't type non-ASCII (e.g. Chinese); paste it instead.
-            subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
-            pyautogui.hotkey("command", "v", interval=0.05)
+        # Paste rather than type keystrokes: keystrokes go through the active
+        # input method (e.g. Pinyin swallows "example.com"), and pyautogui
+        # can't type non-ASCII at all. Restores the user's clipboard text after.
+        saved = subprocess.run(["pbpaste"], capture_output=True).stdout
+        subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
+        pyautogui.hotkey("command", "v", interval=0.05)
+        time.sleep(0.2)  # let the target app read the clipboard before restoring
+        subprocess.run(["pbcopy"], input=saved, check=True)

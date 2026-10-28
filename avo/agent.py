@@ -102,67 +102,72 @@ def run(task: str, max_steps: int = 20) -> str:
     started = time.time()
     print(f"run dir: {log.dir}")
 
-    png = driver.screenshot()
-    log.screenshot(0, png)
-    response = client.responses.create(
-        model=MODEL,
-        instructions=SYSTEM_PROMPT,
-        tools=[{"type": "computer"}],
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": task},
-                    {"type": "input_image", "image_url": data_url(png)},
-                ],
-            }
-        ],
-    )
-
     result = "stopped: step budget reached"
     step = 0
-    for step in range(1, max_steps + 1):
-        calls = computer_calls(response)
-        if not calls:
-            log.response(step, response)
-            result = response.output_text or "(model finished without a message)"
-            break
-        if len(calls) > 1:
-            print(f"warning: {len(calls)} computer_calls in one response; handling the first")
-
-        call = calls[0]
-        actions = call.get("actions") or ([call["action"]] if call.get("action") else [])
-        checks = call.get("pending_safety_checks") or []
-        log.response(step, response, {"actions": actions})
-        if response.output_text:
-            print(f"[{step}] model: {response.output_text}")
-        print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
-
-        if checks and not approve_safety_checks(checks):
-            result = "stopped: safety check declined by user"
-            break
-
-        driver.execute(actions)
-        time.sleep(SETTLE_SECONDS)
+    try:
         png = driver.screenshot()
-        log.screenshot(step, png)
-
+        log.screenshot(0, png)
         response = client.responses.create(
             model=MODEL,
-            previous_response_id=response.id,
+            instructions=SYSTEM_PROMPT,
             tools=[{"type": "computer"}],
             input=[
                 {
-                    "type": "computer_call_output",
-                    "call_id": call["call_id"],
-                    "acknowledged_safety_checks": checks,
-                    "output": {"type": "computer_screenshot", "image_url": data_url(png)},
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": task},
+                        {"type": "input_image", "image_url": data_url(png)},
+                    ],
                 }
             ],
         )
-    else:
-        log.response(max_steps + 1, response)  # the reply we never acted on
 
-    log.summary(result, step, time.time() - started)
-    print(f"result: {result}")
+        for step in range(1, max_steps + 1):
+            calls = computer_calls(response)
+            if not calls:
+                log.response(step, response)
+                result = response.output_text or "(model finished without a message)"
+                break
+            if len(calls) > 1:
+                print(f"warning: {len(calls)} computer_calls in one response; handling the first")
+
+            call = calls[0]
+            actions = call.get("actions") or ([call["action"]] if call.get("action") else [])
+            checks = call.get("pending_safety_checks") or []
+            log.response(step, response, {"actions": actions})
+            if response.output_text:
+                print(f"[{step}] model: {response.output_text}")
+            print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
+
+            if checks and not approve_safety_checks(checks):
+                result = "stopped: safety check declined by user"
+                break
+
+            driver.execute(actions)
+            time.sleep(SETTLE_SECONDS)
+            png = driver.screenshot()
+            log.screenshot(step, png)
+
+            response = client.responses.create(
+                model=MODEL,
+                previous_response_id=response.id,
+                tools=[{"type": "computer"}],
+                input=[
+                    {
+                        "type": "computer_call_output",
+                        "call_id": call["call_id"],
+                        "acknowledged_safety_checks": checks,
+                        "output": {"type": "computer_screenshot", "image_url": data_url(png)},
+                    }
+                ],
+            )
+        else:
+            log.response(max_steps + 1, response)  # the reply we never acted on
+
+    except BaseException as e:  # incl. Ctrl+C and pyautogui's FailSafeException
+        result = f"crashed: {type(e).__name__}: {e}"
+        raise
+    finally:
+        log.summary(result, step, time.time() - started)
+        print(f"result: {result}")
     return result
