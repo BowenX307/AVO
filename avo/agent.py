@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 import json
 import os
+import sys
+import termios
 import time
 from datetime import datetime
 from pathlib import Path
@@ -45,12 +47,18 @@ def approve_safety_checks(checks: list[dict]) -> bool:
     print("\n!! The model raised safety checks before this action:")
     for c in checks:
         print(f"   [{c.get('code')}] {c.get('message')}  (id={str(c.get('id'))[:16]}...)")
-    try:
-        answer = input("Continue and acknowledge these checks? Type y to continue: ")
-    except EOFError:  # no interactive terminal: treat as declined
-        print("(no input available; declining)")
-        return False
-    return answer.strip().lower() == "y"
+    if sys.stdin.isatty():
+        # Drop keys pressed while waiting for the model (e.g. a stray Enter),
+        # so they can't answer this prompt.
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    while True:
+        try:
+            answer = input("Acknowledge and continue? [y/n]: ").strip().lower()
+        except EOFError:  # no interactive terminal: treat as declined
+            print("(no input available; declining)")
+            return False
+        if answer in ("y", "n"):
+            return answer == "y"
 
 
 class RunLog:
