@@ -95,6 +95,15 @@ def computer_calls(response) -> list[dict]:
     return [item.model_dump() for item in response.output if item.type == "computer_call"]
 
 
+def ask_model(client: OpenAI, label: str, **kwargs):
+    """responses.create with a visible waiting line, so a slow reply doesn't look like a hang."""
+    print(f"[{label}] waiting for model...", end="", flush=True)
+    t0 = time.time()
+    response = client.responses.create(model=MODEL, tools=[{"type": "computer"}], **kwargs)
+    print(f" {time.time() - t0:.1f}s")
+    return response
+
+
 def run(task: str, max_steps: int = 20) -> str:
     client = make_client()
     driver = MacDriver()
@@ -107,10 +116,10 @@ def run(task: str, max_steps: int = 20) -> str:
     try:
         png = driver.screenshot()
         log.screenshot(0, png)
-        response = client.responses.create(
-            model=MODEL,
+        response = ask_model(
+            client,
+            "1",
             instructions=SYSTEM_PROMPT,
-            tools=[{"type": "computer"}],
             input=[
                 {
                     "role": "user",
@@ -148,10 +157,10 @@ def run(task: str, max_steps: int = 20) -> str:
             png = driver.screenshot()
             log.screenshot(step, png)
 
-            response = client.responses.create(
-                model=MODEL,
+            response = ask_model(
+                client,
+                str(step + 1),
                 previous_response_id=response.id,
-                tools=[{"type": "computer"}],
                 input=[
                     {
                         "type": "computer_call_output",
