@@ -8,7 +8,7 @@ has misread the location (real misses, in gaps or just past a button's edge,
 score lower in SAM), and its progress verdict, built on that misreading, is
 dropped too. A "hit but no progress" review still asks.
 
-ask_user() then points at the target on screen and asks "是这个吗？":
+ask_user() then points at the target on screen and asks "Is this the one?":
 yes runs the batch, no lets the user click the right spot, stop ends the task.
 """
 
@@ -130,11 +130,11 @@ def assess(
         hit = forward = True
     reasons = []
     if not hit:
-        reasons.append(f"可能没点中：{under}" if under else "点击位置可能没落在目标上")
+        reasons.append(f"May miss — under the click: {under}" if under else "The click may miss its target")
     if not forward:
-        reasons.append("这一步可能不会推进任务")
+        reasons.append("This step may not move the task forward")
     if rep:
-        reasons.append("和前面做过的动作重复")
+        reasons.append("Repeats an earlier action")
     return Assessment(
         flagged=bool(reasons),
         reasons=reasons,
@@ -192,7 +192,7 @@ def ask_user(
         y=y,
         box=box,
         intent=note or (a.review or {}).get("element_under_click", ""),
-        reason="；".join(a.reasons),
+        reason="; ".join(a.reasons),
         loupe=loupe(png, a.target),
     )
     if answer is None:

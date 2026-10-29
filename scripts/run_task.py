@@ -1,6 +1,6 @@
 """Run the computer-tool agent on a task given on the command line.
 
-    uv run scripts/run_task.py "在已经打开的 Chrome 窗口里，打开 example.com"
+    uv run scripts/run_task.py "In the open Chrome window, go to example.com"
 """
 
 import argparse

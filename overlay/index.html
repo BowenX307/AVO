@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
@@ -12,6 +12,8 @@
         --hairline: rgba(0, 0, 0, 0.2);
         --ink: rgba(0, 0, 0, 0.82);
         --shadow: 0 6px 18px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.12);
+        --accent-a: #2f7bff; /* AVO accent: blue to violet */
+        --accent-b: #9b5cff;
       }
       html, body {
         margin: 0;
@@ -25,7 +27,7 @@
         font: 500 13px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
       }
 
-      /* ---- agent pointer: an iPadOS-style glass disc ---- */
+      /* ---- agent pointer: the "A" of AVO, a glass chevron whose tip is the hot spot ---- */
       #cursor {
         position: absolute;
         left: 0;
@@ -36,32 +38,18 @@
         z-index: 3;
       }
       #cursor.on { opacity: 1; }
-      .disc {
+      .arrow {
         position: absolute;
-        width: 28px;
-        height: 28px;
-        margin: -14px 0 0 -14px;
-        border-radius: 50%;
-        background:
-          radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0) 55%),
-          rgba(255, 255, 255, 0.55);
-        border: 1px solid var(--glass-edge);
-        box-shadow: 0 0 0 1px var(--hairline), 0 4px 14px rgba(0, 0, 0, 0.3),
-          inset 0 -3px 6px rgba(0, 0, 0, 0.1);
+        left: -16px; /* puts the chevron's tip (16,2 in the viewBox) on the point */
+        top: -2px;
+        width: 32px;
+        height: 36px;
+        overflow: visible;
+        transform-origin: 16px 2px;
         transition: transform 140ms ease;
+        filter: drop-shadow(0 3px 6px rgba(20, 30, 80, 0.28)) drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.35));
       }
-      .disc::after { /* exact hot spot */
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 4px;
-        height: 4px;
-        margin: -2px 0 0 -2px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.45);
-      }
-      #cursor.press .disc { transform: scale(0.72); }
+      #cursor.press .arrow { transform: scale(0.8); }
       .glass {
         position: absolute;
         background: var(--glass);
@@ -72,17 +60,22 @@
       }
       .tag {
         left: 16px;
-        top: 12px;
-        padding: 2px 8px;
+        top: 24px;
+        padding: 2px 8px 2px 7px;
         border-radius: 9px;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        color: rgba(0, 0, 0, 0.55);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .tag b {
+        background: linear-gradient(120deg, var(--accent-a), var(--accent-b));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
       }
       .chip {
         left: 16px;
-        top: 38px;
+        top: 54px;
         max-width: 360px;
         padding: 6px 12px;
         border-radius: 12px;
@@ -103,7 +96,7 @@
         margin: -20px 0 0 -20px;
         border-radius: 50%;
         border: 2px solid rgba(255, 255, 255, 0.95);
-        box-shadow: 0 0 0 0.5px var(--hairline), 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 0 0 1.5px rgba(80, 110, 255, 0.55), 0 0 14px rgba(110, 100, 255, 0.45);
         animation: ripple 550ms ease-out forwards;
         z-index: 2;
       }
@@ -112,8 +105,9 @@
         to { transform: scale(1.5); opacity: 0; }
       }
 
-      /* ---- "是这个吗？": spotlight on the target + glass question bubble ---- */
+      /* ---- "Is this the one?": spotlight on the target + glass question bubble ---- */
       body.asking { pointer-events: auto; }
+      body.asking .tag { opacity: 0; } /* the bubble already says it's AVO asking */
       body.correcting { cursor: crosshair; }
       #spot {
         position: absolute;
@@ -179,8 +173,24 @@
   </head>
   <body>
     <div id="cursor">
-      <span class="disc"></span>
-      <span class="glass tag">AVO</span>
+      <svg class="arrow" viewBox="0 0 32 36" aria-hidden="true">
+        <defs>
+          <linearGradient id="body" x1="0" y1="0" x2="0.35" y2="1">
+            <stop offset="0" stop-color="#ffffff" />
+            <stop offset="1" stop-color="#e9ecf5" />
+          </linearGradient>
+          <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#2f7bff" />
+            <stop offset="1" stop-color="#9b5cff" />
+          </linearGradient>
+        </defs>
+        <g transform="rotate(-24 16 2)">
+          <path d="M16 2 L27 31 L16 24.5 L5 31 Z" fill="url(#body)" stroke="url(#edge)" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M16 6.5 L8.2 27" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.95" />
+          <path d="M16 24.5 L16 12" stroke="url(#edge)" stroke-width="1.2" stroke-linecap="round" opacity="0.35" />
+        </g>
+      </svg>
+      <span class="glass tag"><b>AVO</b></span>
       <span class="glass chip"></span>
     </div>
 
@@ -191,9 +201,9 @@
       <div class="reason"></div>
       <img class="loupe" alt="" />
       <div class="row">
-        <button class="stop">停止</button>
-        <button class="no">不是</button>
-        <button class="yes">是</button>
+        <button class="stop">Stop</button>
+        <button class="no">No</button>
+        <button class="yes">Yes</button>
       </div>
     </div>
 
@@ -256,7 +266,7 @@
         pos = null;
       }
 
-      // ---- confirm ("是这个吗？") ----
+      // ---- confirm ("Is this the one?") ----
       const spot = document.getElementById("spot");
       const bubble = document.getElementById("bubble");
       let asking = null; // the confirm request being answered
@@ -283,7 +293,7 @@
         asking = m;
         document.body.classList.add("asking");
         document.body.classList.remove("correcting");
-        bubble.querySelector(".q").textContent = "是这个吗？";
+        bubble.querySelector(".q").textContent = "Is this the one?";
         bubble.querySelector(".intent").textContent = m.intent || "";
         bubble.querySelector(".reason").textContent = m.reason ? `⚠︎ ${m.reason}` : "";
         const lens = bubble.querySelector(".loupe");
@@ -308,8 +318,8 @@
       bubble.querySelector(".stop").addEventListener("click", () => finish({ choice: "stop" }));
       bubble.querySelector(".no").addEventListener("click", () => {
         document.body.classList.add("correcting");
-        bubble.querySelector(".q").textContent = "请直接点击正确的位置";
-        bubble.querySelector(".intent").textContent = "AVO 会改点你点的地方";
+        bubble.querySelector(".q").textContent = "Click the right spot";
+        bubble.querySelector(".intent").textContent = "AVO will click where you click";
         bubble.querySelector(".reason").textContent = "";
       });
       document.addEventListener("click", (e) => {
@@ -324,6 +334,14 @@
           case "confirm":
             ask(m);
             break;
+          case "cancel": // the agent went away; drop the question without answering
+            if (asking) {
+              asking = null;
+              document.body.classList.remove("asking", "correcting");
+              spot.classList.remove("on");
+              bubble.classList.remove("on");
+            }
+            break;
           case "move":
             moveTo(m.x, m.y, m.ms);
             break;
@@ -331,16 +349,16 @@
             moveTo(m.x, m.y, 0);
             press();
             ripple(m.x, m.y);
-            if (m.button && m.button !== "left") showChip(m.button === "double" ? "双击" : `${m.button} click`);
+            if (m.button && m.button !== "left") showChip(m.button === "double" ? "Double-click" : `${m.button} click`);
             break;
           case "keys":
             showChip(m.keys.map((k) => KEY_GLYPHS[k.toLowerCase()] || k.toUpperCase()).join(" "));
             break;
           case "type":
-            showChip(`输入：${m.text}`, 2200);
+            showChip(`Typing “${m.text}”`, 2200);
             break;
           case "scroll":
-            showChip(m.dy > 0 ? "向下滚动" : "向上滚动");
+            showChip(m.dy > 0 ? "Scroll down" : "Scroll up");
             break;
           case "done":
             hideTimer = setTimeout(hideCursor, m.ms ?? 5000);

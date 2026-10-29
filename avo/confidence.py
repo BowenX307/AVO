@@ -43,8 +43,8 @@ Judge strictly, as two separate questions:
    any order) is progress. Repeating an action that already happened, undoing finished work,
    or acting when the task already looks complete is not.
 Then give your confidence (0 to 1) that executing this batch now is correct, and say what
-the screen should show right after it. Write element_under_click and expected_after in short
-Chinese (at most 25 characters each)."""
+the screen should show right after it. Keep element_under_click and expected_after short
+(English, at most 8 words each)."""
 
 REVIEW_SCHEMA = {
     "type": "object",

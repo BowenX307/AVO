@@ -26,7 +26,8 @@ You are operating a macOS computer through screenshots of its main display.
 - Coordinates are pixels in the most recent screenshot.
 - Do only what the task asks. Do not close windows, quit apps, or change settings unless asked.
 - Work without asking the user questions. When the task is done, stop calling the computer \
-tool and reply with a one-sentence summary of what you did."""
+tool and reply with a one-sentence summary of what you did.
+- Write any notes and the final summary in English."""
 
 
 # The generic check Meta attaches to every action. With auto_ack on (the user's
@@ -124,7 +125,7 @@ def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, 
     Returns (response, seconds).
     """
     print(f"[{label}] waiting for model...", end="", flush=True)
-    overlay.send("status", text="思考中…", busy=True)
+    overlay.send("status", text="Thinking…", busy=True)
     if effort:
         kwargs["reasoning"] = {"effort": effort}
     t0 = time.time()
@@ -218,15 +219,15 @@ def run(
                 break
 
             if gate:
-                overlay.send("status", text="检查这一步…", busy=True)
+                overlay.send("status", text="Checking this step…", busy=True)
                 a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
                 if a:
-                    print(f"[{step}] gate: {'FLAG ' + '；'.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
+                    print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
                     entry = a.to_log()
                     if a.flagged:
                         asked += 1
                         front = frontmost_app()
-                        overlay.send("status", text="等你确认", busy=False)
+                        overlay.send("status", text="Waiting for you", busy=False)
                         choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
                         if front:  # answering on the overlay may have focused it
                             subprocess.run(["open", "-b", front])
@@ -239,9 +240,9 @@ def run(
                             break
                         if choice == "no":
                             corrected += 1
-                            note = (note + " " if note else "") + "(用户在屏幕上纠正了点击位置)"
+                            note = (note + " " if note else "") + "(the user corrected the click point on screen)"
                         else:
-                            note = (note + " " if note else "") + "(用户确认了这一步)"
+                            note = (note + " " if note else "") + "(the user confirmed this step)"
                     log.annotate(step, gate=entry)
 
             driver.execute(actions)

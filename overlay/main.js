@@ -1,20 +1,21 @@
 // AVO overlay. Two click-through, never-focused windows over the main display:
 //   - pointer: full-screen and transparent; draws the agent cursor, click
 //     ripples and key/typing chips (index.html)
-//   - caption: a small native frosted-glass panel above the Dock with what the
-//     agent is doing (caption.html). CSS can't blur the desktop behind a
-//     transparent window, so the glass comes from macOS vibrancy instead.
+//   - caption: a small transparent window above the Dock with a glass pill
+//     saying what the agent is doing (caption.html). The pill draws its own
+//     glass so its shape, shadow and "thinking" rim are under our control.
 // The Python agent connects over a local WebSocket and sends events.
 
 const path = require("path");
-const { app, BrowserWindow, ipcMain, nativeTheme, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, screen } = require("electron");
 const { WebSocketServer } = require("ws");
 
 const PORT = Number(process.env.AVO_OVERLAY_PORT || 8765);
 // By default the overlay is hidden from screen capture so the model never
 // sees our own cursor in its screenshots. Set to 1 to capture it anyway.
 const VISIBLE_IN_CAPTURE = process.env.AVO_OVERLAY_VISIBLE_IN_CAPTURE === "1";
-const CAPTION_GAP = 18; // px between caption and the Dock / bottom of work area
+const CAPTION_GAP = 18; // px between the pill and the Dock / bottom of work area
+const CAPTION_MARGIN = 22; // transparent margin around the pill (caption.html --margin)
 
 const CAPTION_EVENTS = new Set(["status", "done", "hide"]);
 
@@ -22,7 +23,6 @@ let pointer = null;
 let caption = null;
 const clients = new Set(); // connected agents
 
-nativeTheme.themeSource = "light"; // light glass even when macOS is in dark mode
 
 function float(win) {
   win.setAlwaysOnTop(true, "screen-saver");
@@ -59,13 +59,10 @@ function createCaption() {
   caption = new BrowserWindow({
     ...common,
     width: 240,
-    height: 44,
+    height: 84,
     show: false,
-    hasShadow: true,
-    vibrancy: "popover",
-    visualEffectState: "active",
+    transparent: true,
     backgroundColor: "#00000000",
-    roundedCorners: true,
   });
   float(caption);
   caption.loadFile("caption.html");
@@ -93,7 +90,7 @@ ipcMain.on("caption-size", (_e, { width, height }) => {
   const wa = screen.getPrimaryDisplay().workArea;
   caption.setBounds({
     x: Math.round(wa.x + (wa.width - width) / 2),
-    y: Math.round(wa.y + wa.height - height - CAPTION_GAP),
+    y: Math.round(wa.y + wa.height - height - CAPTION_GAP + CAPTION_MARGIN),
     width: Math.ceil(width),
     height: Math.ceil(height),
   });
@@ -152,7 +149,14 @@ function startServer() {
   const wss = new WebSocketServer({ host: "127.0.0.1", port: PORT });
   wss.on("connection", (ws) => {
     clients.add(ws);
-    ws.on("close", () => clients.delete(ws));
+    ws.on("close", () => {
+      clients.delete(ws);
+      // An agent that quits mid-question must not leave the screen unclickable.
+      if (clients.size === 0) {
+        pointer.setIgnoreMouseEvents(true);
+        pointer.webContents.send("avo", { type: "cancel" });
+      }
+    });
     ws.on("message", (data) => {
       let msg;
       try {

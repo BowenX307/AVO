@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="zh">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>报销申请</title>
+    <title>Expense Report</title>
     <style>
       :root { --line: #e3e5e8; --ink: #1d2129; --muted: #6b7280; --accent: #2563eb; }
       * { box-sizing: border-box; }
@@ -10,7 +10,7 @@
         margin: 0;
         background: #f6f7f9;
         color: var(--ink);
-        font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+        font: 14px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
       }
       header { padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 17px; }
       main { display: grid; grid-template-columns: 340px 1fr; gap: 24px; padding: 24px; max-width: 1100px; }
@@ -37,7 +37,7 @@
       }
       form { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px; }
       form h2 { margin: 0 0 16px; font-size: 16px; }
-      .field { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 12px; margin-bottom: 14px; }
+      .field { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 12px; margin-bottom: 14px; }
       .field label { color: var(--muted); }
       input, select, textarea {
         font: inherit;
@@ -49,7 +49,7 @@
       }
       textarea { height: 64px; resize: none; }
       button {
-        margin-left: 122px;
+        margin-left: 102px;
         font: inherit;
         padding: 8px 20px;
         border: 0;
@@ -62,7 +62,7 @@
     </style>
   </head>
   <body>
-    <header>报销申请（演示数据）</header>
+    <header>Expense Report (demo data)</header>
     <main>
       <div>
         <div class="receipt">
@@ -79,35 +79,35 @@
           <div class="rule"></div>
           <div class="row total"><span>TOTAL</span><span>$54.54</span></div>
         </div>
-        <div class="policy">报销政策：餐饮按“小计 + 税”报销，小费不予报销。</div>
+        <div class="policy">Expense policy: meals are reimbursed at subtotal + tax. Tips are not reimbursed.</div>
       </div>
 
       <form id="form" autocomplete="off">
-        <h2>新建报销</h2>
-        <div class="field"><label for="merchant">商家</label><input id="merchant" /></div>
-        <div class="field"><label for="date">日期</label><input id="date" placeholder="YYYY-MM-DD" /></div>
+        <h2>New expense</h2>
+        <div class="field"><label for="merchant">Merchant</label><input id="merchant" /></div>
+        <div class="field"><label for="date">Date</label><input id="date" placeholder="YYYY-MM-DD" /></div>
         <div class="field">
-          <label for="category">类别</label>
+          <label for="category">Category</label>
           <select id="category">
-            <option value="">请选择</option>
-            <option>交通</option>
-            <option>住宿</option>
-            <option>餐饮</option>
-            <option>办公用品</option>
+            <option value="">Select…</option>
+            <option>Transport</option>
+            <option>Lodging</option>
+            <option>Meals</option>
+            <option>Office supplies</option>
           </select>
         </div>
-        <div class="field"><label for="amount">报销金额 ($)</label><input id="amount" inputmode="decimal" /></div>
-        <div class="field"><label for="note">备注</label><textarea id="note"></textarea></div>
-        <button type="submit">提交</button>
+        <div class="field"><label for="amount">Amount ($)</label><input id="amount" inputmode="decimal" /></div>
+        <div class="field"><label for="note">Note</label><textarea id="note"></textarea></div>
+        <button type="submit">Submit</button>
         <div id="done"></div>
       </form>
     </main>
     <script>
       document.getElementById("form").addEventListener("submit", (e) => {
         e.preventDefault();
-        const v = (id) => document.getElementById(id).value.trim() || "（空）";
+        const v = (id) => document.getElementById(id).value.trim() || "(empty)";
         const done = document.getElementById("done");
-        done.textContent = `已提交：${v("merchant")} · ${v("date")} · ${v("category")} · $${v("amount")}`;
+        done.textContent = `Submitted: ${v("merchant")} · ${v("date")} · ${v("category")} · $${v("amount")}`;
         done.style.display = "block";
       });
     </script>
