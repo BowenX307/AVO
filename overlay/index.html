@@ -2,7 +2,7 @@
 <html lang="zh">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
     <title>AVO pointer</title>
     <style>
       :root {
@@ -136,7 +136,7 @@
         width: 300px;
         padding: 14px 16px 12px;
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.92);
+        background: rgba(250, 250, 252, 0.97);
         border: 0.5px solid var(--glass-edge);
         box-shadow: 0 0 0 0.5px var(--hairline), 0 12px 32px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
         color: var(--ink);
@@ -151,6 +151,16 @@
       #bubble .intent { margin-top: 4px; font-size: 13px; color: rgba(0, 0, 0, 0.7); }
       #bubble .reason { margin-top: 6px; font-size: 12px; color: #b25000; }
       #bubble .reason:empty, #bubble .intent:empty { display: none; }
+      #bubble .loupe {
+        display: block;
+        width: 268px;
+        height: 168px;
+        margin-top: 10px;
+        border-radius: 12px;
+        box-shadow: 0 0 0 0.5px var(--hairline), inset 0 0 0 0.5px rgba(0, 0, 0, 0.1);
+        object-fit: cover;
+      }
+      #bubble .loupe:not([src]), body.correcting #bubble .loupe { display: none; }
       #bubble .row { display: flex; gap: 8px; margin-top: 12px; }
       #bubble button {
         flex: 1;
@@ -179,6 +189,7 @@
       <div class="q"></div>
       <div class="intent"></div>
       <div class="reason"></div>
+      <img class="loupe" alt="" />
       <div class="row">
         <button class="stop">停止</button>
         <button class="no">不是</button>
@@ -260,7 +271,7 @@
       }
 
       function placeBubble(rect) {
-        const w = 300, h = bubble.offsetHeight || 150, gap = 14;
+        const w = 300, h = bubble.offsetHeight || 340, gap = 14;
         let left = (rect.l + rect.r) / 2 - w / 2;
         left = Math.max(12, Math.min(left, innerWidth - w - 12));
         let top = rect.b + gap;
@@ -275,6 +286,9 @@
         bubble.querySelector(".q").textContent = "是这个吗？";
         bubble.querySelector(".intent").textContent = m.intent || "";
         bubble.querySelector(".reason").textContent = m.reason ? `⚠︎ ${m.reason}` : "";
+        const lens = bubble.querySelector(".loupe");
+        if (m.loupe) lens.src = m.loupe;
+        else lens.removeAttribute("src");
         moveTo(m.x, m.y, 450);
         const rect = placeSpot(m);
         bubble.classList.add("on");

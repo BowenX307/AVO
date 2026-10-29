@@ -33,15 +33,18 @@ Steps already taken:
 The agent says: {note}
 Planned actions (pixel coordinates in image 1): {actions}
 
-Judge strictly:
-- What UI element is exactly under each click point? A point in the empty gap between two
-  fields or between a heading and a link hits nothing.
-- Is that the element the agent needs for what it says it is doing?
-- Given the steps already taken and the current screen, does this batch move the task
-  forward? Repeating an action that already happened, undoing finished work, or acting
-  when the task already looks complete does not.
+Judge strictly, as two separate questions:
+1. Location only: what UI element is exactly under each click point? A point in the empty gap
+   between two fields, just outside a button's edge, or on a heading next to a link hits
+   nothing. hits_intended_target says whether the point lies on the element the agent says
+   it wants; it is NOT about whether that element is the best thing to click now.
+2. Progress: given the steps already taken and the current screen, does this batch move the
+   task forward? Doing sub-steps in a different reasonable order (e.g. filling form fields in
+   any order) is progress. Repeating an action that already happened, undoing finished work,
+   or acting when the task already looks complete is not.
 Then give your confidence (0 to 1) that executing this batch now is correct, and say what
-the screen should show right after it."""
+the screen should show right after it. Write element_under_click and expected_after in short
+Chinese (at most 25 characters each)."""
 
 REVIEW_SCHEMA = {
     "type": "object",

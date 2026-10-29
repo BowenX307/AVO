@@ -227,7 +227,7 @@ def run(
                         asked += 1
                         front = frontmost_app()
                         overlay.send("status", text="等你确认", busy=False)
-                        choice, actions, answer = ask_user(overlay, driver, a, actions, note)
+                        choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
                         if front:  # answering on the overlay may have focused it
                             subprocess.run(["open", "-b", front])
                             time.sleep(0.3)

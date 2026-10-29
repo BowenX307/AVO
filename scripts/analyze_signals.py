@@ -15,6 +15,7 @@ from pathlib import Path
 SAM_CONF_MIN = 0.5
 AGREE_MIN = 0.75  # flag when fewer than 3 of 4 samples agree
 REVIEW_CONF_MIN = 0.5
+GATE_SAM_SURE = 0.9
 
 
 def load(batch: Path, review_file: str = "review.json") -> tuple[list[dict], str]:
@@ -30,6 +31,8 @@ def load(batch: Path, review_file: str = "review.json") -> tuple[list[dict], str
     for c in sam:
         key = f"{c['run_dir']}:{c['step']}"
         s = steps.setdefault(key, {"key": key, "task_id": c["task_id"], "confs": [], "off_mask": False})
+        if not s["confs"]:  # first click of the step, the one the gate checks
+            s["first_conf"], s["first_on_mask"] = c.get("sam_conf", 0.0), c.get("on_mask", False)
         s["confs"].append(c.get("sam_conf", 0.0))
         s["off_mask"] |= not c.get("on_mask", True)
     rows = []
@@ -51,6 +54,7 @@ def load(batch: Path, review_file: str = "review.json") -> tuple[list[dict], str
                 "sam_min": min(s["confs"]),
                 "agreement": agreement,
                 "review": review_flag,
+                "rev": rev,
                 "repeat": revs.get(key, {}).get("repeat", False),
             }
         )
@@ -65,6 +69,14 @@ def cons_flag(r: dict) -> bool:
     return r["agreement"] is not None and r["agreement"] < AGREE_MIN
 
 
+def gate_flag(r: dict) -> bool:
+    """The live gate's rule (avo/gate.py): no progress, repeat, or a miss SAM doesn't vouch for."""
+    rev = r["rev"] or {}
+    sam_vouches = not r["off_mask"] and r["sam_min"] >= GATE_SAM_SURE  # every click on a sure mask
+    missed = rev and not rev.get("hits_intended_target", True) and not sam_vouches
+    return bool(missed or (rev and not rev.get("moves_task_forward", True)) or r["repeat"])
+
+
 RULES = {
     "SAM: conf < 0.5 or off mask": sam_flag,
     "consistency: agreement < 0.75": cons_flag,
@@ -73,6 +85,7 @@ RULES = {
     "SAM or review": lambda r: sam_flag(r) or r["review"],
     "SAM or review or repeat": lambda r: sam_flag(r) or r["review"] or r["repeat"],
     "review or repeat": lambda r: r["review"] or r["repeat"],
+    "live gate (review + SAM veto + repeat)": gate_flag,
 }
 
 
