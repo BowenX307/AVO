@@ -1,11 +1,12 @@
 """The confidence gate: before a pointer batch runs, decide whether to ask the user.
 
 assess() runs the model review and SAM in parallel and adds repeat detection.
-A batch is flagged when the review says it doesn't move the task forward, when
-it repeats a recent batch, or when the review says the click misses its target
-and SAM doesn't vouch for it. SAM vouches when the point sits on a mask it is
-sure about: the reviewer sometimes misreads a click inside a field as a miss,
-while real misses (gaps, just past a button's edge) score lower in SAM.
+A batch is flagged when the review says the click misses its target or doesn't
+move the task forward, or when it repeats a recent batch. SAM can overrule a
+"missed" review: when every click sits on a mask SAM is sure about, the reviewer
+has misread the location (real misses, in gaps or just past a button's edge,
+score lower in SAM), and its progress verdict, built on that misreading, is
+dropped too. A "hit but no progress" review still asks.
 
 ask_user() then points at the target on screen and asks "是这个吗？":
 yes runs the batch, no lets the user click the right spot, stop ends the task.
@@ -121,10 +122,16 @@ def assess(
 
     rep = repeats(history, actions)
     under = (rev or {}).get("element_under_click", "")
+    hit = (rev or {}).get("hits_intended_target", True)
+    forward = (rev or {}).get("moves_task_forward", True)
+    if sam_vouches and not hit:
+        # The reviewer misread where the clicks land; its "no progress" call
+        # usually follows from that misreading, so drop both.
+        hit = forward = True
     reasons = []
-    if rev and not rev.get("hits_intended_target", True) and not sam_vouches:
+    if not hit:
         reasons.append(f"可能没点中：{under}" if under else "点击位置可能没落在目标上")
-    if rev and not rev.get("moves_task_forward", True):
+    if not forward:
         reasons.append("这一步可能不会推进任务")
     if rep:
         reasons.append("和前面做过的动作重复")

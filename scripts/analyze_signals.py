@@ -70,11 +70,14 @@ def cons_flag(r: dict) -> bool:
 
 
 def gate_flag(r: dict) -> bool:
-    """The live gate's rule (avo/gate.py): no progress, repeat, or a miss SAM doesn't vouch for."""
+    """The live gate's rule (avo/gate.py); keep the two in sync."""
     rev = r["rev"] or {}
     sam_vouches = not r["off_mask"] and r["sam_min"] >= GATE_SAM_SURE  # every click on a sure mask
-    missed = rev and not rev.get("hits_intended_target", True) and not sam_vouches
-    return bool(missed or (rev and not rev.get("moves_task_forward", True)) or r["repeat"])
+    hit = rev.get("hits_intended_target", True)
+    forward = rev.get("moves_task_forward", True)
+    if sam_vouches and not hit:
+        hit = forward = True
+    return (not hit) or (not forward) or r["repeat"]
 
 
 RULES = {
