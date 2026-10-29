@@ -125,7 +125,13 @@ function tellAgents(msg) {
 }
 
 function togglePause() {
-  if (pendingAsk) return; // the question on screen already has Stop
+  if (pendingAsk) {
+    // Pausing while a question is up withdraws it; the agent drops that step.
+    answer({ choice: "pause" });
+    paused = true;
+    island.webContents.send("avo", { type: "paused" });
+    return;
+  }
   paused = !paused;
   tellAgents({ type: paused ? "pause" : "resume" });
   island.webContents.send("avo", paused ? { type: "paused" } : { type: "status", text: "Resuming…", busy: true });

@@ -27,8 +27,13 @@ You are operating a macOS computer through screenshots of its main display.
 - Coordinates are pixels in the most recent screenshot.
 - Do only what the task asks. Do not close windows, quit apps, or change settings unless asked.
 - Work without asking the user questions. When the task is done, stop calling the computer \
-tool and reply with a one-sentence summary of what you did.
-- Write any notes and the final summary in English."""
+tool and reply with a one-sentence summary of what you did (with the answer, if one was asked for).
+- Each turn you see only the current screen and a log of your earlier messages and actions, \
+not earlier screenshots. So when the screen shows something the task needs (a title, a number, \
+a requirement), write it down in your message right away: that message is your only memory of it.
+- Stop as soon as the task is done. For a search or "find / show me" task, that is when the \
+result is on screen. Don't scroll back and forth to re-check what you have already written down.
+- Always write in English, even when the task is in another language."""
 
 
 # The generic check Meta attaches to every action. With auto_ack on (the user's
@@ -154,13 +159,29 @@ def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, 
     return response, seconds
 
 
-def fresh_input(task: str, history: list[str], png: bytes) -> list[dict]:
+STILL_STEPS = 5  # this many batches in a row without a click or typing: nudge to finish
+
+LOOKING_KINDS = ("scroll", "keypress", "wait", "screenshot", "move")
+
+
+def only_looking(done: list[list[dict]]) -> bool:
+    """True if the last STILL_STEPS batches only scrolled or pressed keys."""
+    recent = done[-STILL_STEPS:]
+    return len(recent) == STILL_STEPS and all(a["type"] in LOOKING_KINDS for batch in recent for a in batch)
+
+
+def fresh_input(task: str, history: list[str], png: bytes, nudge: bool = False) -> list[dict]:
     """A self-contained turn: the task, what was done so far as text, and the current screen."""
     text = task
     if history:
         text += (
             "\n\nSteps already taken (the screenshot shows the screen after them):\n"
             + "\n".join(history)
+        )
+    if nudge:
+        text += (
+            f"\n\nYour last {STILL_STEPS} steps only scrolled or pressed keys. If what the task "
+            "needs is on screen or in your notes above, stop now and reply with the answer."
         )
     return [
         {
@@ -270,7 +291,10 @@ def run(
                             log.annotate(step, gate=entry)
                             result = "stopped: user stopped the task"
                             break
-                        if choice == "no":
+                        if choice == "pause":
+                            overlay.pause()
+                            paused = True
+                        elif choice == "no":
                             corrected += 1
                             note = (note + " " if note else "") + "(the user corrected the click point on screen)"
                         else:
@@ -321,7 +345,7 @@ def run(
                     str(step + 1),
                     effort,
                     instructions=SYSTEM_PROMPT,
-                    input=fresh_input(task, past, png),
+                    input=fresh_input(task, past, png, nudge=only_looking(done)),
                 )
         else:
             log.response(max_steps + 1, response)  # the reply we never acted on

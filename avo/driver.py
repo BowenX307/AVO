@@ -17,7 +17,9 @@ from dataclasses import dataclass
 
 import mss
 import pyautogui
+import Quartz
 from PIL import Image
+from pyautogui._pyautogui_osx import keyboardMapping
 
 from avo.overlay import Overlay
 
@@ -72,6 +74,39 @@ KEY_MAP = {
     "super": "command",
     "win": "command",
 }
+
+
+MODIFIER_FLAGS = {
+    "command": Quartz.kCGEventFlagMaskCommand,
+    "shift": Quartz.kCGEventFlagMaskShift,
+    "option": Quartz.kCGEventFlagMaskAlternate,
+    "ctrl": Quartz.kCGEventFlagMaskControl,
+}
+
+
+def chord(keys: list[str]) -> None:
+    """Press a key combination, e.g. ["command", "v"].
+
+    pyautogui.hotkey presses the modifier as a separate key and relies on macOS
+    to remember it is held; with another app watching modifier keys, that state
+    got lost and cmd+v typed a bare "v" into the page. Here every key event
+    carries the modifier flags itself.
+    """
+    flags = 0
+    for k in keys:
+        flags |= MODIFIER_FLAGS.get(k, 0)
+    main = [k for k in keys if k not in MODIFIER_FLAGS]
+    if not main:  # modifiers alone
+        pyautogui.hotkey(*keys, interval=0.05)
+        return
+    source = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
+    for k in main:
+        code = keyboardMapping[k]
+        for down in (True, False):
+            event = Quartz.CGEventCreateKeyboardEvent(source, code, down)
+            Quartz.CGEventSetFlags(event, flags)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+            time.sleep(0.02)
 
 
 @dataclass
@@ -160,7 +195,7 @@ class MacDriver:
             self.overlay.send("click", x=x, y=y, button=button)
             if button in ("back", "forward"):
                 # No mouse back/forward on a trackpad; use the browser shortcut.
-                pyautogui.hotkey("command", "[" if button == "back" else "]", interval=0.05)
+                chord(["command", "[" if button == "back" else "]"])
             else:
                 button = {"wheel": "middle"}.get(button, button)
                 pyautogui.click(x, y, button=button)
@@ -197,7 +232,7 @@ class MacDriver:
             if len(keys) == 1:
                 pyautogui.press(keys[0])
             else:
-                pyautogui.hotkey(*keys, interval=0.05)
+                chord(keys)
         elif kind == "type":
             self.overlay.send("type", text=a["text"])
             self._type(a["text"])
@@ -229,6 +264,6 @@ class MacDriver:
         # can't type non-ASCII at all. Restores the user's clipboard text after.
         saved = subprocess.run(["pbpaste"], capture_output=True).stdout
         subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
-        pyautogui.hotkey("command", "v", interval=0.05)
+        chord(["command", "v"])
         time.sleep(0.2)  # let the target app read the clipboard before restoring
         subprocess.run(["pbcopy"], input=saved, check=True)
