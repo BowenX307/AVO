@@ -2,7 +2,8 @@
 
 assess() runs the model review and SAM in parallel and adds repeat detection.
 A batch is flagged when the review says the click misses its target or doesn't
-move the task forward, or when it repeats a recent batch. SAM can overrule a
+move the task forward, when it repeats a recent batch, or when the click picks
+one of several options that fit the task equally well (two people named Alex). SAM can overrule a
 "missed" review: when every click sits on a mask SAM is sure about, the reviewer
 has misread the location (real misses, in gaps or just past a button's edge,
 score lower in SAM), and its progress verdict, built on that misreading, is
@@ -10,11 +11,13 @@ dropped too. A "hit but no progress" review still asks.
 
 ask_user() then points at the target on screen and asks "Is this the one?":
 yes runs the batch, no lets the user click the right spot, stop ends the task.
+For an ambiguous click it rings every candidate and asks "Which one?" instead.
 """
 
 from __future__ import annotations
 
 import io
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -27,12 +30,12 @@ from avo.driver import MacDriver
 from avo.llm import data_url
 from avo.overlay import Overlay
 from avo.sam import segment
+from avo.snap import Target, clickable_at, nearby
 
 GATED_KINDS = ("click", "double_click", "drag")
 POINTER_KINDS = ("click", "double_click", "move", "scroll", "drag")
 MAX_HIGHLIGHT_FRACTION = 0.25  # ignore SAM boxes bigger than this share of the screen
 SAM_SURE = 0.9  # SAM confidence at which a point on its mask overrides a "missed" review
-SNAP_SURE = 0.85  # SAM confidence needed to move a missed click to the review's target unasked
 
 
 @dataclass
@@ -45,6 +48,7 @@ class Assessment:
     box: tuple[float, float, float, float] | None = None  # SAM box around it, screenshot px
     sam_conf: float | None = None
     on_mask: bool = False
+    candidates: list[dict] = field(default_factory=list)  # ambiguous click: [{label, x, y}], screenshot px
     seconds: float = 0.0
 
     def to_log(self) -> dict:
@@ -57,6 +61,7 @@ class Assessment:
             "box": [round(v) for v in self.box] if self.box else None,
             "sam_conf": self.sam_conf,
             "on_mask": self.on_mask,
+            "candidates": self.candidates,
             "seconds": round(self.seconds, 1),
         }
 
@@ -129,7 +134,15 @@ def assess(
         # The reviewer misread where the clicks land; its "no progress" call
         # usually follows from that misreading, so drop both.
         hit = forward = True
+    w, h = screen_size
+    candidates = [
+        c for c in (rev or {}).get("candidates") or [] if 0 <= c["x"] < w and 0 <= c["y"] < h
+    ]
+    if not ((rev or {}).get("ambiguous") and len(candidates) >= 2):
+        candidates = []
     reasons = []
+    if candidates:
+        reasons.append("More than one fits: " + " or ".join(c["label"] for c in candidates))
     if not hit:
         reasons.append(f"May miss — under the click: {under}" if under else "The click may miss its target")
     if not forward:
@@ -145,6 +158,7 @@ def assess(
         box=box,
         sam_conf=sam_conf,
         on_mask=on_mask,
+        candidates=candidates,
         seconds=time.time() - t0,
     )
 
@@ -183,6 +197,8 @@ def ask_user(
     "pause" (the user paused instead of answering).
     If the overlay can't ask, proceeds with the original actions.
     """
+    if a.candidates:
+        return _ask_which(overlay, driver, a, actions)
     x, y = driver.to_screen(*a.target)
     box = None
     if a.box:
@@ -206,6 +222,70 @@ def ask_user(
     if choice in ("stop", "pause"):
         return choice, [], answer
     return "yes", actions, answer
+
+
+def _ask_which(
+    overlay: Overlay, driver: MacDriver, a: Assessment, actions: list[dict]
+) -> tuple[str, list[dict], dict | None]:
+    """Ring every candidate of an ambiguous click and let the user pick one."""
+    shown = []
+    for c in a.candidates:
+        x, y = driver.to_screen(c["x"], c["y"])
+        control = _locate(c["label"], x, y)
+        if control:
+            l, t, w, h = control.frame
+            box, (x, y) = [l, t, l + w, t + h], control.center
+        else:
+            box = [x - 60, y - 16, x + 60, y + 16]
+        shown.append({"label": c["label"], "x": round(x), "y": round(y), "box": [round(v) for v in box]})
+    # The candidate nearest the planned click is the agent's own guess.
+    px, py = driver.to_screen(*a.target)
+    guess = min(range(len(shown)), key=lambda i: (shown[i]["x"] - px) ** 2 + (shown[i]["y"] - py) ** 2)
+    shown[guess]["guess"] = True
+    answer = overlay.ask(
+        x=shown[guess]["x"],
+        y=shown[guess]["y"],
+        candidates=shown,
+        intent=a.reasons[0],  # the ambiguity; other doubts don't matter once the user picks
+        reason="",
+    )
+    if answer is None:
+        print("overlay unavailable; proceeding without confirmation")
+        return "yes", actions, None
+    choice = answer.get("choice")
+    if choice == "pick" and 0 <= answer.get("index", -1) < len(shown):
+        pick = shown[answer["index"]]
+        answer["label"] = pick["label"]
+        return "pick", correct(actions, driver.to_shot(pick["x"], pick["y"])), answer
+    if choice == "no" and answer.get("x") is not None:
+        return "no", correct(actions, driver.to_shot(answer["x"], answer["y"])), answer
+    if choice in ("stop", "pause"):
+        return choice, [], answer
+    return "yes", actions, answer
+
+
+LOCATE_RADIUS = 90  # points: how far from the model's estimate a candidate may really be
+FILLER = {"option", "button", "item", "the", "a", "menu", "link", "field"}
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in re.findall(r"\w+", text.lower()) if w not in FILLER}
+
+
+def _locate(label: str, x: float, y: float) -> Target | None:
+    """The on-screen control a candidate means.
+
+    The model's coordinates for a candidate can be off by a row, so look nearby
+    for the control whose text shares the most words with its label (nearest
+    wins a tie); without a text match, whatever control is at the point.
+    """
+    want = _words(label)
+    best, best_score = None, 0
+    for t in nearby(x, y, LOCATE_RADIUS):  # nearest first
+        score = len(want & _words(t.label))
+        if score > best_score:
+            best, best_score = t, score
+    return best or clickable_at(x, y)
 
 
 def correct(actions: list[dict], point: tuple[int, int]) -> list[dict]:

@@ -1,10 +1,12 @@
-// AVO overlay. Three windows over the main display, never in the model's
-// screenshots (content protection):
+// AVO overlay. Three windows over the main display, kept out of the model's
+// screenshots (the agent captures below them):
 //   - pointer: full-screen, transparent, click-through; the agent cursor, click
 //     ripples, key/typing chips and the spotlight on a target (index.html)
 //   - island: a glass pill above the Dock (island.html). Idle it collapses to a
-//     small circle; click it (or press Option-Space) to type a task; while the
-//     agent works it widens to show what it is doing, and Option-Space pauses it.
+//     small circle. Click it to type a task, or press Option-Space to first drag
+//     a box over what the task is about (A, then optionally B); the island
+//     then moves under the box as the input. While the agent works it widens to
+//     show what it is doing, and Option-Space pauses it.
 //   - bubble: the glass "Is this the one?" card next to a target (bubble.html)
 // Island and bubble are real macOS frosted glass (vibrancy, rounded in glass.js).
 // The Python agent connects over a local WebSocket and sends events.
@@ -18,9 +20,10 @@ const { WebSocketServer } = require("ws");
 const { roundGlass } = require("./glass");
 
 const PORT = Number(process.env.AVO_OVERLAY_PORT || 8765);
-// By default the overlay is hidden from screen capture so the model never
-// sees our own cursor in its screenshots. Set to 1 to capture it anyway.
-const VISIBLE_IN_CAPTURE = process.env.AVO_OVERLAY_VISIBLE_IN_CAPTURE === "1";
+// The overlay shows up in screen recordings; the agent's own screenshots
+// capture only what lies below it (avo/driver.py). Set to 1 to hide it from
+// all capture instead.
+const HIDE_FROM_CAPTURE = process.env.AVO_OVERLAY_HIDE_FROM_CAPTURE === "1";
 const ROOT = path.resolve(__dirname, "..");
 const ISLAND_H = 44; // every island state is this tall (island.html --h)
 const ISLAND_GAP = 14; // px between the island and the Dock / bottom of work area
@@ -42,7 +45,7 @@ function float(win, clickThrough = true) {
   win.setAlwaysOnTop(true, "screen-saver");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.setIgnoreMouseEvents(clickThrough);
-  win.setContentProtection(!VISIBLE_IN_CAPTURE);
+  win.setContentProtection(HIDE_FROM_CAPTURE);
 }
 
 const common = {
@@ -72,14 +75,19 @@ function createPointer() {
   pointer.showInactive();
 }
 
+let islandAnchor = null; // a selection box [l, t, r, b] to sit under while typing
+
 function islandBounds(width) {
   const wa = screen.getPrimaryDisplay().workArea;
-  return {
-    x: Math.round(wa.x + (wa.width - width) / 2),
-    y: Math.round(wa.y + wa.height - ISLAND_H - ISLAND_GAP),
-    width: Math.round(width),
-    height: ISLAND_H,
-  };
+  let x = wa.x + (wa.width - width) / 2;
+  let y = wa.y + wa.height - ISLAND_H - ISLAND_GAP;
+  if (islandAnchor) {
+    const [l, t, r, b] = islandAnchor;
+    x = Math.max(wa.x + 12, Math.min((l + r) / 2 - width / 2, wa.x + wa.width - width - 12));
+    y = b + ISLAND_GAP;
+    if (y + ISLAND_H > wa.y + wa.height - 8) y = Math.max(wa.y + 8, t - ISLAND_GAP - ISLAND_H); // flip above
+  }
+  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: ISLAND_H };
 }
 
 function createIsland() {
@@ -150,8 +158,40 @@ ipcMain.on("island-control", (_e, { cmd }) => {
 // Option-Space: type a task when idle, pause or resume while the agent works.
 function summon() {
   if (clients.size) togglePause();
-  else openInput();
+  else startSelect();
 }
+
+// ---- box selection ----
+
+let selecting = false;
+let regions = []; // [{label, box}] in screen points
+
+function startSelect() {
+  if (selecting || task || islandState !== "idle") return;
+  selecting = true;
+  regions = [];
+  returnTo = frontApp();
+  pointer.setIgnoreMouseEvents(false);
+  pointer.webContents.send("avo", { type: "select-start" });
+  island.webContents.send("avo", { type: "hint", text: "Drag over what AVO should work on" });
+  globalShortcut.register("Escape", cancelInput);
+}
+
+function endSelect(keep) {
+  selecting = false;
+  islandAnchor = null;
+  if (!pendingAsk) pointer.setIgnoreMouseEvents(true);
+  pointer.webContents.send("avo", { type: "select-end", keep });
+}
+
+ipcMain.on("select-box", (_e, { label, box }) => {
+  if (!selecting) return;
+  const o = pointer.getBounds();
+  const screenBox = [box[0] + o.x, box[1] + o.y, box[2] + o.x, box[3] + o.y];
+  regions = regions.filter((r) => r.label !== label).concat({ label, box: screenBox });
+  islandAnchor = screenBox;
+  openInput(regions.length > 1 ? "What should AVO do with A and B?" : "What should AVO do with A?");
+});
 
 function frontApp() {
   try {
@@ -163,20 +203,26 @@ function frontApp() {
   }
 }
 
-function openInput() {
-  if (islandState !== "idle" || task || clients.size) return;
-  returnTo = frontApp();
-  island.setFocusable(true);
-  app.focus({ steal: true });
-  island.focus();
-  island.webContents.send("avo", { type: "input" });
-  // A system-wide Esc while typing: with a Chinese input method active, the
-  // page's own keydown never sees Esc.
-  globalShortcut.register("Escape", cancelInput);
+function openInput(placeholder) {
+  if (task || clients.size) return;
+  if (islandState !== "input") {
+    if (!selecting) {
+      if (islandState !== "idle") return;
+      returnTo = frontApp();
+    }
+    island.setFocusable(true);
+    app.focus({ steal: true });
+    island.focus();
+    // A system-wide Esc while typing: with a Chinese input method active, the
+    // page's own keydown never sees Esc.
+    globalShortcut.register("Escape", cancelInput);
+  }
+  island.webContents.send("avo", { type: "input", placeholder });
 }
 
 function cancelInput() {
-  if (islandState !== "input") return;
+  if (!selecting && islandState !== "input") return;
+  if (selecting) endSelect(false);
   island.webContents.send("avo", { type: "idle" });
   closeInput();
 }
@@ -188,15 +234,17 @@ function closeInput() {
   returnTo = null;
 }
 
-ipcMain.on("island-open", openInput);
+ipcMain.on("island-open", () => openInput());
 
 ipcMain.on("island-cancel", cancelInput);
 
 ipcMain.on("island-submit", (_e, { text }) => {
   if (task) return;
+  const chosen = regions;
+  if (selecting) endSelect(true); // keep the boxes, faint, while the agent works
   island.webContents.send("avo", { type: "status", text: "Starting…", busy: true });
   closeInput();
-  setTimeout(() => runTask(text), 400); // let the app below take focus first
+  setTimeout(() => runTask(text, chosen), 400); // let the app below take focus first
 });
 
 function findUv() {
@@ -210,12 +258,14 @@ function findUv() {
 
 // Run the agent on a typed task. Its events (status, confirm, done) come back
 // over the WebSocket like any other run; this only watches for a silent crash.
-function runTask(text) {
+function runTask(text, chosen = []) {
   fs.mkdirSync(path.join(ROOT, "runs"), { recursive: true });
   const log = fs.openSync(path.join(ROOT, "runs", "island.log"), "a");
   fs.writeSync(log, `\n=== ${new Date().toISOString()} ${text}\n`);
   let finished = false;
-  task = spawn(findUv(), ["run", "scripts/run_task.py", text], { cwd: ROOT, stdio: ["ignore", log, log] });
+  const args = ["run", "scripts/run_task.py", text];
+  for (const r of chosen) args.push("--region", `${r.label}=${r.box.map(Math.round).join(",")}`);
+  task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log] });
   task.sawDone = () => (finished = true);
   task.on("exit", (code) => {
     fs.closeSync(log);
@@ -253,15 +303,21 @@ function answer(fields) {
   tellAgents(msg);
 }
 
-ipcMain.on("bubble-choice", (_e, { choice }) => {
+ipcMain.on("bubble-choice", (_e, { choice, index }) => {
   if (choice === "no") pointer.webContents.send("avo", { type: "correct" });
-  else answer({ choice });
+  else answer(choice === "pick" ? { choice, index } : { choice });
 });
 
-// The corrected point from the pointer window, converted back to screen points.
+// From the pointer window: a corrected point (converted back to screen points)
+// or a candidate ring the user clicked.
 ipcMain.on("answer", (_e, a) => {
   const o = pointer.getBounds();
-  answer({ choice: a.choice, x: a.x + o.x, y: a.y + o.y });
+  const fields = { ...a };
+  if (typeof a.x === "number") {
+    fields.x = a.x + o.x;
+    fields.y = a.y + o.y;
+  }
+  answer(fields);
 });
 
 // ---- events from the agent ----
@@ -274,10 +330,12 @@ function toPointerWindow(msg) {
     out.x = msg.x - o.x;
     out.y = msg.y - o.y;
   }
-  if (Array.isArray(msg.box)) {
-    const [l, t, r, b] = msg.box;
-    out.box = [l - o.x, t - o.y, r - o.x, b - o.y];
+  const shift = ([l, t, r, b]) => [l - o.x, t - o.y, r - o.x, b - o.y];
+  if (Array.isArray(msg.box)) out.box = shift(msg.box);
+  if (Array.isArray(msg.candidates)) {
+    out.candidates = msg.candidates.map((c) => ({ ...c, x: c.x - o.x, y: c.y - o.y, box: shift(c.box) }));
   }
+  if (Array.isArray(msg.regions)) out.regions = msg.regions.map((r) => ({ ...r, box: r.box && shift(r.box) }));
   return out;
 }
 
@@ -295,7 +353,9 @@ function route(msg) {
       island.webContents.send("avo", msg);
       break;
     case "confirm": {
-      const [l, t, r, b] = msg.box || [msg.x - 28, msg.y - 18, msg.x + 28, msg.y + 18];
+      // The bubble sits next to the target, or next to all the candidates.
+      const boxes = msg.candidates ? msg.candidates.map((c) => c.box) : [msg.box || [msg.x - 28, msg.y - 18, msg.x + 28, msg.y + 18]];
+      const [l, t, r, b] = [0, 1, 2, 3].map((i) => (i < 2 ? Math.min : Math.max)(...boxes.map((x) => x[i])));
       pendingAsk = { id: msg.id, rect: { l, t, r, b } };
       pointer.setIgnoreMouseEvents(false); // the corrected point is clicked on the pointer window
       bubble.webContents.send("avo", msg);

@@ -35,6 +35,13 @@ def main() -> None:
         help="skip the confidence check and on-screen confirmation before clicks",
     )
     parser.add_argument(
+        "--region",
+        action="append",
+        default=[],
+        metavar="A=l,t,r,b",
+        help="a box the user selected, in screen points (the overlay passes these)",
+    )
+    parser.add_argument(
         "--no-snap",
         action="store_true",
         help="don't move clicks that land just off a button or field onto it",
@@ -49,6 +56,7 @@ def main() -> None:
         history=args.history,
         gate=not args.no_gate,
         snap_to_controls=not args.no_snap,
+        regions={label: tuple(int(v) for v in box.split(",")) for label, box in (r.split("=", 1) for r in args.region)},
     )
 
 

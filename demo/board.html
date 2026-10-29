@@ -51,6 +51,7 @@
       .column.over { outline: 2px dashed var(--accent); outline-offset: -2px; }
       .column h3 { margin: 2px 4px 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; }
       .card {
+        position: relative;
         background: var(--card);
         border-radius: 6px;
         padding: 10px 12px;
@@ -62,8 +63,54 @@
       }
       .card.dragging { opacity: 0.85; box-shadow: 0 8px 20px rgba(9, 30, 66, 0.3); cursor: grabbing; }
       .card .title { font-weight: 600; margin-bottom: 8px; }
-      .card label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-      .card select { font: inherit; font-size: 13px; padding: 2px 4px; }
+      .owner {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px 3px 4px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        font: inherit;
+        font-size: 13px;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .owner:hover { background: #f4f5f7; }
+      .avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        background: #8993a4;
+      }
+      .menu {
+        position: absolute;
+        left: 8px;
+        top: calc(100% - 4px);
+        z-index: 20;
+        width: 230px;
+        padding: 6px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(9, 30, 66, 0.2);
+        cursor: default;
+      }
+      .menu .item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .menu .item:hover { background: #f1f2f4; }
+      .menu .name { font-weight: 500; }
       .toast {
         position: fixed;
         right: 24px;
@@ -85,7 +132,7 @@
         <section>
           <h2>Meeting notes · Weekly sync 10/27</h2>
           <ul>
-            <li>The Q4 budget sheet needs updating by Friday — give it to Alex in Finance.</li>
+            <li>Alex will update the Q4 budget sheet by Friday.</li>
             <li>Design review starts this week; move it to In Progress.</li>
             <li>Login bug is fixed, waiting on QA.</li>
           </ul>
@@ -110,7 +157,15 @@
     <div class="toast" id="toast"></div>
 
     <script>
-      const PEOPLE = ["Unassigned", "Alex Chen", "Jordan Kim", "Alex Rivera", "Sam Lee"];
+      // A custom owner picker rather than a native <select>: a native menu is a
+      // modal OS popup that closes as soon as anything else on screen is clicked.
+      const PEOPLE = [
+        { name: "Unassigned", role: "", color: "#8993a4" },
+        { name: "Alex Chen", role: "Design", color: "#6554c0" },
+        { name: "Jordan Kim", role: "Marketing", color: "#ff8b00" },
+        { name: "Alex Rivera", role: "Finance", color: "#00875a" },
+        { name: "Sam Lee", role: "Engineering", color: "#0c66e4" },
+      ];
       const CARDS = [
         { id: "budget", title: "Update Q4 budget sheet", col: "todo", who: "Unassigned" },
         { id: "review", title: "Design review", col: "todo", who: "Alex Chen" },
@@ -127,23 +182,62 @@
         say.t = setTimeout(() => toast.classList.remove("on"), 2500);
       }
 
+      const initials = (name) => (name === "Unassigned" ? "–" : name.split(" ").map((w) => w[0]).join(""));
+      const person = (name) => PEOPLE.find((p) => p.name === name);
+      function avatar(p) {
+        return `<span class="avatar" style="background:${p.color}">${initials(p.name)}</span>`;
+      }
+
+      function closeMenus() {
+        document.querySelectorAll(".menu").forEach((m) => m.remove());
+      }
+
       for (const c of CARDS) {
         const el = document.createElement("div");
         el.className = "card";
         el.dataset.id = c.id;
-        el.innerHTML = `<div class="title"></div><label>Owner <select></select></label>`;
+        el.innerHTML = `<div class="title"></div><button class="owner"></button>`;
         el.querySelector(".title").textContent = c.title;
-        const sel = el.querySelector("select");
-        for (const p of PEOPLE) sel.add(new Option(p, p, false, p === c.who));
-        sel.addEventListener("change", () => say(`“${c.title}” assigned to ${sel.value}`));
+        const owner = el.querySelector(".owner");
+        const show = (name) => {
+          owner.innerHTML = `${avatar(person(name))}<span></span>`;
+          owner.querySelector("span:last-child").textContent = name;
+        };
+        show(c.who);
+        owner.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const open = el.querySelector(".menu");
+          closeMenus();
+          if (open) return;
+          const menu = document.createElement("div");
+          menu.className = "menu";
+          menu.setAttribute("role", "menu");
+          for (const p of PEOPLE) {
+            const item = document.createElement("div");
+            item.className = "item";
+            item.setAttribute("role", "menuitem");
+            item.innerHTML = `${avatar(p)}<span class="name"></span>`;
+            item.querySelector(".name").textContent = p.name;
+            item.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              c.who = p.name;
+              show(p.name);
+              closeMenus();
+              say(`“${c.title}” assigned to ${p.name}`);
+            });
+            menu.appendChild(item);
+          }
+          el.appendChild(menu);
+        });
         document.querySelector(`[data-col="${c.col}"]`).appendChild(el);
       }
+      document.addEventListener("click", closeMenus);
 
       // Pointer-event drag, so any real mouse drag works (no HTML5 DnD quirks).
       let drag = null;
       document.addEventListener("pointerdown", (e) => {
         const card = e.target.closest(".card");
-        if (!card || e.target.closest("select")) return;
+        if (!card || e.target.closest(".owner, .menu")) return;
         const r = card.getBoundingClientRect();
         drag = { card, dx: e.clientX - r.left, dy: e.clientY - r.top, width: r.width };
         card.classList.add("dragging");

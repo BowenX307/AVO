@@ -6,9 +6,11 @@ button, link and text field on screen, Chrome's web content included, so when
 a click lands on nothing clickable we hit-test the neighbourhood and move the
 click onto the closest clickable element. No API call; a few ms.
 
-The click is left alone when it already sits on something clickable (whether
-it's the *right* thing is the review's job), when nothing clickable is near,
-or when two candidates are about equally close (the gate asks the user then).
+The click is left alone unless it lands on blank space: on something clickable
+(whether it's the *right* thing is the review's job) or on content such as text
+the page may handle clicks on itself. It is also left alone when nothing
+clickable is near, or when two candidates are about equally close (the gate
+asks the user then).
 All coordinates here are screen points, the space pyautogui and AX share.
 """
 
@@ -27,6 +29,8 @@ CLICKABLE = {
 RADIUS = 36  # how far to look for a target, in points
 GRID = 6  # hit-test spacing, in points
 ANCESTORS = 3  # a link's text is a child of the link: look this far up
+# Roles that are just layout: a click on one of these, with no text of its own, hit nothing.
+BLANK = {"AXGroup", "AXWebArea", "AXScrollArea", "AXLayoutArea", "AXSplitGroup", "AXUnknown", "AXGenericElement"}
 AMBIGUOUS = 0.8  # don't snap unless the nearest is clearly nearer than the runner-up
 INSET = 4  # keep the snapped point this far inside the element's edge
 
@@ -83,10 +87,41 @@ def clickable_at(x: float, y: float) -> Target | None:
             frame = _frame(el)
             if not frame or frame[2] * frame[3] == 0:
                 return None
-            label = _attr(el, "AXTitle") or _attr(el, "AXDescription") or _attr(el, "AXPlaceholderValue") or ""
-            return Target(role, str(label)[:40], frame)
+            return Target(role, _text(el)[:40], frame)
         el = _attr(el, "AXParent")
     return None
+
+
+def _text(el) -> str:
+    """An element's own words: title, description, placeholder, or its children's text."""
+    for name in ("AXTitle", "AXDescription", "AXPlaceholderValue"):
+        value = _attr(el, name)
+        if value:
+            return str(value)
+    words = [str(_attr(k, "AXValue") or _attr(k, "AXTitle") or "") for k in (_attr(el, "AXChildren") or [])[:6]]
+    return " ".join(w for w in words if w).strip()
+
+
+def on_blank(x: float, y: float) -> bool:
+    """True if (x, y) is on layout-only space: no control, no text."""
+    err, el = AX.AXUIElementCopyElementAtPosition(_system, x, y, None)
+    if err or el is None:
+        return False
+    return _attr(el, "AXRole") in BLANK and not _text(el)
+
+
+def nearby(x: float, y: float, radius: float = RADIUS) -> list[Target]:
+    """Clickable elements whose hit area comes within `radius` of (x, y), nearest first."""
+    seen: dict[tuple, Target] = {}
+    steps = range(-int(radius), int(radius) + 1, GRID)
+    for dy in steps:
+        for dx in steps:
+            if dx * dx + dy * dy > radius * radius:
+                continue
+            t = clickable_at(x + dx, y + dy)
+            if t:
+                seen.setdefault(tuple(round(v) for v in t.frame), t)
+    return sorted(seen.values(), key=lambda t: t.distance(x, y))
 
 
 def warm_up(x: float, y: float) -> None:
@@ -96,20 +131,11 @@ def warm_up(x: float, y: float) -> None:
 
 def snap(x: float, y: float) -> tuple[float, float, Target] | None:
     """Where to click instead of (x, y), or None to leave the click alone."""
-    if clickable_at(x, y):
+    if clickable_at(x, y) or not on_blank(x, y):
         return None
-    seen: dict[tuple, Target] = {}
-    steps = range(-RADIUS, RADIUS + 1, GRID)
-    for dy in steps:
-        for dx in steps:
-            if dx * dx + dy * dy > RADIUS * RADIUS:
-                continue
-            t = clickable_at(x + dx, y + dy)
-            if t:
-                seen.setdefault(tuple(round(v) for v in t.frame), t)
-    if not seen:
+    ranked = nearby(x, y)
+    if not ranked:
         return None
-    ranked = sorted(seen.values(), key=lambda t: t.distance(x, y))
     if len(ranked) > 1 and ranked[0].distance(x, y) > AMBIGUOUS * ranked[1].distance(x, y):
         return None
     sx, sy = ranked[0].inside(x, y)

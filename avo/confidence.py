@@ -2,7 +2,8 @@
 
   - review: a second muse-spark call looks at the screenshot with the click
     points marked (plus a zoomed crop) and judges whether each click hits the
-    intended element and whether the batch moves the task forward.
+    intended element, whether the batch moves the task forward, and whether
+    the click picks one of several options that fit the task equally well.
   - repeats: flags a batch that redoes a recent click/type batch, a sign the
     agent is stuck in a loop. No API call.
 SAM target clarity lives in avo/sam.py.
@@ -33,7 +34,7 @@ Steps already taken:
 The agent says: {note}
 Planned actions (pixel coordinates in image 1): {actions}
 
-Judge strictly, as two separate questions:
+Judge strictly, as three separate questions:
 1. Location only: what UI element is exactly under each click point? A point in the empty gap
    between two fields, just outside a button's edge, or on a heading next to a link hits
    nothing. hits_intended_target says whether the point lies on the element the agent says
@@ -42,12 +43,22 @@ Judge strictly, as two separate questions:
    task forward? Doing sub-steps in a different reasonable order (e.g. filling form fields in
    any order) is progress. Repeating an action that already happened, undoing finished work,
    or acting when the task already looks complete is not.
+3. Ambiguity: does click 1 itself pick one of several on-screen options that all match what
+   the task or the visible notes actually say? The options must be things click 1 could click
+   instead (items in an open menu or list, buttons, rows). Opening a menu, card or form that
+   will offer the choice later is not the choice yet: then ambiguous is false. Example: the notes say "Alex", and two different
+   people named Alex are on screen. Judge this from the task and the screen, not from the
+   agent's explanation, which may claim things the screen doesn't say. If the choice rests on
+   an inference nothing on screen states (a budget task, so probably the person in Finance),
+   it is still ambiguous: the user should decide, and the agent's pick is shown as its guess.
+   It is not ambiguous when the task, notes or screen name the option outright (full name,
+   role, or other detail that only one option has). If it is ambiguous, set ambiguous to true and list
+   every option that fits as candidates (label: just the option's visible text, e.g. "Alex Chen";
+   and its center x, y in image 1),
+   including the one the agent picked. Otherwise ambiguous is false and candidates is empty.
 Then give your confidence (0 to 1) that executing this batch now is correct, and say what
 the screen should show right after it. Keep element_under_click and expected_after short
-(English, at most 8 words each).
-Finally, in image 2 ({crop_w}x{crop_h} pixels), give target_x/target_y: the center of the element
-click 1 is meant to hit (the clickable part: the input box, the button, the link text). If that
-element is not visible in image 2, give -1 for both."""
+(English, at most 8 words each)."""
 
 REVIEW_SCHEMA = {
     "type": "object",
@@ -58,8 +69,20 @@ REVIEW_SCHEMA = {
         "moves_task_forward": {"type": "boolean"},
         "confidence": {"type": "number"},
         "expected_after": {"type": "string"},
-        "target_x": {"type": "integer"},
-        "target_y": {"type": "integer"},
+        "ambiguous": {"type": "boolean"},
+        "candidates": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "label": {"type": "string"},
+                    "x": {"type": "integer"},
+                    "y": {"type": "integer"},
+                },
+                "required": ["label", "x", "y"],
+            },
+        },
     },
     "required": [
         "element_under_click",
@@ -67,8 +90,8 @@ REVIEW_SCHEMA = {
         "moves_task_forward",
         "confidence",
         "expected_after",
-        "target_x",
-        "target_y",
+        "ambiguous",
+        "candidates",
     ],
 }
 
@@ -79,9 +102,8 @@ def _png(img: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None, tuple[int, int]]:
-    """Full screenshot with numbered rings on pointer actions, a zoomed crop of the first,
-    and the crop's top-left corner in screenshot pixels."""
+def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None]:
+    """Full screenshot with numbered rings on pointer actions, and a zoomed crop of the first."""
     img = Image.open(io.BytesIO(png)).convert("RGB")
     points = [(a["x"], a["y"]) for a in actions if a["type"] in POINTER_KINDS]
     full = img.copy()
@@ -90,7 +112,7 @@ def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None, t
         draw.ellipse((x - 14, y - 14, x + 14, y + 14), outline=(255, 0, 0), width=3)
         draw.text((x + 16, y - 20), str(i), fill=(255, 0, 0))
     if not points:
-        return _png(full), None, (0, 0)
+        return _png(full), None
 
     x, y = points[0]
     left = min(max(x - CROP_W // 2, 0), img.width - CROP_W)
@@ -103,7 +125,7 @@ def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None, t
     d.line((cx - 18, cy, cx + 18, cy), fill=(255, 0, 0), width=2)
     d.line((cx, cy - 18, cx, cy + 18), fill=(255, 0, 0), width=2)
     d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), outline=(255, 0, 0), width=2)
-    return _png(full), _png(crop), (left, top)
+    return _png(full), _png(crop)
 
 
 def review(
@@ -115,19 +137,13 @@ def review(
     note: str = "",
     effort: str | None = "minimal",
 ) -> dict:
-    """Ask the model whether this batch is right. Returns the parsed review dict.
-
-    "target" in the result is the model's own placement of click 1's intended
-    element, mapped back to screenshot pixels (None if it gave none).
-    """
-    full, crop, (left, top) = mark_clicks(png, actions)
+    """Ask the model whether this batch is right. Returns the parsed review dict."""
+    full, crop = mark_clicks(png, actions)
     prompt = REVIEW_PROMPT.format(
         task=task,
         past="\n".join(past) or "(none)",
         note=note or "(nothing)",
         actions=describe(actions),
-        crop_w=CROP_W * CROP_ZOOM,
-        crop_h=CROP_H * CROP_ZOOM,
     )
     content = [{"type": "input_text", "text": prompt}, {"type": "input_image", "image_url": data_url(full)}]
     if crop:
@@ -139,11 +155,7 @@ def review(
         text={"format": {"type": "json_schema", "name": "review", "strict": True, "schema": REVIEW_SCHEMA}},
         **kwargs,
     )
-    out = json.loads(response.output_text)
-    tx, ty = out.get("target_x", -1), out.get("target_y", -1)
-    inside = crop and 0 <= tx < CROP_W * CROP_ZOOM and 0 <= ty < CROP_H * CROP_ZOOM
-    out["target"] = [round(left + tx / CROP_ZOOM), round(top + ty / CROP_ZOOM)] if inside else None
-    return out
+    return json.loads(response.output_text)
 
 
 # ---- repetition ----------------------------------------------------------

@@ -93,6 +93,9 @@
       .hint { display: none; flex: none; margin-right: 16px; font-size: 11.5px; color: var(--muted); }
       body.busy .hint, body.info .hint { display: block; }
       body.busy #text, body.info #text, body.paused #text { padding-right: 12px; }
+      .esc { display: none; flex: none; margin-right: 16px; font-size: 11.5px; color: var(--muted); }
+      body.hint .esc { display: block; }
+      body.hint #text { padding-right: 12px; }
       .ctl { display: none; flex: none; gap: 6px; margin-right: 7px; }
       body.paused .ctl { display: flex; }
       .ctl button {
@@ -116,6 +119,7 @@
       <input id="ask" placeholder="Tell AVO what to do" spellcheck="false" />
       <span class="key">return ↩</span>
       <span class="hint">⌥ Space to pause</span>
+      <span class="esc">esc to cancel</span>
       <span class="ctl"><button class="stop">Stop</button><button class="resume">Resume</button></span>
     </div>
     <script>
@@ -170,9 +174,13 @@
           case "paused":
             setState("paused", "Paused");
             break;
+          case "hint":
+            setState("hint", m.text);
+            break;
           case "input":
+            if (!body.classList.contains("input")) ask.value = ""; // a second box keeps the text
+            ask.placeholder = m.placeholder || "Tell AVO what to do";
             setState("input");
-            ask.value = "";
             setTimeout(() => ask.focus(), 30);
             break;
         }

@@ -16,6 +16,8 @@ from avo.driver import MacDriver
 from avo.gate import ask_user, assess
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.overlay import Overlay
+from avo.regions import Region, highlight, prepare
+from avo.regions import describe as describe_regions
 from avo.snap import snap, warm_up
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
@@ -170,9 +172,14 @@ def only_looking(done: list[list[dict]]) -> bool:
     return len(recent) == STILL_STEPS and all(a["type"] in LOOKING_KINDS for batch in recent for a in batch)
 
 
-def fresh_input(task: str, history: list[str], png: bytes, nudge: bool = False) -> list[dict]:
-    """A self-contained turn: the task, what was done so far as text, and the current screen."""
+def fresh_input(
+    task: str, history: list[str], png: bytes, nudge: bool = False, regions: list[Region] = ()
+) -> list[dict]:
+    """A self-contained turn: the task, what was done so far as text, and the current screen
+    (followed by close-ups of any boxes the user selected)."""
     text = task
+    if regions:
+        text += "\n\n" + describe_regions(regions)
     if history:
         text += (
             "\n\nSteps already taken (the screenshot shows the screen after them):\n"
@@ -189,6 +196,7 @@ def fresh_input(task: str, history: list[str], png: bytes, nudge: bool = False) 
             "content": [
                 {"type": "input_text", "text": text},
                 {"type": "input_image", "image_url": data_url(png)},
+                *({"type": "input_image", "image_url": data_url(r.closeup)} for r in regions),
             ],
         }
     ]
@@ -202,6 +210,7 @@ def run(
     history: str = "text",
     gate: bool = True,
     snap_to_controls: bool = True,
+    regions: dict[str, tuple[int, int, int, int]] | None = None,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -214,6 +223,8 @@ def run(
         Needs the overlay; without it the run proceeds unchecked.
     snap_to_controls: move clicks that land just off a button or field onto it
         (macOS accessibility), before the gate looks at them.
+    regions: boxes the user dragged over the screen, {"A": (l, t, r, b)} in screen
+        points; the model gets their positions and close-ups (avo/regions.py).
     """
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
@@ -236,8 +247,13 @@ def run(
         log.screenshot(0, png)
         if snap_to_controls:
             warm_up(*driver.to_screen(640, 400))  # Chrome builds its AX tree on first use
+        work_app = frontmost_app()
+        selected = prepare(driver, png, regions) if regions else []
+        if selected:
+            log.settings["regions"] = {r.label: r.shot for r in selected}
+            highlight(client, overlay, png, selected, log.dir)  # SAM, alongside the first model call
         response, seconds = ask_model(
-            client, overlay, "1", effort, instructions=SYSTEM_PROMPT, input=fresh_input(task, [], png)
+            client, overlay, "1", effort, instructions=SYSTEM_PROMPT, input=fresh_input(task, [], png, regions=selected)
         )
 
         for step in range(1, max_steps + 1):
@@ -279,7 +295,7 @@ def run(
                     entry = a.to_log()
                     if a.flagged:
                         asked += 1
-                        front = frontmost_app()
+                        front = work_app or frontmost_app()
                         overlay.send("status", text="Waiting for you", busy=False)
                         choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
                         if front:  # answering on the overlay may have focused it
@@ -294,6 +310,9 @@ def run(
                         if choice == "pause":
                             overlay.pause()
                             paused = True
+                        elif choice == "pick":
+                            corrected += 1
+                            note = (note + " " if note else "") + f"(the user chose “{answer['label']}”)"
                         elif choice == "no":
                             corrected += 1
                             note = (note + " " if note else "") + "(the user corrected the click point on screen)"
@@ -314,6 +333,7 @@ def run(
                 actions, note = [], "(paused by the user; this step was not executed)"
 
             driver.execute(actions)
+            work_app = frontmost_app()  # refocus this after a question, not whatever the user clicked meanwhile
             time.sleep(SETTLE_SECONDS)
             png = driver.screenshot()
             log.screenshot(step, png)
@@ -345,7 +365,7 @@ def run(
                     str(step + 1),
                     effort,
                     instructions=SYSTEM_PROMPT,
-                    input=fresh_input(task, past, png, nudge=only_looking(done)),
+                    input=fresh_input(task, past, png, nudge=only_looking(done), regions=selected),
                 )
         else:
             log.response(max_steps + 1, response)  # the reply we never acted on

@@ -109,6 +109,36 @@ def chord(keys: list[str]) -> None:
             time.sleep(0.02)
 
 
+OVERLAY_TITLES = ("AVO pointer", "AVO island", "AVO question")  # overlay/*.html <title>s
+IMAGE_OPTIONS = (
+    Quartz.kCGWindowImageBoundsIgnoreFraming
+    | Quartz.kCGWindowImageShouldBeOpaque
+    | Quartz.kCGWindowImageNominalResolution
+)  # as mss uses
+
+
+def capture_below_overlay(mon: dict) -> Image.Image | None:
+    """The screen as it is underneath the overlay's windows, or None if the overlay isn't up.
+
+    CGWindowListCreateImage can capture only what lies below a given window; the
+    overlay floats above everything else, so below its lowest window is the
+    whole screen minus AVO.
+    """
+    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    ours = [w["kCGWindowNumber"] for w in windows if w.get("kCGWindowName") in OVERLAY_TITLES]
+    if not ours:
+        return None
+    lowest = ours[-1]  # the list runs front to back
+    rect = Quartz.CGRectMake(mon["left"], mon["top"], mon["width"], mon["height"])
+    image = Quartz.CGWindowListCreateImage(rect, Quartz.kCGWindowListOptionOnScreenBelowWindow, lowest, IMAGE_OPTIONS)
+    if image is None:
+        return None
+    w, h = Quartz.CGImageGetWidth(image), Quartz.CGImageGetHeight(image)
+    data = Quartz.CGDataProviderCopyData(Quartz.CGImageGetDataProvider(image))
+    row = Quartz.CGImageGetBytesPerRow(image)
+    return Image.frombuffer("RGBA", (w, h), bytes(data), "raw", "BGRA", row, 1).convert("RGB")
+
+
 @dataclass
 class Geometry:
     """How the last screenshot maps onto the screen."""
@@ -129,15 +159,22 @@ class MacDriver:
     # ---- screenshots -------------------------------------------------------
 
     def screenshot(self) -> bytes:
-        """Capture the main display, scale to shot_width, return PNG bytes."""
+        """Capture the main display, scale to shot_width, return PNG bytes.
+
+        The overlay's windows are left out (see capture_below_overlay), so the
+        model never sees AVO's own cursor, island or questions, while a screen
+        recording still does.
+        """
         with mss.MSS() as sct:
             mon = sct.monitors[1]  # main display, in points
-            raw = sct.grab(mon)
-        img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
+            img = capture_below_overlay(mon)
+            if img is None:
+                raw = sct.grab(mon)
+                img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
 
-        retina = raw.size[0] / mon["width"]
-        resize = self.shot_width / raw.size[0]
-        shot_h = round(raw.size[1] * resize)
+        retina = img.width / mon["width"]
+        resize = self.shot_width / img.width
+        shot_h = round(img.height * resize)
         if img.size != (self.shot_width, shot_h):
             img = img.resize((self.shot_width, shot_h), Image.LANCZOS)
 
