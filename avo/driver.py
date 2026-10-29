@@ -24,8 +24,15 @@ from avo.overlay import Overlay
 SHOT_WIDTH = 1280
 ACTION_PAUSE = 0.3  # seconds between actions in one batch
 WAIT_SECONDS = 1.0  # duration of a "wait" action
-SCROLL_PX_PER_LINE = 20  # screen points per pyautogui scroll unit (rough)
+# Scrolling. The docs don't give scroll_x/scroll_y units, but muse-spark sends small
+# counts (always 6 so far), i.e. wheel notches, not pixels. Values above
+# SCROLL_NOTCH_MAX are taken as screenshot pixels instead.
+SCROLL_PX_PER_LINE = 40  # screen points per pyautogui scroll line (measured in Chrome)
+SCROLL_LINES_PER_NOTCH = 2  # 6 notches ~ half a screen
+SCROLL_NOTCH_MAX = 50
+SCROLL_LINE_PAUSE = 0.015  # one line at a time, so it reads as a smooth scroll
 GLIDE_MS = 450  # overlay cursor travel time before each pointer action
+SNAP_PAUSE = 0.25  # beat between showing the model's aim and gliding to the snapped spot
 
 pyautogui.FAILSAFE = True  # slam the mouse into a screen corner to abort
 pyautogui.PAUSE = 0.05
@@ -135,11 +142,20 @@ class MacDriver:
             self.overlay.send("move", x=x, y=y, ms=GLIDE_MS)
             time.sleep(GLIDE_MS / 1000)
 
+    def _show_snap(self, a: dict) -> None:
+        """For a snapped click, first show where the model aimed, then the fix."""
+        snapped = a.get("_snap")
+        if snapped and self.overlay.active:
+            self._point(*self.to_screen(*snapped["from"]))
+            self.overlay.send("snap", label=snapped["label"])
+            time.sleep(SNAP_PAUSE)
+
     def _execute_one(self, a: dict) -> None:
         kind = a["type"]
         if kind == "click":
             x, y = self.to_screen(a["x"], a["y"])
             button = a.get("button", "left")
+            self._show_snap(a)
             self._point(x, y)
             self.overlay.send("click", x=x, y=y, button=button)
             if button in ("back", "forward"):
@@ -150,6 +166,7 @@ class MacDriver:
                 pyautogui.click(x, y, button=button)
         elif kind == "double_click":
             x, y = self.to_screen(a["x"], a["y"])
+            self._show_snap(a)
             self._point(x, y)
             self.overlay.send("click", x=x, y=y, button="double")
             pyautogui.doubleClick(x, y)
@@ -171,13 +188,9 @@ class MacDriver:
             self._point(x, y)
             self.overlay.send("scroll", dy=a.get("scroll_y") or 0)
             pyautogui.moveTo(x, y)
-            g = self.geometry
-            to_lines = lambda d: round(d / g.resize / g.retina / SCROLL_PX_PER_LINE)  # noqa: E731
             # Model: positive scroll_y scrolls down. pyautogui: positive scrolls up.
-            if a.get("scroll_y"):
-                pyautogui.scroll(-to_lines(a["scroll_y"]))
-            if a.get("scroll_x"):
-                pyautogui.hscroll(to_lines(a["scroll_x"]))
+            self._scroll(pyautogui.scroll, -self._lines(a.get("scroll_y") or 0))
+            self._scroll(pyautogui.hscroll, self._lines(a.get("scroll_x") or 0))
         elif kind == "keypress":
             keys = [KEY_MAP.get(k.lower(), k.lower()) for k in a["keys"]]
             self.overlay.send("keys", keys=keys)
@@ -194,6 +207,20 @@ class MacDriver:
             pass  # the agent loop sends a fresh screenshot after every batch
         else:
             raise ValueError(f"unknown action type: {kind!r}")
+
+    def _lines(self, delta: float) -> int:
+        """A model scroll delta -> pyautogui scroll lines."""
+        if abs(delta) <= SCROLL_NOTCH_MAX:
+            return round(delta * SCROLL_LINES_PER_NOTCH)
+        g = self.geometry
+        return round(delta / g.resize / g.retina / SCROLL_PX_PER_LINE)
+
+    @staticmethod
+    def _scroll(fn, lines: int) -> None:
+        step = 1 if lines > 0 else -1
+        for _ in range(abs(lines)):
+            fn(step)
+            time.sleep(SCROLL_LINE_PAUSE)
 
     @staticmethod
     def _type(text: str) -> None:

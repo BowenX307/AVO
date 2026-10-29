@@ -44,7 +44,10 @@ Judge strictly, as two separate questions:
    or acting when the task already looks complete is not.
 Then give your confidence (0 to 1) that executing this batch now is correct, and say what
 the screen should show right after it. Keep element_under_click and expected_after short
-(English, at most 8 words each)."""
+(English, at most 8 words each).
+Finally, in image 2 ({crop_w}x{crop_h} pixels), give target_x/target_y: the center of the element
+click 1 is meant to hit (the clickable part: the input box, the button, the link text). If that
+element is not visible in image 2, give -1 for both."""
 
 REVIEW_SCHEMA = {
     "type": "object",
@@ -55,6 +58,8 @@ REVIEW_SCHEMA = {
         "moves_task_forward": {"type": "boolean"},
         "confidence": {"type": "number"},
         "expected_after": {"type": "string"},
+        "target_x": {"type": "integer"},
+        "target_y": {"type": "integer"},
     },
     "required": [
         "element_under_click",
@@ -62,6 +67,8 @@ REVIEW_SCHEMA = {
         "moves_task_forward",
         "confidence",
         "expected_after",
+        "target_x",
+        "target_y",
     ],
 }
 
@@ -72,8 +79,9 @@ def _png(img: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None]:
-    """Full screenshot with numbered rings on pointer actions, and a zoomed crop of the first."""
+def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None, tuple[int, int]]:
+    """Full screenshot with numbered rings on pointer actions, a zoomed crop of the first,
+    and the crop's top-left corner in screenshot pixels."""
     img = Image.open(io.BytesIO(png)).convert("RGB")
     points = [(a["x"], a["y"]) for a in actions if a["type"] in POINTER_KINDS]
     full = img.copy()
@@ -82,7 +90,7 @@ def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None]:
         draw.ellipse((x - 14, y - 14, x + 14, y + 14), outline=(255, 0, 0), width=3)
         draw.text((x + 16, y - 20), str(i), fill=(255, 0, 0))
     if not points:
-        return _png(full), None
+        return _png(full), None, (0, 0)
 
     x, y = points[0]
     left = min(max(x - CROP_W // 2, 0), img.width - CROP_W)
@@ -95,7 +103,7 @@ def mark_clicks(png: bytes, actions: list[dict]) -> tuple[bytes, bytes | None]:
     d.line((cx - 18, cy, cx + 18, cy), fill=(255, 0, 0), width=2)
     d.line((cx, cy - 18, cx, cy + 18), fill=(255, 0, 0), width=2)
     d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), outline=(255, 0, 0), width=2)
-    return _png(full), _png(crop)
+    return _png(full), _png(crop), (left, top)
 
 
 def review(
@@ -107,13 +115,19 @@ def review(
     note: str = "",
     effort: str | None = "minimal",
 ) -> dict:
-    """Ask the model whether this batch is right. Returns the parsed review dict."""
-    full, crop = mark_clicks(png, actions)
+    """Ask the model whether this batch is right. Returns the parsed review dict.
+
+    "target" in the result is the model's own placement of click 1's intended
+    element, mapped back to screenshot pixels (None if it gave none).
+    """
+    full, crop, (left, top) = mark_clicks(png, actions)
     prompt = REVIEW_PROMPT.format(
         task=task,
         past="\n".join(past) or "(none)",
         note=note or "(nothing)",
         actions=describe(actions),
+        crop_w=CROP_W * CROP_ZOOM,
+        crop_h=CROP_H * CROP_ZOOM,
     )
     content = [{"type": "input_text", "text": prompt}, {"type": "input_image", "image_url": data_url(full)}]
     if crop:
@@ -125,7 +139,11 @@ def review(
         text={"format": {"type": "json_schema", "name": "review", "strict": True, "schema": REVIEW_SCHEMA}},
         **kwargs,
     )
-    return json.loads(response.output_text)
+    out = json.loads(response.output_text)
+    tx, ty = out.get("target_x", -1), out.get("target_y", -1)
+    inside = crop and 0 <= tx < CROP_W * CROP_ZOOM and 0 <= ty < CROP_H * CROP_ZOOM
+    out["target"] = [round(left + tx / CROP_ZOOM), round(top + ty / CROP_ZOOM)] if inside else None
+    return out
 
 
 # ---- repetition ----------------------------------------------------------

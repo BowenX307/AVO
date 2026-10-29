@@ -16,6 +16,7 @@ from avo.driver import MacDriver
 from avo.gate import ask_user, assess
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.overlay import Overlay
+from avo.snap import snap, warm_up
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
 SETTLE_SECONDS = 0.8  # let the UI settle before the post-action screenshot
@@ -119,6 +120,24 @@ def computer_calls(response) -> list[dict]:
     return [item.model_dump() for item in response.output if item.type == "computer_call"]
 
 
+def snap_clicks(driver: MacDriver, actions: list[dict]) -> list[dict]:
+    """Move left clicks that land just off a clickable element onto it (see avo/snap.py).
+
+    A snapped click keeps where the model aimed under "_snap", so the overlay can
+    show the correction and the run log records it.
+    """
+    out = []
+    for a in actions:
+        if a["type"] in ("click", "double_click") and a.get("button") in (None, "left"):
+            hit = snap(*driver.to_screen(a["x"], a["y"]))
+            if hit:
+                x, y, target = hit
+                sx, sy = driver.to_shot(x, y)
+                a = {**a, "x": sx, "y": sy, "_snap": {"from": [a["x"], a["y"]], "role": target.role, "label": target.label}}
+        out.append(a)
+    return out
+
+
 def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, **kwargs):
     """responses.create with a visible waiting line, so a slow reply doesn't look like a hang.
 
@@ -161,6 +180,7 @@ def run(
     effort: str | None = "minimal",
     history: str = "text",
     gate: bool = True,
+    snap_to_controls: bool = True,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -171,6 +191,8 @@ def run(
     gate: before a click/drag batch runs, check it (model review + repeat detection)
         and, if it looks wrong, point at the target on screen and ask the user.
         Needs the overlay; without it the run proceeds unchecked.
+    snap_to_controls: move clicks that land just off a button or field onto it
+        (macOS accessibility), before the gate looks at them.
     """
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
@@ -178,7 +200,7 @@ def run(
     overlay = Overlay()
     driver = MacDriver(overlay=overlay)
     gate = gate and overlay.active
-    log = RunLog(task, {"model": MODEL, "effort": effort, "history": history, "gate": gate})
+    log = RunLog(task, {"model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls})
     started = time.time()
     print(f"run dir: {log.dir}  (effort={effort}, history={history}, gate={gate})")
     print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
@@ -191,6 +213,8 @@ def run(
     try:
         png = driver.screenshot()
         log.screenshot(0, png)
+        if snap_to_controls:
+            warm_up(*driver.to_screen(640, 400))  # Chrome builds its AX tree on first use
         response, seconds = ask_model(
             client, overlay, "1", effort, instructions=SYSTEM_PROMPT, input=fresh_input(task, [], png)
         )
@@ -217,6 +241,13 @@ def run(
             if checks and not approve_safety_checks(step, checks, auto_ack):
                 result = "stopped: safety check declined by user"
                 break
+
+            if snap_to_controls:
+                actions = snap_clicks(driver, actions)
+                snapped = [a["_snap"] | {"to": [a["x"], a["y"]]} for a in actions if "_snap" in a]
+                if snapped:
+                    print(f"[{step}] snapped: " + ", ".join(f"{s['from']}->{s['to']} {s['label'] or s['role']}" for s in snapped))
+                    log.annotate(step, snapped=snapped)
 
             paused = overlay.pause_requested()
             if gate and not paused:

@@ -236,6 +236,9 @@
             ripple(m.x, m.y);
             if (m.button && m.button !== "left") showChip(m.button === "double" ? "Double-click" : `${m.button} click`);
             break;
+          case "snap":
+            showChip(m.label ? `Snapped to “${m.label}”` : "Snapped to the nearest control", 1400);
+            break;
           case "keys":
             showChip(m.keys.map((k) => KEY_GLYPHS[k.toLowerCase()] || k.toUpperCase()).join(" "));
             break;

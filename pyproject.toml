@@ -12,6 +12,7 @@ dependencies = [
     "openai>=3.40.0",
     "pillow>=13.0.0",
     "pyautogui>=0.9.54",
+    "pyobjc-framework-applicationservices==12.2.2",
     "python-dotenv>=1.2.4",
     "websockets>=17.3",
 ]

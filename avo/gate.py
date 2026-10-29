@@ -32,6 +32,7 @@ GATED_KINDS = ("click", "double_click", "drag")
 POINTER_KINDS = ("click", "double_click", "move", "scroll", "drag")
 MAX_HIGHLIGHT_FRACTION = 0.25  # ignore SAM boxes bigger than this share of the screen
 SAM_SURE = 0.9  # SAM confidence at which a point on its mask overrides a "missed" review
+SNAP_SURE = 0.85  # SAM confidence needed to move a missed click to the review's target unasked
 
 
 @dataclass
@@ -213,7 +214,7 @@ def correct(actions: list[dict], point: tuple[int, int]) -> list[dict]:
     so they're dropped; the model re-plans from the next screenshot.
     """
     i = first_gated(actions)
-    fixed = dict(actions[i])
+    fixed = {k: v for k, v in actions[i].items() if k != "_snap"}  # the user's point, not a snap
     x, y = point
     if fixed["type"] == "drag":
         fixed["path"] = [{"x": x, "y": y}] + list(fixed["path"][1:])

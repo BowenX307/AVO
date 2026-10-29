@@ -34,6 +34,11 @@ def main() -> None:
         action="store_true",
         help="skip the confidence check and on-screen confirmation before clicks",
     )
+    parser.add_argument(
+        "--no-snap",
+        action="store_true",
+        help="don't move clicks that land just off a button or field onto it",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Fling it into a screen corner to abort.")
     run(
@@ -43,6 +48,7 @@ def main() -> None:
         effort=None if args.effort == "default" else args.effort,
         history=args.history,
         gate=not args.no_gate,
+        snap_to_controls=not args.no_snap,
     )
 
 
