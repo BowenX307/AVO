@@ -16,7 +16,7 @@ from avo.driver import MacDriver
 from avo.gate import ask_user, assess
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.overlay import Overlay
-from avo.regions import Region, highlight, prepare
+from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
 from avo.snap import snap, warm_up
 
@@ -175,11 +175,15 @@ def only_looking(done: list[list[dict]]) -> bool:
 def fresh_input(
     task: str, history: list[str], png: bytes, nudge: bool = False, regions: list[Region] = ()
 ) -> list[dict]:
-    """A self-contained turn: the task, what was done so far as text, and the current screen
-    (followed by close-ups of any boxes the user selected)."""
+    """A self-contained turn: the task, what was done so far as text, and the current screen.
+
+    Boxes the user selected are drawn on the first turn's screenshot and described in text.
+    """
     text = task
     if regions:
-        text += "\n\n" + describe_regions(regions)
+        text += "\n\n" + describe_regions(regions, first=not history)
+        if not history:
+            png = mark(png, regions)
     if history:
         text += (
             "\n\nSteps already taken (the screenshot shows the screen after them):\n"
@@ -196,7 +200,6 @@ def fresh_input(
             "content": [
                 {"type": "input_text", "text": text},
                 {"type": "input_image", "image_url": data_url(png)},
-                *({"type": "input_image", "image_url": data_url(r.closeup)} for r in regions),
             ],
         }
     ]
@@ -248,7 +251,7 @@ def run(
         if snap_to_controls:
             warm_up(*driver.to_screen(640, 400))  # Chrome builds its AX tree on first use
         work_app = frontmost_app()
-        selected = prepare(driver, png, regions) if regions else []
+        selected = prepare(driver, regions) if regions else []
         if selected:
             log.settings["regions"] = {r.label: r.shot for r in selected}
             highlight(client, overlay, png, selected, log.dir)  # SAM, alongside the first model call
@@ -296,7 +299,8 @@ def run(
                     if a.flagged:
                         asked += 1
                         front = work_app or frontmost_app()
-                        overlay.send("status", text="Waiting for you", busy=False)
+                        ask = "Which one did you mean? Pick on screen" if a.candidates else "AVO needs your OK — see the highlight"
+                        overlay.send("status", text=ask, busy=False)
                         choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
                         if front:  # answering on the overlay may have focused it
                             subprocess.run(["open", "-b", front])

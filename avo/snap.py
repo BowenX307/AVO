@@ -43,6 +43,11 @@ class Target:
     label: str
     frame: tuple[float, float, float, float]  # left, top, width, height
 
+    @property
+    def center(self) -> tuple[float, float]:
+        l, t, w, h = self.frame
+        return l + w / 2, t + h / 2
+
     def distance(self, x: float, y: float) -> float:
         """How far a click at (x, y) is from aiming at this element.
 

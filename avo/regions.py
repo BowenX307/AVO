@@ -1,10 +1,11 @@
 """The boxes the user drags over the screen before typing a task: A, then optionally B.
 
-The model gets each box's position in the screenshot plus a close-up image of it,
-so "move this there" or "assign A to the person in B" is grounded in what the
-user pointed at. SAM 3.1 segments each box (the box is the prompt) and the
-overlay fades the mask in over the selection, showing the user what AVO took
-the selection to be.
+The model gets each box drawn, labelled, on its first screenshot, plus the
+boxes' coordinates as text, so "move this there" or "assign A to the person in
+B" is grounded in what the user pointed at. (Separate close-up images confused
+it: it clicked at a close-up's own coordinates.) SAM 3.1 segments each box
+(the box is the prompt) and the overlay fades the mask in over the selection,
+showing the user what AVO took the selection to be.
 """
 
 from __future__ import annotations
@@ -16,14 +17,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from openai import OpenAI
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 from avo.driver import MacDriver
 from avo.overlay import Overlay
 from avo.sam import segment
 
-CROP_PAD = 8  # screenshot px of context around each close-up
-MIN_CROP_W = 320  # upscale smaller close-ups to this width
+MARK = (255, 0, 200)  # box colour on the model's screenshot (only the model sees it)
 
 _pool = ThreadPoolExecutor(2)
 
@@ -33,33 +33,41 @@ class Region:
     label: str
     screen: tuple[int, int, int, int]  # screen points, as dragged
     shot: tuple[int, int, int, int]  # the same box in screenshot px
-    closeup: bytes  # PNG
 
 
-def prepare(driver: MacDriver, png: bytes, boxes: dict[str, tuple[int, int, int, int]]) -> list[Region]:
-    img = Image.open(io.BytesIO(png))
+def prepare(driver: MacDriver, boxes: dict[str, tuple[int, int, int, int]]) -> list[Region]:
     out = []
     for label, (l, t, r, b) in sorted(boxes.items()):
-        sl, st = driver.to_shot(l, t)
-        sr, sb = driver.to_shot(r, b)
-        crop = img.crop((max(sl - CROP_PAD, 0), max(st - CROP_PAD, 0), min(sr + CROP_PAD, img.width), min(sb + CROP_PAD, img.height)))
-        if crop.width < MIN_CROP_W:
-            scale = MIN_CROP_W / crop.width
-            crop = crop.resize((MIN_CROP_W, round(crop.height * scale)), Image.LANCZOS)
-        buf = io.BytesIO()
-        crop.save(buf, format="PNG")
-        out.append(Region(label, (l, t, r, b), (sl, st, sr, sb), buf.getvalue()))
+        out.append(Region(label, (l, t, r, b), (*driver.to_shot(l, t), *driver.to_shot(r, b))))
     return out
 
 
-def describe(regions: list[Region]) -> str:
+def mark(png: bytes, regions: list[Region]) -> bytes:
+    """The screenshot with each region drawn as a labelled box, for the model."""
+    img = Image.open(io.BytesIO(png)).convert("RGB")
+    draw = ImageDraw.Draw(img)
+    for r in regions:
+        l, t, rr, b = r.shot
+        draw.rectangle((l - 3, t - 3, rr + 3, b + 3), outline=MARK, width=3)
+        draw.rectangle((l - 3, t - 22, l + 17, t - 3), fill=MARK)
+        draw.text((l + 2, t - 20), r.label, fill=(255, 255, 255))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def describe(regions: list[Region], first: bool) -> str:
     lines = [f"- {r.label}: ({r.shot[0]},{r.shot[1]})-({r.shot[2]},{r.shot[3]})" for r in regions]
     names = " and ".join(r.label for r in regions)
+    where = (
+        "They are drawn on this screenshot as labelled magenta boxes; the boxes are not part of the screen."
+        if first
+        else "The screen may have changed since."
+    )
     return (
         "Before typing the task, the user dragged boxes over the screen to show what it is about "
-        "(pixel boxes in the screenshot as it was then):\n" + "\n".join(lines) + "\n"
-        f"The images after the screenshot are close-ups of {names}, in that order. In the task, "
-        f"{names}, \"this\", \"that\" and \"here\" refer to these boxes."
+        "(pixel boxes in the first screenshot):\n" + "\n".join(lines) + "\n" + where + "\n"
+        f"In the task, {names}, \"this\", \"that\" and \"here\" refer to these boxes."
     )
 
 

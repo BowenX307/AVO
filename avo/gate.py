@@ -9,9 +9,9 @@ has misread the location (real misses, in gaps or just past a button's edge,
 score lower in SAM), and its progress verdict, built on that misreading, is
 dropped too. A "hit but no progress" review still asks.
 
-ask_user() then points at the target on screen and asks "Is this the one?":
+ask_user() then points at the target on screen and asks "OK to click here?":
 yes runs the batch, no lets the user click the right spot, stop ends the task.
-For an ambiguous click it rings every candidate and asks "Which one?" instead.
+For an ambiguous click it rings every candidate and asks "Which one did you mean?".
 """
 
 from __future__ import annotations
@@ -49,6 +49,7 @@ class Assessment:
     sam_conf: float | None = None
     on_mask: bool = False
     candidates: list[dict] = field(default_factory=list)  # ambiguous click: [{label, x, y}], screenshot px
+    plain: list[str] = field(default_factory=list)  # the reasons, in words for the user
     seconds: float = 0.0
 
     def to_log(self) -> dict:
@@ -140,15 +141,19 @@ def assess(
     ]
     if not ((rev or {}).get("ambiguous") and len(candidates) >= 2):
         candidates = []
-    reasons = []
+    reasons, plain = [], []
     if candidates:
         reasons.append("More than one fits: " + " or ".join(c["label"] for c in candidates))
+        plain.append("Your task fits more than one of these.")
     if not hit:
         reasons.append(f"May miss — under the click: {under}" if under else "The click may miss its target")
+        plain.append("It might miss what it's aiming at.")
     if not forward:
         reasons.append("This step may not move the task forward")
+        plain.append("It might not help with your task.")
     if rep:
         reasons.append("Repeats an earlier action")
+        plain.append("It already tried this once.")
     return Assessment(
         flagged=bool(reasons),
         reasons=reasons,
@@ -159,6 +164,7 @@ def assess(
         sam_conf=sam_conf,
         on_mask=on_mask,
         candidates=candidates,
+        plain=plain,
         seconds=time.time() - t0,
     )
 
@@ -209,8 +215,9 @@ def ask_user(
         x=x,
         y=y,
         box=box,
-        intent=note or (a.review or {}).get("element_under_click", ""),
-        reason="; ".join(a.reasons),
+        intent=note,
+        under=(a.review or {}).get("element_under_click", ""),
+        reason=" ".join(a.plain),
         loupe=loupe(png, a.target),
     )
     if answer is None:
@@ -238,6 +245,7 @@ def _ask_which(
         else:
             box = [x - 60, y - 16, x + 60, y + 16]
         shown.append({"label": c["label"], "x": round(x), "y": round(y), "box": [round(v) for v in box]})
+    print("asking which: " + "; ".join(f"{c['label']} @({c['x']},{c['y']})" for c in shown), flush=True)
     # The candidate nearest the planned click is the agent's own guess.
     px, py = driver.to_screen(*a.target)
     guess = min(range(len(shown)), key=lambda i: (shown[i]["x"] - px) ** 2 + (shown[i]["y"] - py) ** 2)
@@ -246,7 +254,7 @@ def _ask_which(
         x=shown[guess]["x"],
         y=shown[guess]["y"],
         candidates=shown,
-        intent=a.reasons[0],  # the ambiguity; other doubts don't matter once the user picks
+        intent=a.plain[0],  # the ambiguity; other doubts don't matter once the user picks
         reason="",
     )
     if answer is None:

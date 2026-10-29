@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
     <title>AVO question</title>
     <style>
-      /* The "Is this the one?" card. Like the island, the window is macOS glass
+      /* The "OK to click here?" / "Which one did you mean?" card. Like the island, the window is macOS glass
          (rounded in glass.js); the page adds a white tint and the content. */
       :root { --ink: #111; --muted: rgba(0, 0, 0, 0.55); }
       html, body {
@@ -50,7 +50,10 @@
         line-height: 15px;
         text-align: center;
       }
-      .reason:empty, .intent:empty { display: none; }
+      .under { margin-top: 6px; font-weight: 600; }
+      .under::before { content: "About to click: "; font-weight: 400; color: var(--muted); }
+      .note { margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+      .reason:empty, .intent:empty, .under:empty { display: none; }
       .loupe {
         display: block;
         width: 268px;
@@ -107,6 +110,7 @@
     <div id="card">
       <div class="q"></div>
       <div class="intent"></div>
+      <div class="under"></div>
       <div class="reason"></div>
       <img class="loupe" alt="" />
       <div class="choices"></div>
@@ -115,6 +119,7 @@
         <button class="no">No</button>
         <button class="yes">Yes</button>
       </div>
+      <div class="note"></div>
     </div>
     <script>
       const card = document.getElementById("card");
@@ -140,9 +145,13 @@
             return b;
           }),
         );
-        $(".q").textContent = m.candidates ? "Which one?" : "Is this the one?";
+        $(".q").textContent = m.candidates ? "Which one did you mean?" : "OK to click here?";
         $(".intent").textContent = m.intent || "";
+        $(".under").textContent = m.candidates ? "" : m.under || "";
         $(".reason").textContent = m.reason || "";
+        $(".note").textContent = m.candidates
+          ? "Or click the right one on screen."
+          : "Yes lets AVO go ahead. No: then click the right spot yourself.";
         if (m.loupe) $(".loupe").src = m.loupe;
         else $(".loupe").removeAttribute("src");
         report();
@@ -154,7 +163,9 @@
         document.body.classList.add("correcting");
         $(".q").textContent = "Click the right spot";
         $(".intent").textContent = "AVO will click where you click.";
+        $(".under").textContent = "";
         $(".reason").textContent = "";
+        $(".note").textContent = "";
         window.avo.send("bubble-choice", { choice: "no" });
         report();
       });

@@ -265,7 +265,7 @@ function runTask(text, chosen = []) {
   let finished = false;
   const args = ["run", "scripts/run_task.py", text];
   for (const r of chosen) args.push("--region", `${r.label}=${r.box.map(Math.round).join(",")}`);
-  task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log] });
+  task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log], env: { ...process.env, PYTHONUNBUFFERED: "1" } });
   task.sawDone = () => (finished = true);
   task.on("exit", (code) => {
     fs.closeSync(log);

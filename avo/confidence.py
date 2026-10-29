@@ -4,8 +4,8 @@
     points marked (plus a zoomed crop) and judges whether each click hits the
     intended element, whether the batch moves the task forward, and whether
     the click picks one of several options that fit the task equally well.
-  - repeats: flags a batch that redoes a recent click/type batch, a sign the
-    agent is stuck in a loop. No API call.
+  - repeats: flags a batch that redoes a recent click/type batch for the third
+    time, a sign the agent is stuck in a loop. No API call.
 SAM target clarity lives in avo/sam.py.
 """
 
@@ -161,6 +161,7 @@ def review(
 # ---- repetition ----------------------------------------------------------
 
 REPEAT_WINDOW = 6  # how many earlier batches to compare against
+REPEAT_MIN = 2  # earlier matches needed: one retry (reopening a menu) is normal, a third go is a loop
 REPEAT_PX = 15
 
 
@@ -187,8 +188,8 @@ def _same(a: list[tuple], b: list[tuple]) -> bool:
 
 
 def repeats(history: list[list[dict]], actions: list[dict]) -> bool:
-    """True if this click/type batch matches one of the last REPEAT_WINDOW batches."""
+    """True if this click/type batch matches REPEAT_MIN of the last REPEAT_WINDOW batches."""
     if not any(a["type"] in ("click", "double_click", "type", "drag") for a in actions):
         return False  # scrolling or pressing keys again is often legitimate
     sig = _signature(actions)
-    return any(_same(sig, _signature(h)) for h in history[-REPEAT_WINDOW:])
+    return sum(_same(sig, _signature(h)) for h in history[-REPEAT_WINDOW:]) >= REPEAT_MIN
