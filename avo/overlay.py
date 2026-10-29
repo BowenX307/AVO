@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 
 from websockets.sync.client import connect
 
@@ -36,6 +37,27 @@ class Overlay:
             self._ws.send(json.dumps({"type": type, **fields}, ensure_ascii=False))
         except Exception:
             self._ws = None  # overlay went away mid-run
+
+    def ask(self, **fields) -> dict | None:
+        """Show a confirm bubble and block until the user answers it.
+
+        Returns the overlay's answer, e.g. {"choice": "yes"}, {"choice": "no", "x": .., "y": ..}
+        (the corrected point, in screen points) or {"choice": "stop"}; None if the
+        overlay isn't running or goes away.
+        """
+        if self._ws is None:
+            return None
+        request_id = uuid.uuid4().hex[:8]
+        self.send("confirm", id=request_id, **fields)
+        while self._ws is not None:
+            try:
+                msg = json.loads(self._ws.recv())
+            except Exception:
+                self._ws = None
+                return None
+            if msg.get("type") == "answer" and msg.get("id") == request_id:
+                return msg
+        return None
 
     def close(self) -> None:
         if self._ws is not None:

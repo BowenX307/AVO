@@ -73,7 +73,8 @@ def main() -> None:
             setup(t["setup"])
             before = set(RUNS_DIR.glob("2*"))
             try:
-                result = run(t["task"], max_steps=args.max_steps, **MODES[mode])
+                # gate=False: the baseline measures the unassisted agent.
+                result = run(t["task"], max_steps=args.max_steps, gate=False, **MODES[mode])
             except (KeyboardInterrupt, pyautogui.FailSafeException):
                 print("aborted by user")
                 (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))

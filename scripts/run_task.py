@@ -29,6 +29,11 @@ def main() -> None:
         help="text: latest screenshot + text log of past steps (fast); "
         "full: every past screenshot via previous_response_id (slower each step)",
     )
+    parser.add_argument(
+        "--no-gate",
+        action="store_true",
+        help="skip the confidence check and on-screen confirmation before clicks",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Fling it into a screen corner to abort.")
     run(
@@ -37,6 +42,7 @@ def main() -> None:
         auto_ack=not args.confirm,
         effort=None if args.effort == "default" else args.effort,
         history=args.history,
+        gate=not args.no_gate,
     )
 
 

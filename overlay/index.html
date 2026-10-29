@@ -111,6 +111,60 @@
         from { transform: scale(0.4); opacity: 1; }
         to { transform: scale(1.5); opacity: 0; }
       }
+
+      /* ---- "是这个吗？": spotlight on the target + glass question bubble ---- */
+      body.asking { pointer-events: auto; }
+      body.correcting { cursor: crosshair; }
+      #spot {
+        position: absolute;
+        border-radius: 12px;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.26), 0 0 0 2px rgba(255, 255, 255, 0.95),
+          0 0 22px 4px rgba(255, 255, 255, 0.55);
+        opacity: 0;
+        transition: opacity 220ms ease, left 300ms ease, top 300ms ease, width 300ms ease, height 300ms ease;
+        animation: breathe 1.6s ease-in-out infinite;
+        z-index: 1;
+      }
+      #spot.on { opacity: 1; }
+      body.correcting #spot { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.12), 0 0 0 2px rgba(255, 255, 255, 0.6); animation: none; }
+      @keyframes breathe {
+        50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.26), 0 0 0 2px rgba(255, 255, 255, 0.95),
+          0 0 30px 8px rgba(255, 255, 255, 0.75); }
+      }
+      #bubble {
+        position: absolute;
+        width: 300px;
+        padding: 14px 16px 12px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 0.5px solid var(--glass-edge);
+        box-shadow: 0 0 0 0.5px var(--hairline), 0 12px 32px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+        color: var(--ink);
+        opacity: 0;
+        transform: translateY(6px) scale(0.97);
+        transition: opacity 200ms ease, transform 200ms ease;
+        pointer-events: none;
+        z-index: 4;
+      }
+      #bubble.on { opacity: 1; transform: none; pointer-events: auto; }
+      #bubble .q { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+      #bubble .intent { margin-top: 4px; font-size: 13px; color: rgba(0, 0, 0, 0.7); }
+      #bubble .reason { margin-top: 6px; font-size: 12px; color: #b25000; }
+      #bubble .reason:empty, #bubble .intent:empty { display: none; }
+      #bubble .row { display: flex; gap: 8px; margin-top: 12px; }
+      #bubble button {
+        flex: 1;
+        height: 34px;
+        border: 0;
+        border-radius: 10px;
+        font: 600 14px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+        cursor: pointer;
+      }
+      #bubble .yes { background: #0a84ff; color: #fff; }
+      #bubble .no { background: rgba(120, 120, 128, 0.16); color: var(--ink); }
+      #bubble .stop { flex: 0 0 64px; background: transparent; color: #ff3b30; }
+      #bubble button:active { transform: scale(0.97); }
+      body.correcting #bubble .yes, body.correcting #bubble .no { display: none; }
     </style>
   </head>
   <body>
@@ -118,6 +172,18 @@
       <span class="disc"></span>
       <span class="glass tag">AVO</span>
       <span class="glass chip"></span>
+    </div>
+
+    <div id="spot"></div>
+    <div id="bubble">
+      <div class="q"></div>
+      <div class="intent"></div>
+      <div class="reason"></div>
+      <div class="row">
+        <button class="stop">停止</button>
+        <button class="no">不是</button>
+        <button class="yes">是</button>
+      </div>
     </div>
 
     <script>
@@ -179,8 +245,71 @@
         pos = null;
       }
 
+      // ---- confirm ("是这个吗？") ----
+      const spot = document.getElementById("spot");
+      const bubble = document.getElementById("bubble");
+      let asking = null; // the confirm request being answered
+
+      function placeSpot(m) {
+        const pad = 6;
+        let [l, t, r, b] = m.box || [m.x - 28, m.y - 18, m.x + 28, m.y + 18];
+        l -= pad; t -= pad; r += pad; b += pad;
+        Object.assign(spot.style, { left: `${l}px`, top: `${t}px`, width: `${r - l}px`, height: `${b - t}px` });
+        spot.classList.add("on");
+        return { l, t, r, b };
+      }
+
+      function placeBubble(rect) {
+        const w = 300, h = bubble.offsetHeight || 150, gap = 14;
+        let left = (rect.l + rect.r) / 2 - w / 2;
+        left = Math.max(12, Math.min(left, innerWidth - w - 12));
+        let top = rect.b + gap;
+        if (top + h > innerHeight - 100) top = Math.max(12, rect.t - gap - h); // flip above near the Dock
+        Object.assign(bubble.style, { left: `${left}px`, top: `${top}px` });
+      }
+
+      function ask(m) {
+        asking = m;
+        document.body.classList.add("asking");
+        document.body.classList.remove("correcting");
+        bubble.querySelector(".q").textContent = "是这个吗？";
+        bubble.querySelector(".intent").textContent = m.intent || "";
+        bubble.querySelector(".reason").textContent = m.reason ? `⚠︎ ${m.reason}` : "";
+        moveTo(m.x, m.y, 450);
+        const rect = placeSpot(m);
+        bubble.classList.add("on");
+        placeBubble(rect);
+      }
+
+      function finish(answer) {
+        if (!asking) return;
+        window.avo.send("answer", { id: asking.id, ...answer });
+        asking = null;
+        document.body.classList.remove("asking", "correcting");
+        spot.classList.remove("on");
+        bubble.classList.remove("on");
+      }
+
+      bubble.querySelector(".yes").addEventListener("click", () => finish({ choice: "yes" }));
+      bubble.querySelector(".stop").addEventListener("click", () => finish({ choice: "stop" }));
+      bubble.querySelector(".no").addEventListener("click", () => {
+        document.body.classList.add("correcting");
+        bubble.querySelector(".q").textContent = "请直接点击正确的位置";
+        bubble.querySelector(".intent").textContent = "AVO 会改点你点的地方";
+        bubble.querySelector(".reason").textContent = "";
+      });
+      document.addEventListener("click", (e) => {
+        if (!asking || !document.body.classList.contains("correcting") || bubble.contains(e.target)) return;
+        ripple(e.clientX, e.clientY);
+        moveTo(e.clientX, e.clientY, 200);
+        finish({ choice: "no", x: e.clientX, y: e.clientY });
+      });
+
       window.avo.onEvent((m) => {
         switch (m.type) {
+          case "confirm":
+            ask(m);
+            break;
           case "move":
             moveTo(m.x, m.y, m.ms);
             break;

@@ -113,6 +113,13 @@ class MacDriver:
         py = y / g.resize / g.retina + g.top
         return round(px), round(py)
 
+    def to_shot(self, x: float, y: float) -> tuple[int, int]:
+        """Screen point coordinates -> screenshot pixel coordinates (inverse of to_screen)."""
+        g = self.geometry
+        if g is None:
+            raise RuntimeError("screenshot() must be called first")
+        return round((x - g.left) * g.retina * g.resize), round((y - g.top) * g.retina * g.resize)
+
     # ---- actions -----------------------------------------------------------
 
     def execute(self, actions: list[dict]) -> None:

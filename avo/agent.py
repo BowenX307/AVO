@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import base64
 import json
-import os
 import subprocess
 import sys
 import termios
@@ -12,14 +10,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
 from avo.driver import MacDriver
+from avo.gate import ask_user, assess
+from avo.llm import MODEL, data_url, describe, make_client
 from avo.overlay import Overlay
 
-MODEL = "muse-spark-1.3"
-BASE_URL = "https://api.meta.ai/v1"
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
 SETTLE_SECONDS = 0.8  # let the UI settle before the post-action screenshot
 
@@ -30,18 +27,6 @@ You are operating a macOS computer through screenshots of its main display.
 - Do only what the task asks. Do not close windows, quit apps, or change settings unless asked.
 - Work without asking the user questions. When the task is done, stop calling the computer \
 tool and reply with a one-sentence summary of what you did."""
-
-
-def make_client() -> OpenAI:
-    load_dotenv()
-    key = os.environ.get("MODEL_API_KEY")
-    if not key:
-        raise SystemExit("MODEL_API_KEY is not set (put it in .env or the environment)")
-    return OpenAI(base_url=BASE_URL, api_key=key)
-
-
-def data_url(png: bytes) -> str:
-    return "data:image/png;base64," + base64.b64encode(png).decode()
 
 
 # The generic check Meta attaches to every action. With auto_ack on (the user's
@@ -114,6 +99,13 @@ class RunLog:
         path = self.dir / f"step{step:02d}.json"
         path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    def annotate(self, step: int, **fields) -> None:
+        """Merge extra fields into an already-written step record."""
+        path = self.dir / f"step{step:02d}.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record.update(fields)
+        path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+
     def summary(self, result: str, steps: int, elapsed: float) -> None:
         record = {"result": result, "steps": steps, "elapsed_s": round(elapsed, 1), **self.settings}
         (self.dir / "result.json").write_text(
@@ -142,30 +134,6 @@ def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, 
     return response, seconds
 
 
-def describe(actions: list[dict]) -> str:
-    """Compact one-line form of an action batch, for the text history."""
-    parts = []
-    for a in actions:
-        kind = a["type"]
-        if kind in ("click", "double_click", "move"):
-            button = a.get("button")
-            extra = f" {button}" if button and button != "left" else ""
-            parts.append(f"{kind}({a['x']},{a['y']}{extra})")
-        elif kind == "keypress":
-            parts.append(f"keypress({'+'.join(a['keys'])})")
-        elif kind == "type":
-            parts.append(f"type({json.dumps(a['text'], ensure_ascii=False)})")
-        elif kind == "scroll":
-            parts.append(f"scroll({a['x']},{a['y']} dy={a.get('scroll_y', 0)})")
-        elif kind == "drag":
-            path = a.get("path") or []
-            if path:
-                parts.append(f"drag({path[0]['x']},{path[0]['y']}->{path[-1]['x']},{path[-1]['y']})")
-        else:
-            parts.append(kind)
-    return ", ".join(parts)
-
-
 def fresh_input(task: str, history: list[str], png: bytes) -> list[dict]:
     """A self-contained turn: the task, what was done so far as text, and the current screen."""
     text = task
@@ -191,6 +159,7 @@ def run(
     auto_ack: bool = True,
     effort: str | None = "minimal",
     history: str = "text",
+    gate: bool = True,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -198,20 +167,26 @@ def run(
     history: "full" chains turns with previous_response_id, so the model sees every
         earlier screenshot (input grows each step, and so does latency). "text" sends
         each turn fresh with only the latest screenshot plus a text log of past steps.
+    gate: before a click/drag batch runs, check it (model review + repeat detection)
+        and, if it looks wrong, point at the target on screen and ask the user.
+        Needs the overlay; without it the run proceeds unchecked.
     """
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
     client = make_client()
     overlay = Overlay()
     driver = MacDriver(overlay=overlay)
-    log = RunLog(task, {"model": MODEL, "effort": effort, "history": history})
+    gate = gate and overlay.active
+    log = RunLog(task, {"model": MODEL, "effort": effort, "history": history, "gate": gate})
     started = time.time()
-    print(f"run dir: {log.dir}  (effort={effort}, history={history})")
+    print(f"run dir: {log.dir}  (effort={effort}, history={history}, gate={gate})")
     print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
 
     result = "stopped: step budget reached"
     step = 0
     past: list[str] = []  # text history, used when history == "text"
+    done: list[list[dict]] = []  # executed batches, for repeat detection
+    asked = corrected = 0
     try:
         png = driver.screenshot()
         log.screenshot(0, png)
@@ -242,11 +217,39 @@ def run(
                 result = "stopped: safety check declined by user"
                 break
 
+            if gate:
+                overlay.send("status", text="检查这一步…", busy=True)
+                a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
+                if a:
+                    print(f"[{step}] gate: {'FLAG ' + '；'.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
+                    entry = a.to_log()
+                    if a.flagged:
+                        asked += 1
+                        front = frontmost_app()
+                        overlay.send("status", text="等你确认", busy=False)
+                        choice, actions, answer = ask_user(overlay, driver, a, actions, note)
+                        if front:  # answering on the overlay may have focused it
+                            subprocess.run(["open", "-b", front])
+                            time.sleep(0.3)
+                        print(f"[{step}] user: {choice}" + (f" -> {describe(actions)}" if choice == "no" else ""))
+                        entry["user"] = {"choice": choice, "answer": answer, "actions": actions}
+                        if choice == "stop":
+                            log.annotate(step, gate=entry)
+                            result = "stopped: user stopped the task"
+                            break
+                        if choice == "no":
+                            corrected += 1
+                            note = (note + " " if note else "") + "(用户在屏幕上纠正了点击位置)"
+                        else:
+                            note = (note + " " if note else "") + "(用户确认了这一步)"
+                    log.annotate(step, gate=entry)
+
             driver.execute(actions)
             time.sleep(SETTLE_SECONDS)
             png = driver.screenshot()
             log.screenshot(step, png)
             past.append(f"{step}. {note + ' | ' if note else ''}{describe(actions)}")
+            done.append(actions)
 
             if history == "full":
                 response, seconds = ask_model(
@@ -282,6 +285,7 @@ def run(
         result = f"crashed: {type(e).__name__}: {e}"
         raise
     finally:
+        log.settings.update(asked=asked, corrected=corrected)
         log.summary(result, step, time.time() - started)
         print(f"result: {result}")
         overlay.send("done", text=result.strip(), ok=not result.startswith(("crashed", "stopped")))

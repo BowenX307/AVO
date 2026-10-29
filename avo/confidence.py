@@ -17,7 +17,7 @@ import math
 from openai import OpenAI
 from PIL import Image, ImageDraw
 
-from avo.agent import MODEL, data_url, describe
+from avo.llm import MODEL, data_url, describe
 
 POINTER_KINDS = ("click", "double_click", "move", "scroll")
 CROP_W, CROP_H, CROP_ZOOM = 240, 150, 3

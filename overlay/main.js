@@ -20,6 +20,7 @@ const CAPTION_EVENTS = new Set(["status", "done", "hide"]);
 
 let pointer = null;
 let caption = null;
+const clients = new Set(); // connected agents
 
 nativeTheme.themeSource = "light"; // light glass even when macOS is in dark mode
 
@@ -111,21 +112,47 @@ ipcMain.on("caption-hide", () => {
 
 // Events carry screen point coordinates; the pointer window wants its own.
 function toPointerWindow(msg) {
-  const origin = pointer.getBounds();
+  const o = pointer.getBounds();
+  const out = { ...msg };
   if (typeof msg.x === "number" && typeof msg.y === "number") {
-    return { ...msg, x: msg.x - origin.x, y: msg.y - origin.y };
+    out.x = msg.x - o.x;
+    out.y = msg.y - o.y;
   }
-  return msg;
+  if (Array.isArray(msg.box)) {
+    const [l, t, r, b] = msg.box;
+    out.box = [l - o.x, t - o.y, r - o.x, b - o.y];
+  }
+  return out;
 }
 
 function route(msg) {
   if (CAPTION_EVENTS.has(msg.type)) caption.webContents.send("avo", msg);
+  if (msg.type === "confirm") {
+    // Take clicks while asking: the bubble's buttons, or the user's corrected point.
+    pointer.setIgnoreMouseEvents(false);
+  }
   if (msg.type !== "status") pointer.webContents.send("avo", toPointerWindow(msg));
 }
+
+// The renderer's answer to a confirm: back to click-through, then tell the agent
+// (with any corrected point converted back to screen coordinates).
+ipcMain.on("answer", (_e, answer) => {
+  pointer.setIgnoreMouseEvents(true);
+  const o = pointer.getBounds();
+  const msg = { type: "answer", ...answer };
+  if (typeof answer.x === "number") {
+    msg.x = answer.x + o.x;
+    msg.y = answer.y + o.y;
+  }
+  const data = JSON.stringify(msg);
+  for (const ws of clients) ws.send(data);
+});
 
 function startServer() {
   const wss = new WebSocketServer({ host: "127.0.0.1", port: PORT });
   wss.on("connection", (ws) => {
+    clients.add(ws);
+    ws.on("close", () => clients.delete(ws));
     ws.on("message", (data) => {
       let msg;
       try {
