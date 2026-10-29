@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
     <title>AVO pointer</title>
     <style>
       /* Black and white only. The agent's pointer is the "A" of AVO: a white
@@ -34,6 +34,7 @@
         z-index: 3;
       }
       #cursor.on { opacity: 1; }
+      #cursor, #cursor * { pointer-events: none; } /* it often sits right on a ring the user wants to click */
       .arrow {
         position: absolute;
         left: -16px; /* puts the chevron's tip (16,2 in the viewBox) on the point */

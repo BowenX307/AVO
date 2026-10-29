@@ -211,6 +211,7 @@ def ask_user(
         l, t = driver.to_screen(a.box[0], a.box[1])
         r, b = driver.to_screen(a.box[2], a.box[3])
         box = [l, t, r, b]
+    print(f"asking ok: {(a.review or {}).get('element_under_click', '')} @({x},{y})", flush=True)
     answer = overlay.ask(
         x=x,
         y=y,
