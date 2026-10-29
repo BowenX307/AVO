@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <title>AVO caption</title>
+    <style>
+      html, body {
+        margin: 0;
+        background: transparent; /* the window's vibrancy is the glass */
+        overflow: hidden;
+        user-select: none;
+        -webkit-font-smoothing: antialiased;
+        font: 500 15px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+        color: rgba(0, 0, 0, 0.86);
+      }
+      #pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        width: max-content;
+        max-width: 640px;
+        padding: 11px 18px 11px 14px;
+        box-sizing: border-box;
+      }
+      .icon {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        display: grid;
+        place-items: center;
+      }
+      /* iOS-style activity indicator */
+      .spinner {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid rgba(0, 0, 0, 0.12);
+        border-top-color: rgba(0, 0, 0, 0.55);
+        box-sizing: border-box;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .badge {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        display: grid;
+        place-items: center;
+      }
+      .badge.ok { background: #34c759; }
+      .badge.warn { background: #ff9f0a; }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #0a84ff;
+      }
+      .label {
+        flex: none;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: rgba(0, 0, 0, 0.45);
+      }
+      #text {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        white-space: pre-line;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="pill">
+      <span class="icon" id="icon"></span>
+      <span class="label">AVO</span>
+      <span id="text"></span>
+    </div>
+    <script>
+      const pill = document.getElementById("pill");
+      const icon = document.getElementById("icon");
+      const text = document.getElementById("text");
+      let hideTimer = null;
+
+      function show(message, kind) {
+        clearTimeout(hideTimer);
+        icon.innerHTML =
+          kind === "busy" ? '<span class="spinner"></span>'
+          : kind === "ok" ? '<span class="badge ok">✓</span>'
+          : kind === "warn" ? '<span class="badge warn">!</span>'
+          : '<span class="dot"></span>';
+        text.textContent = message;
+        requestAnimationFrame(() => {
+          const r = pill.getBoundingClientRect();
+          window.avo.send("caption-size", { width: r.width, height: r.height });
+        });
+      }
+
+      window.avo.onEvent((m) => {
+        if (m.type === "status") show(m.text, m.busy ? "busy" : "info");
+        else if (m.type === "done") {
+          show(m.text, m.ok === false ? "warn" : "ok");
+          hideTimer = setTimeout(() => window.avo.send("caption-hide"), m.ms ?? 5000);
+        } else if (m.type === "hide") window.avo.send("caption-hide");
+      });
+    </script>
+  </body>
+</html>

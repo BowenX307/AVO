@@ -128,7 +128,7 @@ def computer_calls(response) -> list[dict]:
 def ask_model(client: OpenAI, overlay: Overlay, label: str, **kwargs):
     """responses.create with a visible waiting line, so a slow reply doesn't look like a hang."""
     print(f"[{label}] waiting for model...", end="", flush=True)
-    overlay.send("status", text="AVO 思考中…", busy=True)
+    overlay.send("status", text="思考中…", busy=True)
     t0 = time.time()
     response = client.responses.create(model=MODEL, tools=[{"type": "computer"}], **kwargs)
     print(f" {time.time() - t0:.1f}s")
@@ -215,6 +215,6 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
     finally:
         log.summary(result, step, time.time() - started)
         print(f"result: {result}")
-        overlay.send("done", text=result.strip())
+        overlay.send("done", text=result.strip(), ok=not result.startswith(("crashed", "stopped")))
         overlay.close()
     return result

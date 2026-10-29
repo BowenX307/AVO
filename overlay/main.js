@@ -1,47 +1,126 @@
-// AVO overlay: a transparent, always-on-top, click-through window over the
-// main display. The Python agent connects over a local WebSocket and sends
-// events (cursor moves, clicks, keys, status text); we draw them.
+// AVO overlay. Two click-through, never-focused windows over the main display:
+//   - pointer: full-screen and transparent; draws the agent cursor, click
+//     ripples and key/typing chips (index.html)
+//   - caption: a small native frosted-glass panel above the Dock with what the
+//     agent is doing (caption.html). CSS can't blur the desktop behind a
+//     transparent window, so the glass comes from macOS vibrancy instead.
+// The Python agent connects over a local WebSocket and sends events.
 
 const path = require("path");
-const { app, BrowserWindow, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, nativeTheme, screen } = require("electron");
 const { WebSocketServer } = require("ws");
 
 const PORT = Number(process.env.AVO_OVERLAY_PORT || 8765);
 // By default the overlay is hidden from screen capture so the model never
 // sees our own cursor in its screenshots. Set to 1 to capture it anyway.
 const VISIBLE_IN_CAPTURE = process.env.AVO_OVERLAY_VISIBLE_IN_CAPTURE === "1";
+const CAPTION_GAP = 18; // px between caption and the Dock / bottom of work area
 
-let win = null;
+const CAPTION_EVENTS = new Set(["status", "done", "hide"]);
 
-function createWindow() {
-  const { bounds } = screen.getPrimaryDisplay();
-  win = new BrowserWindow({
-    ...bounds,
-    frame: false,
-    transparent: true,
-    hasShadow: false,
-    resizable: false,
-    movable: false,
-    focusable: false, // never takes keyboard focus from the app below
-    skipTaskbar: true,
-    enableLargerThanScreen: true,
-    webPreferences: { preload: path.join(__dirname, "preload.js") },
-  });
+let pointer = null;
+let caption = null;
+
+nativeTheme.themeSource = "light"; // light glass even when macOS is in dark mode
+
+function float(win) {
   win.setAlwaysOnTop(true, "screen-saver");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.setIgnoreMouseEvents(true);
   win.setContentProtection(!VISIBLE_IN_CAPTURE);
-  win.setBounds(bounds); // macOS may push a new window below the menu bar
-  win.loadFile("index.html");
-  win.showInactive();
 }
 
-// Events carry screen point coordinates; the renderer wants window coordinates.
-function toWindow(msg) {
-  const origin = win.getBounds();
-  const shift = (p) => ({ ...p, x: p.x - origin.x, y: p.y - origin.y });
-  if (typeof msg.x === "number" && typeof msg.y === "number") msg = shift(msg);
+const common = {
+  frame: false,
+  hasShadow: false,
+  resizable: false,
+  movable: false,
+  focusable: false, // never takes keyboard focus from the app below
+  skipTaskbar: true,
+  webPreferences: { preload: path.join(__dirname, "preload.js") },
+};
+
+function createPointer() {
+  const { bounds } = screen.getPrimaryDisplay();
+  pointer = new BrowserWindow({
+    ...common,
+    ...bounds,
+    transparent: true,
+    enableLargerThanScreen: true,
+  });
+  float(pointer);
+  pointer.setBounds(bounds); // macOS may push a new window below the menu bar
+  pointer.loadFile("index.html");
+  pointer.showInactive();
+}
+
+function createCaption() {
+  caption = new BrowserWindow({
+    ...common,
+    width: 240,
+    height: 44,
+    show: false,
+    hasShadow: true,
+    vibrancy: "popover",
+    visualEffectState: "active",
+    backgroundColor: "#00000000",
+    roundedCorners: true,
+  });
+  float(caption);
+  caption.loadFile("caption.html");
+}
+
+// ---- caption window: size to content, fade in/out ----
+
+let fadeTimer = null;
+function fade(win, to, ms = 180) {
+  clearInterval(fadeTimer);
+  const from = win.getOpacity();
+  const steps = Math.max(1, Math.round(ms / 16));
+  let i = 0;
+  fadeTimer = setInterval(() => {
+    i += 1;
+    win.setOpacity(from + ((to - from) * i) / steps);
+    if (i >= steps) {
+      clearInterval(fadeTimer);
+      if (to === 0) win.hide();
+    }
+  }, 16);
+}
+
+ipcMain.on("caption-size", (_e, { width, height }) => {
+  const wa = screen.getPrimaryDisplay().workArea;
+  caption.setBounds({
+    x: Math.round(wa.x + (wa.width - width) / 2),
+    y: Math.round(wa.y + wa.height - height - CAPTION_GAP),
+    width: Math.ceil(width),
+    height: Math.ceil(height),
+  });
+  if (!caption.isVisible()) {
+    caption.setOpacity(0);
+    caption.showInactive();
+  }
+  fade(caption, 1);
+});
+
+ipcMain.on("caption-hide", () => {
+  if (caption.isVisible()) fade(caption, 0);
+});
+
+// ---- events from the agent ----
+
+// Events carry screen point coordinates; the pointer window wants its own.
+function toPointerWindow(msg) {
+  const origin = pointer.getBounds();
+  if (typeof msg.x === "number" && typeof msg.y === "number") {
+    return { ...msg, x: msg.x - origin.x, y: msg.y - origin.y };
+  }
   return msg;
+}
+
+function route(msg) {
+  if (CAPTION_EVENTS.has(msg.type)) caption.webContents.send("avo", msg);
+  if (msg.type !== "status") pointer.webContents.send("avo", toPointerWindow(msg));
 }
 
 function startServer() {
@@ -54,7 +133,7 @@ function startServer() {
       } catch {
         return;
       }
-      if (win) win.webContents.send("avo", toWindow(msg));
+      route(msg);
     });
   });
   console.log(`AVO overlay listening on ws://127.0.0.1:${PORT}`);
@@ -62,6 +141,7 @@ function startServer() {
 
 app.dock?.hide(); // no Dock icon, not in Cmd-Tab
 app.whenReady().then(() => {
-  createWindow();
+  createPointer();
+  createCaption();
   startServer();
 });

@@ -3,13 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
-    <title>AVO overlay</title>
+    <title>AVO pointer</title>
     <style>
       :root {
-        --skin: #24381a; /* avocado skin */
-        --flesh: #b8dc6a; /* avocado flesh */
-        --pit: #8a5a2b;
         --glide: 450ms;
+        --glass: rgba(255, 255, 255, 0.82);
+        --glass-edge: rgba(255, 255, 255, 0.95);
+        --hairline: rgba(0, 0, 0, 0.2);
+        --ink: rgba(0, 0, 0, 0.82);
+        --shadow: 0 6px 18px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.12);
       }
       html, body {
         margin: 0;
@@ -19,10 +21,11 @@
         background: transparent;
         pointer-events: none;
         user-select: none;
-        font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        font: 500 13px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
       }
 
-      /* ---- agent cursor ---- */
+      /* ---- agent pointer: an iPadOS-style glass disc ---- */
       #cursor {
         position: absolute;
         left: 0;
@@ -30,110 +33,96 @@
         opacity: 0;
         transform: translate(-100px, -100px);
         transition: transform var(--glide) cubic-bezier(0.22, 1, 0.36, 1), opacity 250ms ease;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
         z-index: 3;
       }
       #cursor.on { opacity: 1; }
-      #cursor svg { display: block; }
-      #cursor .tag {
+      .disc {
         position: absolute;
-        left: 18px;
-        top: 22px;
-        padding: 1px 7px;
-        border-radius: 9px;
-        background: var(--skin);
-        color: var(--flesh);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
+        width: 28px;
+        height: 28px;
+        margin: -14px 0 0 -14px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0) 55%),
+          rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--glass-edge);
+        box-shadow: 0 0 0 1px var(--hairline), 0 4px 14px rgba(0, 0, 0, 0.3),
+          inset 0 -3px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 140ms ease;
+      }
+      .disc::after { /* exact hot spot */
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        margin: -2px 0 0 -2px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.45);
+      }
+      #cursor.press .disc { transform: scale(0.72); }
+      .glass {
+        position: absolute;
+        background: var(--glass);
+        border: 0.5px solid var(--glass-edge);
+        box-shadow: 0 0 0 0.5px var(--hairline), var(--shadow);
+        color: var(--ink);
         white-space: nowrap;
       }
-      #cursor .chip {
-        position: absolute;
-        left: 18px;
-        top: 46px;
+      .tag {
+        left: 16px;
+        top: 12px;
+        padding: 2px 8px;
+        border-radius: 9px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: rgba(0, 0, 0, 0.55);
+      }
+      .chip {
+        left: 16px;
+        top: 38px;
         max-width: 360px;
-        padding: 4px 10px;
-        border-radius: 8px;
-        background: rgba(20, 28, 16, 0.88);
-        color: #fff;
-        font-size: 13px;
-        white-space: nowrap;
+        padding: 6px 12px;
+        border-radius: 12px;
         overflow: hidden;
         text-overflow: ellipsis;
         opacity: 0;
-        transform: translateY(-4px);
+        transform: translateY(-4px) scale(0.96);
+        transform-origin: top left;
         transition: opacity 180ms ease, transform 180ms ease;
       }
-      #cursor .chip.on { opacity: 1; transform: none; }
+      .chip.on { opacity: 1; transform: none; }
 
       /* ---- click ripple ---- */
       .ripple {
         position: absolute;
-        width: 44px;
-        height: 44px;
-        margin: -22px 0 0 -22px;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
         border-radius: 50%;
-        border: 3px solid var(--flesh);
-        box-shadow: 0 0 0 2px var(--skin);
-        animation: ripple 600ms ease-out forwards;
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 0 0.5px var(--hairline), 0 2px 8px rgba(0, 0, 0, 0.15);
+        animation: ripple 550ms ease-out forwards;
         z-index: 2;
       }
       @keyframes ripple {
-        from { transform: scale(0.3); opacity: 1; }
-        to { transform: scale(1.6); opacity: 0; }
+        from { transform: scale(0.4); opacity: 1; }
+        to { transform: scale(1.5); opacity: 0; }
       }
-
-      /* ---- status caption ---- */
-      #caption {
-        position: absolute;
-        left: 50%;
-        bottom: 112px; /* clear of the Dock */
-        transform: translate(-50%, 8px);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        max-width: 70%;
-        padding: 9px 16px;
-        border-radius: 14px;
-        background: rgba(20, 28, 16, 0.86);
-        color: #fff;
-        font-size: 15px;
-        opacity: 0;
-        transition: opacity 220ms ease, transform 220ms ease;
-        z-index: 4;
-      }
-      #caption.on { opacity: 1; transform: translate(-50%, 0); }
-      #caption .dot {
-        flex: none;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: var(--flesh);
-        box-shadow: inset 0 0 0 3px var(--skin);
-      }
-      #caption.busy .dot { animation: pulse 1s ease-in-out infinite; }
-      @keyframes pulse { 50% { transform: scale(0.6); opacity: 0.5; } }
-      #caption .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
   </head>
   <body>
     <div id="cursor">
-      <svg width="24" height="30" viewBox="0 0 24 30" aria-hidden="true">
-        <path d="M2 2 L2 24 L8 18.5 L12.5 28 L16.5 26.2 L12 17 L20 17 Z"
-              style="fill: var(--flesh); stroke: var(--skin)" stroke-width="2" stroke-linejoin="round" />
-        <circle cx="7" cy="12" r="2.6" style="fill: var(--pit)" />
-      </svg>
-      <span class="tag">AVO</span>
-      <span class="chip"></span>
+      <span class="disc"></span>
+      <span class="glass tag">AVO</span>
+      <span class="glass chip"></span>
     </div>
-    <div id="caption"><span class="dot"></span><span class="text"></span></div>
 
     <script>
       const cursor = document.getElementById("cursor");
       const chip = cursor.querySelector(".chip");
-      const caption = document.getElementById("caption");
-      const captionText = caption.querySelector(".text");
 
       let pos = null;
       let chipTimer = null;
@@ -163,6 +152,11 @@
         pos = { x, y };
       }
 
+      function press() {
+        cursor.classList.add("press");
+        setTimeout(() => cursor.classList.remove("press"), 140);
+      }
+
       function ripple(x, y) {
         const r = document.createElement("div");
         r.className = "ripple";
@@ -179,15 +173,9 @@
         chipTimer = setTimeout(() => chip.classList.remove("on"), ms);
       }
 
-      function status(text, busy) {
-        captionText.textContent = text;
-        caption.classList.toggle("busy", !!busy);
-        caption.classList.add("on");
-      }
-
-      function hideAll() {
+      function hideCursor() {
         cursor.classList.remove("on");
-        caption.classList.remove("on");
+        chip.classList.remove("on");
         pos = null;
       }
 
@@ -198,8 +186,9 @@
             break;
           case "click":
             moveTo(m.x, m.y, 0);
+            press();
             ripple(m.x, m.y);
-            if (m.button && m.button !== "left") showChip(`${m.button} click`);
+            if (m.button && m.button !== "left") showChip(m.button === "double" ? "双击" : `${m.button} click`);
             break;
           case "keys":
             showChip(m.keys.map((k) => KEY_GLYPHS[k.toLowerCase()] || k.toUpperCase()).join(" "));
@@ -208,17 +197,13 @@
             showChip(`输入：${m.text}`, 2200);
             break;
           case "scroll":
-            showChip(m.dy > 0 ? "scroll ↓" : "scroll ↑");
-            break;
-          case "status":
-            status(m.text, m.busy);
+            showChip(m.dy > 0 ? "向下滚动" : "向上滚动");
             break;
           case "done":
-            status(m.text, false);
-            hideTimer = setTimeout(hideAll, m.ms ?? 4000);
+            hideTimer = setTimeout(hideCursor, m.ms ?? 5000);
             break;
           case "hide":
-            hideAll();
+            hideCursor();
             break;
         }
       });
