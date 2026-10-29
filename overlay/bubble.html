@@ -16,12 +16,17 @@
         font: 400 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
         color: var(--ink);
       }
-      html {
-        background: rgba(255, 255, 255, 0.62);
+      /* The tint sits on the card, not on html: a root background fills the whole
+         window, square corners included. */
+      html, body { background: transparent; }
+      #card {
+        width: 300px;
+        box-sizing: border-box;
+        padding: 16px 16px 14px;
         border-radius: 22px;
+        background: rgba(255, 255, 255, 0.62);
         box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.8);
       }
-      #card { width: 300px; box-sizing: border-box; padding: 16px 16px 14px; }
       .q { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
       .intent { margin-top: 3px; color: var(--muted); }
       .reason {

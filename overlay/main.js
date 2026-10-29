@@ -4,7 +4,7 @@
 //     ripples, key/typing chips and the spotlight on a target (index.html)
 //   - island: a glass pill above the Dock (island.html). Idle it collapses to a
 //     small circle; click it (or press Option-Space) to type a task; while the
-//     agent works it widens to show what it is doing.
+//     agent works it widens to show what it is doing, and Option-Space pauses it.
 //   - bubble: the glass "Is this the one?" card next to a target (bubble.html)
 // Island and bubble are real macOS frosted glass (vibrancy, rounded in glass.js).
 // The Python agent connects over a local WebSocket and sends events.
@@ -107,9 +107,45 @@ ipcMain.on("island-size", (_e, { state, width }) => {
   islandState = state;
   // Clickable only when it's waiting for the user; while the agent works, the
   // agent's clicks must pass through it.
-  island.setIgnoreMouseEvents(!(state === "idle" || state === "input"));
+  island.setIgnoreMouseEvents(!(state === "idle" || state === "input" || state === "paused"));
   island.setBounds(islandBounds(width), true); // native, animated resize
+  setTimeout(() => island.invalidateShadow(), 350); // shadow follows the new shape
 });
+
+// ---- pause ----
+// Option-Space while the agent works asks it to pause; it stops before its next
+// action (an in-flight model call finishes first) and drops that plan, so
+// after Resume it re-plans from a fresh screenshot.
+
+let paused = false;
+
+function tellAgents(msg) {
+  const data = JSON.stringify(msg);
+  for (const ws of clients) ws.send(data);
+}
+
+function togglePause() {
+  if (pendingAsk) return; // the question on screen already has Stop
+  paused = !paused;
+  tellAgents({ type: paused ? "pause" : "resume" });
+  island.webContents.send("avo", paused ? { type: "paused" } : { type: "status", text: "Resuming…", busy: true });
+}
+
+ipcMain.on("island-control", (_e, { cmd }) => {
+  if (!paused) return;
+  if (cmd === "resume") togglePause();
+  else if (cmd === "stop") {
+    paused = false;
+    tellAgents({ type: "stop" });
+    island.webContents.send("avo", { type: "status", text: "Stopping…", busy: true });
+  }
+});
+
+// Option-Space: type a task when idle, pause or resume while the agent works.
+function summon() {
+  if (clients.size) togglePause();
+  else openInput();
+}
 
 function frontApp() {
   try {
@@ -208,8 +244,7 @@ function answer(fields) {
   pointer.setIgnoreMouseEvents(true);
   pointer.webContents.send("avo", { type: "answered" });
   bubble.hide();
-  const data = JSON.stringify(msg);
-  for (const ws of clients) ws.send(data);
+  tellAgents(msg);
 }
 
 ipcMain.on("bubble-choice", (_e, { choice }) => {
@@ -243,9 +278,10 @@ function toPointerWindow(msg) {
 function route(msg) {
   switch (msg.type) {
     case "status":
-      island.webContents.send("avo", msg);
+      if (!paused) island.webContents.send("avo", msg); // keep showing "Paused"
       return;
     case "done":
+      paused = false;
       task?.sawDone();
       island.webContents.send("avo", msg);
       break;
@@ -269,6 +305,7 @@ function startServer() {
     clients.add(ws);
     ws.on("close", () => {
       clients.delete(ws);
+      if (clients.size === 0) paused = false;
       // An agent that quits mid-question must not leave the screen unclickable.
       if (clients.size === 0 && pendingAsk) {
         pendingAsk = null;
@@ -296,6 +333,6 @@ app.whenReady().then(() => {
   createIsland();
   createBubble();
   startServer();
-  if (!globalShortcut.register(SUMMON_KEY, openInput)) console.log(`could not register ${SUMMON_KEY}`);
+  if (!globalShortcut.register(SUMMON_KEY, summon)) console.log(`could not register ${SUMMON_KEY}`);
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());

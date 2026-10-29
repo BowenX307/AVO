@@ -218,7 +218,8 @@ def run(
                 result = "stopped: safety check declined by user"
                 break
 
-            if gate:
+            paused = overlay.pause_requested()
+            if gate and not paused:
                 overlay.send("status", text="Checking this step…", busy=True)
                 a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
                 if a:
@@ -244,6 +245,18 @@ def run(
                         else:
                             note = (note + " " if note else "") + "(the user confirmed this step)"
                     log.annotate(step, gate=entry)
+
+            if paused or overlay.pause_requested():
+                # The user may change the screen while paused, so this plan is
+                # dropped and the model re-plans from a fresh screenshot.
+                print(f"[{step}] paused by user")
+                if not overlay.wait_while_paused():
+                    log.annotate(step, paused="stopped")
+                    result = "stopped: user stopped the task"
+                    break
+                print(f"[{step}] resumed; re-planning")
+                log.annotate(step, paused="resumed")
+                actions, note = [], "(paused by the user; this step was not executed)"
 
             driver.execute(actions)
             time.sleep(SETTLE_SECONDS)
@@ -289,6 +302,9 @@ def run(
         log.settings.update(asked=asked, corrected=corrected)
         log.summary(result, step, time.time() - started)
         print(f"result: {result}")
-        overlay.send("done", text=result.strip(), ok=not result.startswith(("crashed", "stopped")))
+        ok = not result.startswith(("crashed", "stopped"))
+        # "stopped: user stopped the task" -> "User stopped the task" on screen
+        shown = result.strip() if ok else result.split(": ", 1)[-1].strip().capitalize()
+        overlay.send("done", text=shown, ok=ok)
         overlay.close()
     return result
