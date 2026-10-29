@@ -17,9 +17,27 @@ def main() -> None:
         action="store_true",
         help="ask before every action, including routine safety checks",
     )
+    parser.add_argument(
+        "--effort",
+        default="minimal",
+        help="reasoning effort: minimal, low, medium, high, max, or 'default' for the model's own",
+    )
+    parser.add_argument(
+        "--history",
+        choices=["text", "full"],
+        default="text",
+        help="text: latest screenshot + text log of past steps (fast); "
+        "full: every past screenshot via previous_response_id (slower each step)",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Fling it into a screen corner to abort.")
-    run(args.task, max_steps=args.max_steps, auto_ack=not args.confirm)
+    run(
+        args.task,
+        max_steps=args.max_steps,
+        auto_ack=not args.confirm,
+        effort=None if args.effort == "default" else args.effort,
+        history=args.history,
+    )
 
 
 if __name__ == "__main__":

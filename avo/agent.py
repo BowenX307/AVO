@@ -94,10 +94,11 @@ def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool) -> bool
 class RunLog:
     """Saves each step's screenshot, actions and model output under runs/<timestamp>/."""
 
-    def __init__(self, task: str):
+    def __init__(self, task: str, settings: dict | None = None):
         self.dir = RUNS_DIR / datetime.now().strftime("%Y%m%d-%H%M%S")
         self.dir.mkdir(parents=True, exist_ok=True)
         (self.dir / "task.txt").write_text(task + "\n", encoding="utf-8")
+        self.settings = settings or {}
 
     def screenshot(self, step: int, png: bytes) -> None:
         (self.dir / f"step{step:02d}.png").write_bytes(png)
@@ -114,7 +115,7 @@ class RunLog:
         path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def summary(self, result: str, steps: int, elapsed: float) -> None:
-        record = {"result": result, "steps": steps, "elapsed_s": round(elapsed, 1)}
+        record = {"result": result, "steps": steps, "elapsed_s": round(elapsed, 1), **self.settings}
         (self.dir / "result.json").write_text(
             json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
         )
@@ -125,50 +126,103 @@ def computer_calls(response) -> list[dict]:
     return [item.model_dump() for item in response.output if item.type == "computer_call"]
 
 
-def ask_model(client: OpenAI, overlay: Overlay, label: str, **kwargs):
-    """responses.create with a visible waiting line, so a slow reply doesn't look like a hang."""
+def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, **kwargs):
+    """responses.create with a visible waiting line, so a slow reply doesn't look like a hang.
+
+    Returns (response, seconds).
+    """
     print(f"[{label}] waiting for model...", end="", flush=True)
     overlay.send("status", text="思考中…", busy=True)
+    if effort:
+        kwargs["reasoning"] = {"effort": effort}
     t0 = time.time()
     response = client.responses.create(model=MODEL, tools=[{"type": "computer"}], **kwargs)
-    print(f" {time.time() - t0:.1f}s")
-    return response
+    seconds = time.time() - t0
+    print(f" {seconds:.1f}s")
+    return response, seconds
 
 
-def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
+def describe(actions: list[dict]) -> str:
+    """Compact one-line form of an action batch, for the text history."""
+    parts = []
+    for a in actions:
+        kind = a["type"]
+        if kind in ("click", "double_click", "move"):
+            button = a.get("button")
+            extra = f" {button}" if button and button != "left" else ""
+            parts.append(f"{kind}({a['x']},{a['y']}{extra})")
+        elif kind == "keypress":
+            parts.append(f"keypress({'+'.join(a['keys'])})")
+        elif kind == "type":
+            parts.append(f"type({json.dumps(a['text'], ensure_ascii=False)})")
+        elif kind == "scroll":
+            parts.append(f"scroll({a['x']},{a['y']} dy={a.get('scroll_y', 0)})")
+        elif kind == "drag":
+            path = a.get("path") or []
+            if path:
+                parts.append(f"drag({path[0]['x']},{path[0]['y']}->{path[-1]['x']},{path[-1]['y']})")
+        else:
+            parts.append(kind)
+    return ", ".join(parts)
+
+
+def fresh_input(task: str, history: list[str], png: bytes) -> list[dict]:
+    """A self-contained turn: the task, what was done so far as text, and the current screen."""
+    text = task
+    if history:
+        text += (
+            "\n\nSteps already taken (the screenshot shows the screen after them):\n"
+            + "\n".join(history)
+        )
+    return [
+        {
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": text},
+                {"type": "input_image", "image_url": data_url(png)},
+            ],
+        }
+    ]
+
+
+def run(
+    task: str,
+    max_steps: int = 20,
+    auto_ack: bool = True,
+    effort: str | None = "minimal",
+    history: str = "text",
+) -> str:
+    """Run the computer-tool loop.
+
+    effort: reasoning effort ("minimal" ... "max"); None uses the model default.
+    history: "full" chains turns with previous_response_id, so the model sees every
+        earlier screenshot (input grows each step, and so does latency). "text" sends
+        each turn fresh with only the latest screenshot plus a text log of past steps.
+    """
+    if history not in ("full", "text"):
+        raise ValueError(f"history must be 'full' or 'text', not {history!r}")
     client = make_client()
     overlay = Overlay()
     driver = MacDriver(overlay=overlay)
-    log = RunLog(task)
+    log = RunLog(task, {"model": MODEL, "effort": effort, "history": history})
     started = time.time()
-    print(f"run dir: {log.dir}")
+    print(f"run dir: {log.dir}  (effort={effort}, history={history})")
     print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
 
     result = "stopped: step budget reached"
     step = 0
+    past: list[str] = []  # text history, used when history == "text"
     try:
         png = driver.screenshot()
         log.screenshot(0, png)
-        response = ask_model(
-            client,
-            overlay,
-            "1",
-            instructions=SYSTEM_PROMPT,
-            input=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": task},
-                        {"type": "input_image", "image_url": data_url(png)},
-                    ],
-                }
-            ],
+        response, seconds = ask_model(
+            client, overlay, "1", effort, instructions=SYSTEM_PROMPT, input=fresh_input(task, [], png)
         )
 
         for step in range(1, max_steps + 1):
             calls = computer_calls(response)
             if not calls:
-                log.response(step, response)
+                log.response(step, response, {"model_seconds": round(seconds, 1)})
                 result = response.output_text or "(model finished without a message)"
                 break
             if len(calls) > 1:
@@ -177,10 +231,11 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
             call = calls[0]
             actions = call.get("actions") or ([call["action"]] if call.get("action") else [])
             checks = call.get("pending_safety_checks") or []
-            log.response(step, response, {"actions": actions})
-            if response.output_text:
-                print(f"[{step}] model: {response.output_text}")
-                overlay.send("status", text=response.output_text.strip(), busy=False)
+            log.response(step, response, {"actions": actions, "model_seconds": round(seconds, 1)})
+            note = (response.output_text or "").strip()
+            if note:
+                print(f"[{step}] model: {note}")
+                overlay.send("status", text=note, busy=False)
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
             if checks and not approve_safety_checks(step, checks, auto_ack):
@@ -191,21 +246,35 @@ def run(task: str, max_steps: int = 20, auto_ack: bool = True) -> str:
             time.sleep(SETTLE_SECONDS)
             png = driver.screenshot()
             log.screenshot(step, png)
+            past.append(f"{step}. {note + ' | ' if note else ''}{describe(actions)}")
 
-            response = ask_model(
-                client,
-                overlay,
-                str(step + 1),
-                previous_response_id=response.id,
-                input=[
-                    {
-                        "type": "computer_call_output",
-                        "call_id": call["call_id"],
-                        "acknowledged_safety_checks": checks,
-                        "output": {"type": "computer_screenshot", "image_url": data_url(png)},
-                    }
-                ],
-            )
+            if history == "full":
+                response, seconds = ask_model(
+                    client,
+                    overlay,
+                    str(step + 1),
+                    effort,
+                    previous_response_id=response.id,
+                    input=[
+                        {
+                            "type": "computer_call_output",
+                            "call_id": call["call_id"],
+                            "acknowledged_safety_checks": checks,
+                            "output": {"type": "computer_screenshot", "image_url": data_url(png)},
+                        }
+                    ],
+                )
+            else:
+                # Checks were approved above, before executing; a fresh turn has no
+                # computer_call_output to carry the acknowledgement.
+                response, seconds = ask_model(
+                    client,
+                    overlay,
+                    str(step + 1),
+                    effort,
+                    instructions=SYSTEM_PROMPT,
+                    input=fresh_input(task, past, png),
+                )
         else:
             log.response(max_steps + 1, response)  # the reply we never acted on
 
