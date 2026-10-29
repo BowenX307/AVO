@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>报销申请</title>
+    <style>
+      :root { --line: #e3e5e8; --ink: #1d2129; --muted: #6b7280; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f6f7f9;
+        color: var(--ink);
+        font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      }
+      header { padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 17px; }
+      main { display: grid; grid-template-columns: 340px 1fr; gap: 24px; padding: 24px; max-width: 1100px; }
+      .receipt {
+        background: #fffef8;
+        border: 1px solid #e8e2c8;
+        padding: 20px 22px;
+        font-family: "SF Mono", Menlo, monospace;
+        font-size: 13px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      }
+      .receipt h2 { margin: 0; text-align: center; font-size: 16px; }
+      .receipt .meta { text-align: center; color: var(--muted); margin-bottom: 12px; }
+      .row { display: flex; justify-content: space-between; }
+      .rule { border-top: 1px dashed #bbb; margin: 8px 0; }
+      .total { font-weight: 700; }
+      .policy {
+        margin-top: 16px;
+        padding: 10px 12px;
+        background: #eef4ff;
+        border-radius: 6px;
+        color: #1e3a8a;
+        font-size: 13px;
+      }
+      form { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px; }
+      form h2 { margin: 0 0 16px; font-size: 16px; }
+      .field { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 12px; margin-bottom: 14px; }
+      .field label { color: var(--muted); }
+      input, select, textarea {
+        font: inherit;
+        padding: 7px 10px;
+        border: 1px solid #cfd4dc;
+        border-radius: 6px;
+        width: 100%;
+        max-width: 360px;
+      }
+      textarea { height: 64px; resize: none; }
+      button {
+        margin-left: 122px;
+        font: inherit;
+        padding: 8px 20px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+      }
+      #done { display: none; margin-top: 16px; padding: 12px 14px; background: #ecfdf3; border-radius: 6px; color: #065f46; }
+    </style>
+  </head>
+  <body>
+    <header>报销申请（演示数据）</header>
+    <main>
+      <div>
+        <div class="receipt">
+          <h2>LAKEVIEW CAFÉ</h2>
+          <div class="meta">1820 Lakeview Ave · 2026-10-24 12:41</div>
+          <div class="row"><span>Turkey Club</span><span>$16.50</span></div>
+          <div class="row"><span>Caesar Salad</span><span>$14.00</span></div>
+          <div class="row"><span>Iced Tea ×2</span><span>$8.00</span></div>
+          <div class="row"><span>Soup of the Day</span><span>$4.00</span></div>
+          <div class="rule"></div>
+          <div class="row"><span>Subtotal</span><span>$42.50</span></div>
+          <div class="row"><span>Tax 9.5%</span><span>$4.04</span></div>
+          <div class="row"><span>Tip</span><span>$8.00</span></div>
+          <div class="rule"></div>
+          <div class="row total"><span>TOTAL</span><span>$54.54</span></div>
+        </div>
+        <div class="policy">报销政策：餐饮按“小计 + 税”报销，小费不予报销。</div>
+      </div>
+
+      <form id="form" autocomplete="off">
+        <h2>新建报销</h2>
+        <div class="field"><label for="merchant">商家</label><input id="merchant" /></div>
+        <div class="field"><label for="date">日期</label><input id="date" placeholder="YYYY-MM-DD" /></div>
+        <div class="field">
+          <label for="category">类别</label>
+          <select id="category">
+            <option value="">请选择</option>
+            <option>交通</option>
+            <option>住宿</option>
+            <option>餐饮</option>
+            <option>办公用品</option>
+          </select>
+        </div>
+        <div class="field"><label for="amount">报销金额 ($)</label><input id="amount" inputmode="decimal" /></div>
+        <div class="field"><label for="note">备注</label><textarea id="note"></textarea></div>
+        <button type="submit">提交</button>
+        <div id="done"></div>
+      </form>
+    </main>
+    <script>
+      document.getElementById("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const v = (id) => document.getElementById(id).value.trim() || "（空）";
+        const done = document.getElementById("done");
+        done.textContent = `已提交：${v("merchant")} · ${v("date")} · ${v("category")} · $${v("amount")}`;
+        done.style.display = "block";
+      });
+    </script>
+  </body>
+</html>

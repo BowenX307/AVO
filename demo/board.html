@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Northwind 项目看板</title>
+    <style>
+      :root {
+        --bg: #f4f5f7;
+        --card: #fff;
+        --line: #dfe1e6;
+        --ink: #172b4d;
+        --muted: #6b778c;
+        --accent: #0c66e4;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.45 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      }
+      header {
+        padding: 14px 24px;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        font-weight: 600;
+        font-size: 17px;
+      }
+      main { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px 24px; }
+      aside section {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+      }
+      aside h2 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
+      aside ul { margin: 0; padding-left: 18px; }
+      aside li { margin: 6px 0; }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 4px 0; border-bottom: 1px solid #f0f1f3; }
+      td + td { color: var(--muted); text-align: right; }
+      .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+      .column {
+        background: #ebecf0;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 420px;
+      }
+      .column.over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+      .column h3 { margin: 2px 4px 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; }
+      .card {
+        background: var(--card);
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25);
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+      }
+      .card.dragging { opacity: 0.85; box-shadow: 0 8px 20px rgba(9, 30, 66, 0.3); cursor: grabbing; }
+      .card .title { font-weight: 600; margin-bottom: 8px; }
+      .card label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+      .card select { font: inherit; font-size: 13px; padding: 2px 4px; }
+      .toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        background: #172b4d;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 6px;
+        opacity: 0;
+        transition: opacity 200ms;
+      }
+      .toast.on { opacity: 1; }
+    </style>
+  </head>
+  <body>
+    <header>Northwind · Q4 项目看板（演示数据）</header>
+    <main>
+      <aside>
+        <section>
+          <h2>会议纪要 · 10/27 周会</h2>
+          <ul>
+            <li>Q4 预算表要在周五前更新，交给负责财务的 Alex。</li>
+            <li>设计评审本周开始，状态挪到进行中。</li>
+            <li>登录 bug 已经修好，等测试确认。</li>
+          </ul>
+        </section>
+        <section>
+          <h2>团队</h2>
+          <table>
+            <tr><td>Alex Chen</td><td>设计</td></tr>
+            <tr><td>Jordan Kim</td><td>市场</td></tr>
+            <tr><td>Alex Rivera</td><td>财务</td></tr>
+            <tr><td>Sam Lee</td><td>工程</td></tr>
+          </table>
+        </section>
+      </aside>
+
+      <div class="board">
+        <div class="column" data-col="todo"><h3>待办</h3></div>
+        <div class="column" data-col="doing"><h3>进行中</h3></div>
+        <div class="column" data-col="done"><h3>已完成</h3></div>
+      </div>
+    </main>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const PEOPLE = ["未分配", "Alex Chen", "Jordan Kim", "Alex Rivera", "Sam Lee"];
+      const CARDS = [
+        { id: "budget", title: "更新 Q4 预算表", col: "todo", who: "未分配" },
+        { id: "review", title: "设计评审", col: "todo", who: "Alex Chen" },
+        { id: "launch", title: "准备发布邮件", col: "todo", who: "Jordan Kim" },
+        { id: "login", title: "修复登录 bug", col: "doing", who: "Sam Lee" },
+        { id: "survey", title: "用户调研总结", col: "done", who: "Jordan Kim" },
+      ];
+
+      const toast = document.getElementById("toast");
+      function say(text) {
+        toast.textContent = text;
+        toast.classList.add("on");
+        clearTimeout(say.t);
+        say.t = setTimeout(() => toast.classList.remove("on"), 2500);
+      }
+
+      for (const c of CARDS) {
+        const el = document.createElement("div");
+        el.className = "card";
+        el.dataset.id = c.id;
+        el.innerHTML = `<div class="title"></div><label>负责人 <select></select></label>`;
+        el.querySelector(".title").textContent = c.title;
+        const sel = el.querySelector("select");
+        for (const p of PEOPLE) sel.add(new Option(p, p, false, p === c.who));
+        sel.addEventListener("change", () => say(`「${c.title}」负责人改为 ${sel.value}`));
+        document.querySelector(`[data-col="${c.col}"]`).appendChild(el);
+      }
+
+      // Pointer-event drag, so any real mouse drag works (no HTML5 DnD quirks).
+      let drag = null;
+      document.addEventListener("pointerdown", (e) => {
+        const card = e.target.closest(".card");
+        if (!card || e.target.closest("select")) return;
+        const r = card.getBoundingClientRect();
+        drag = { card, dx: e.clientX - r.left, dy: e.clientY - r.top, width: r.width };
+        card.classList.add("dragging");
+        card.setPointerCapture(e.pointerId);
+      });
+      document.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        Object.assign(drag.card.style, {
+          position: "fixed",
+          width: `${drag.width}px`,
+          left: `${e.clientX - drag.dx}px`,
+          top: `${e.clientY - drag.dy}px`,
+          zIndex: 10,
+        });
+        document.querySelectorAll(".column").forEach((col) => {
+          const r = col.getBoundingClientRect();
+          col.classList.toggle("over", e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom);
+        });
+      });
+      document.addEventListener("pointerup", (e) => {
+        if (!drag) return;
+        const { card } = drag;
+        card.classList.remove("dragging");
+        card.removeAttribute("style");
+        const target = [...document.querySelectorAll(".column")].find((col) => {
+          const r = col.getBoundingClientRect();
+          return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
+        document.querySelectorAll(".column").forEach((col) => col.classList.remove("over"));
+        if (target && target !== card.parentElement) {
+          target.appendChild(card);
+          say(`「${card.querySelector(".title").textContent}」移到${target.querySelector("h3").textContent}`);
+        }
+        drag = null;
+      });
+    </script>
+  </body>
+</html>

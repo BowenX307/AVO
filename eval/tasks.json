@@ -1,0 +1,62 @@
+[
+  {
+    "id": "example-link",
+    "setup": {"open_url": "https://example.com"},
+    "task": "在当前 Chrome 页面上，点击页面里唯一的那个链接。",
+    "expect": "跳转到 IANA 的说明页（iana.org）。"
+  },
+  {
+    "id": "wiki-year",
+    "setup": {"open_url": "https://en.wikipedia.org/wiki/Main_Page"},
+    "task": "在当前的维基百科页面搜索 Golden Gate Bridge，打开它的词条，告诉我这座桥是哪一年通车的。",
+    "expect": "打开 Golden Gate Bridge 词条，回答 1937 年。"
+  },
+  {
+    "id": "wiki-span",
+    "setup": {"open_url": "https://en.wikipedia.org/wiki/Golden_Gate_Bridge"},
+    "task": "在当前的维基百科词条里找到这座桥的主跨长度（main span），告诉我是多少。",
+    "expect": "回答 4,200 ft（1,280 m），需要在信息框或正文中找到。"
+  },
+  {
+    "id": "wiki-language",
+    "setup": {"open_url": "https://en.wikipedia.org/wiki/Avocado"},
+    "task": "把当前这个维基百科词条切换成中文版本。",
+    "expect": "通过语言菜单进入 zh.wikipedia.org 的鳄梨词条。"
+  },
+  {
+    "id": "httpbin-form",
+    "setup": {"open_url": "https://httpbin.org/forms/post"},
+    "task": "用这些假数据填写当前页面的订单表单并提交：姓名 Test User，电话 555-0100，邮箱 test@example.com，尺寸选 Medium，配料选 Bacon 和 Onion，备注写 no rush。",
+    "expect": "提交后的 JSON 里 custname=Test User, custtel=555-0100, custemail=test@example.com, size=medium, topping 含 bacon 和 onion，comments=no rush。"
+  },
+  {
+    "id": "google-search",
+    "setup": {"open_url": "https://www.google.com"},
+    "task": "在当前页面用 Google 搜索 Chicago weather，告诉我搜索结果里显示的当前气温。",
+    "expect": "搜索结果页显示天气卡片，回答一个温度数值。"
+  },
+  {
+    "id": "calculator",
+    "setup": {"open_app": "Calculator"},
+    "task": "用已经打开的计算器算 37 × 48，告诉我结果。",
+    "expect": "计算器显示 1776，回答 1776。"
+  },
+  {
+    "id": "board-assign",
+    "setup": {"open_url": "demo/board.html"},
+    "task": "在当前的项目看板里，按会议纪要把「更新 Q4 预算表」分配给对应的人。",
+    "expect": "负责人选 Alex Rivera（财务），不是 Alex Chen（设计）。"
+  },
+  {
+    "id": "board-drag",
+    "setup": {"open_url": "demo/board.html"},
+    "task": "在当前的项目看板里，把「设计评审」这张卡片拖到「进行中」一列。",
+    "expect": "设计评审卡片出现在进行中一列。"
+  },
+  {
+    "id": "expense",
+    "setup": {"open_url": "demo/expense.html"},
+    "task": "根据页面左边的收据和报销政策，填写右边的报销单（商家、日期、类别、报销金额）并提交。",
+    "expect": "商家 Lakeview Café、日期 2026-10-24、类别 餐饮、金额 46.54（小计+税，不含小费），然后提交。"
+  }
+]
