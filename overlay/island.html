@@ -94,8 +94,8 @@
       body.busy .hint, body.info .hint { display: block; }
       body.busy #text, body.info #text, body.paused #text { padding-right: 12px; }
       .esc { display: none; flex: none; margin-right: 16px; font-size: 11.5px; color: var(--muted); }
-      body.hint .esc { display: block; }
-      body.hint #text { padding-right: 12px; }
+      body.guide .esc { display: block; }
+      body.guide #text { padding-right: 12px; }
       .ctl { display: none; flex: none; gap: 6px; margin-right: 7px; }
       body.paused .ctl { display: flex; }
       .ctl button {
@@ -174,8 +174,8 @@
           case "paused":
             setState("paused", "Paused");
             break;
-          case "hint":
-            setState("hint", m.text);
+          case "guide":
+            setState("guide", m.text);
             break;
           case "input":
             if (!body.classList.contains("input")) ask.value = ""; // a second box keeps the text

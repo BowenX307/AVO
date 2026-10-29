@@ -173,7 +173,7 @@ function startSelect() {
   returnTo = frontApp();
   pointer.setIgnoreMouseEvents(false);
   pointer.webContents.send("avo", { type: "select-start" });
-  island.webContents.send("avo", { type: "hint", text: "Drag over what AVO should work on" });
+  island.webContents.send("avo", { type: "guide", text: "Drag over what AVO should work on" });
   globalShortcut.register("Escape", cancelInput);
 }
 
