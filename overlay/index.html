@@ -2,18 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
     <title>AVO pointer</title>
     <style>
+      /* Black and white only. The agent's pointer is the "A" of AVO: a white
+         chevron with a black rim, the inverse of the user's own black arrow. */
       :root {
         --glide: 450ms;
-        --glass: rgba(255, 255, 255, 0.82);
-        --glass-edge: rgba(255, 255, 255, 0.95);
-        --hairline: rgba(0, 0, 0, 0.2);
-        --ink: rgba(0, 0, 0, 0.82);
-        --shadow: 0 6px 18px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.12);
-        --accent-a: #2f7bff; /* AVO accent: blue to violet */
-        --accent-b: #9b5cff;
+        --ink: #111;
+        --shadow: 0 6px 16px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.18);
       }
       html, body {
         margin: 0;
@@ -24,10 +21,9 @@
         pointer-events: none;
         user-select: none;
         -webkit-font-smoothing: antialiased;
-        font: 500 13px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+        font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
       }
 
-      /* ---- agent pointer: the "A" of AVO, a glass chevron whose tip is the hot spot ---- */
       #cursor {
         position: absolute;
         left: 0;
@@ -47,38 +43,31 @@
         overflow: visible;
         transform-origin: 16px 2px;
         transition: transform 140ms ease;
-        filter: drop-shadow(0 3px 6px rgba(20, 30, 80, 0.28)) drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.35));
+        filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
       }
       #cursor.press .arrow { transform: scale(0.8); }
-      .glass {
+      .tag, .chip {
         position: absolute;
-        background: var(--glass);
-        border: 0.5px solid var(--glass-edge);
-        box-shadow: 0 0 0 0.5px var(--hairline), var(--shadow);
-        color: var(--ink);
+        left: 17px;
+        background: rgba(17, 17, 17, 0.92);
+        color: #fff;
+        box-shadow: var(--shadow);
         white-space: nowrap;
       }
       .tag {
-        left: 16px;
-        top: 24px;
-        padding: 2px 8px 2px 7px;
-        border-radius: 9px;
-        font-size: 10.5px;
+        top: 25px;
+        padding: 3px 7px 3px 8px;
+        border-radius: 7px;
+        font-size: 9.5px;
         font-weight: 700;
-        letter-spacing: 0.08em;
-      }
-      .tag b {
-        background: linear-gradient(120deg, var(--accent-a), var(--accent-b));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
+        letter-spacing: 0.14em;
       }
       .chip {
-        left: 16px;
-        top: 54px;
+        top: 50px;
         max-width: 360px;
-        padding: 6px 12px;
-        border-radius: 12px;
+        padding: 6px 11px;
+        border-radius: 10px;
+        font-size: 12.5px;
         overflow: hidden;
         text-overflow: ellipsis;
         opacity: 0;
@@ -88,132 +77,64 @@
       }
       .chip.on { opacity: 1; transform: none; }
 
-      /* ---- click ripple ---- */
       .ripple {
         position: absolute;
-        width: 40px;
-        height: 40px;
-        margin: -20px 0 0 -20px;
+        width: 36px;
+        height: 36px;
+        margin: -18px 0 0 -18px;
         border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.95);
-        box-shadow: 0 0 0 1.5px rgba(80, 110, 255, 0.55), 0 0 14px rgba(110, 100, 255, 0.45);
-        animation: ripple 550ms ease-out forwards;
+        border: 1.5px solid #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+        animation: ripple 520ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
         z-index: 2;
       }
       @keyframes ripple {
-        from { transform: scale(0.4); opacity: 1; }
+        from { transform: scale(0.35); opacity: 1; }
         to { transform: scale(1.5); opacity: 0; }
       }
 
-      /* ---- "Is this the one?": spotlight on the target + glass question bubble ---- */
+      /* "Is this the one?": dim the screen, ring the target. The question itself
+         is a separate glass window (bubble.html). */
       body.asking { pointer-events: auto; }
-      body.asking .tag { opacity: 0; } /* the bubble already says it's AVO asking */
+      body.asking .tag { opacity: 0; }
       body.correcting { cursor: crosshair; }
       #spot {
         position: absolute;
         border-radius: 12px;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.26), 0 0 0 2px rgba(255, 255, 255, 0.95),
-          0 0 22px 4px rgba(255, 255, 255, 0.55);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.34), 0 0 0 1.5px #fff, 0 0 18px 2px rgba(255, 255, 255, 0.45);
         opacity: 0;
         transition: opacity 220ms ease, left 300ms ease, top 300ms ease, width 300ms ease, height 300ms ease;
-        animation: breathe 1.6s ease-in-out infinite;
+        animation: breathe 1.8s ease-in-out infinite;
         z-index: 1;
       }
       #spot.on { opacity: 1; }
-      body.correcting #spot { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.12), 0 0 0 2px rgba(255, 255, 255, 0.6); animation: none; }
+      body.correcting #spot { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.6); animation: none; }
       @keyframes breathe {
-        50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.26), 0 0 0 2px rgba(255, 255, 255, 0.95),
-          0 0 30px 8px rgba(255, 255, 255, 0.75); }
+        50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.34), 0 0 0 1.5px #fff, 0 0 28px 6px rgba(255, 255, 255, 0.7); }
       }
-      #bubble {
-        position: absolute;
-        width: 300px;
-        padding: 14px 16px 12px;
-        border-radius: 18px;
-        background: rgba(250, 250, 252, 0.97);
-        border: 0.5px solid var(--glass-edge);
-        box-shadow: 0 0 0 0.5px var(--hairline), 0 12px 32px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
-        color: var(--ink);
-        opacity: 0;
-        transform: translateY(6px) scale(0.97);
-        transition: opacity 200ms ease, transform 200ms ease;
-        pointer-events: none;
-        z-index: 4;
-      }
-      #bubble.on { opacity: 1; transform: none; pointer-events: auto; }
-      #bubble .q { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
-      #bubble .intent { margin-top: 4px; font-size: 13px; color: rgba(0, 0, 0, 0.7); }
-      #bubble .reason { margin-top: 6px; font-size: 12px; color: #b25000; }
-      #bubble .reason:empty, #bubble .intent:empty { display: none; }
-      #bubble .loupe {
-        display: block;
-        width: 268px;
-        height: 168px;
-        margin-top: 10px;
-        border-radius: 12px;
-        box-shadow: 0 0 0 0.5px var(--hairline), inset 0 0 0 0.5px rgba(0, 0, 0, 0.1);
-        object-fit: cover;
-      }
-      #bubble .loupe:not([src]), body.correcting #bubble .loupe { display: none; }
-      #bubble .row { display: flex; gap: 8px; margin-top: 12px; }
-      #bubble button {
-        flex: 1;
-        height: 34px;
-        border: 0;
-        border-radius: 10px;
-        font: 600 14px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
-        cursor: pointer;
-      }
-      #bubble .yes { background: #0a84ff; color: #fff; }
-      #bubble .no { background: rgba(120, 120, 128, 0.16); color: var(--ink); }
-      #bubble .stop { flex: 0 0 64px; background: transparent; color: #ff3b30; }
-      #bubble button:active { transform: scale(0.97); }
-      body.correcting #bubble .yes, body.correcting #bubble .no { display: none; }
     </style>
   </head>
   <body>
     <div id="cursor">
       <svg class="arrow" viewBox="0 0 32 36" aria-hidden="true">
-        <defs>
-          <linearGradient id="body" x1="0" y1="0" x2="0.35" y2="1">
-            <stop offset="0" stop-color="#ffffff" />
-            <stop offset="1" stop-color="#e9ecf5" />
-          </linearGradient>
-          <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#2f7bff" />
-            <stop offset="1" stop-color="#9b5cff" />
-          </linearGradient>
-        </defs>
         <g transform="rotate(-24 16 2)">
-          <path d="M16 2 L27 31 L16 24.5 L5 31 Z" fill="url(#body)" stroke="url(#edge)" stroke-width="1.6" stroke-linejoin="round" />
-          <path d="M16 6.5 L8.2 27" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.95" />
-          <path d="M16 24.5 L16 12" stroke="url(#edge)" stroke-width="1.2" stroke-linecap="round" opacity="0.35" />
+          <path d="M16 2 L27 31 L16 24.5 L5 31 Z" fill="#fff" stroke="#111" stroke-width="1.7" stroke-linejoin="round" />
         </g>
       </svg>
-      <span class="glass tag"><b>AVO</b></span>
-      <span class="glass chip"></span>
+      <span class="tag">AVO</span>
+      <span class="chip"></span>
     </div>
-
     <div id="spot"></div>
-    <div id="bubble">
-      <div class="q"></div>
-      <div class="intent"></div>
-      <div class="reason"></div>
-      <img class="loupe" alt="" />
-      <div class="row">
-        <button class="stop">Stop</button>
-        <button class="no">No</button>
-        <button class="yes">Yes</button>
-      </div>
-    </div>
 
     <script>
       const cursor = document.getElementById("cursor");
       const chip = cursor.querySelector(".chip");
+      const spot = document.getElementById("spot");
 
       let pos = null;
       let chipTimer = null;
       let hideTimer = null;
+      let asking = false;
 
       const KEY_GLYPHS = {
         cmd: "⌘", command: "⌘", meta: "⌘", super: "⌘",
@@ -266,81 +187,45 @@
         pos = null;
       }
 
-      // ---- confirm ("Is this the one?") ----
-      const spot = document.getElementById("spot");
-      const bubble = document.getElementById("bubble");
-      let asking = null; // the confirm request being answered
-
       function placeSpot(m) {
         const pad = 6;
         let [l, t, r, b] = m.box || [m.x - 28, m.y - 18, m.x + 28, m.y + 18];
         l -= pad; t -= pad; r += pad; b += pad;
         Object.assign(spot.style, { left: `${l}px`, top: `${t}px`, width: `${r - l}px`, height: `${b - t}px` });
         spot.classList.add("on");
-        return { l, t, r, b };
       }
 
-      function placeBubble(rect) {
-        const w = 300, h = bubble.offsetHeight || 340, gap = 14;
-        let left = (rect.l + rect.r) / 2 - w / 2;
-        left = Math.max(12, Math.min(left, innerWidth - w - 12));
-        let top = rect.b + gap;
-        if (top + h > innerHeight - 100) top = Math.max(12, rect.t - gap - h); // flip above near the Dock
-        Object.assign(bubble.style, { left: `${left}px`, top: `${top}px` });
-      }
-
-      function ask(m) {
-        asking = m;
-        document.body.classList.add("asking");
-        document.body.classList.remove("correcting");
-        bubble.querySelector(".q").textContent = "Is this the one?";
-        bubble.querySelector(".intent").textContent = m.intent || "";
-        bubble.querySelector(".reason").textContent = m.reason ? `⚠︎ ${m.reason}` : "";
-        const lens = bubble.querySelector(".loupe");
-        if (m.loupe) lens.src = m.loupe;
-        else lens.removeAttribute("src");
-        moveTo(m.x, m.y, 450);
-        const rect = placeSpot(m);
-        bubble.classList.add("on");
-        placeBubble(rect);
-      }
-
-      function finish(answer) {
-        if (!asking) return;
-        window.avo.send("answer", { id: asking.id, ...answer });
-        asking = null;
+      function endAsk() {
+        asking = false;
         document.body.classList.remove("asking", "correcting");
         spot.classList.remove("on");
-        bubble.classList.remove("on");
       }
 
-      bubble.querySelector(".yes").addEventListener("click", () => finish({ choice: "yes" }));
-      bubble.querySelector(".stop").addEventListener("click", () => finish({ choice: "stop" }));
-      bubble.querySelector(".no").addEventListener("click", () => {
-        document.body.classList.add("correcting");
-        bubble.querySelector(".q").textContent = "Click the right spot";
-        bubble.querySelector(".intent").textContent = "AVO will click where you click";
-        bubble.querySelector(".reason").textContent = "";
-      });
+      // After "No", the user's next click anywhere (outside the bubble window,
+      // which sits above this one) is the corrected point.
       document.addEventListener("click", (e) => {
-        if (!asking || !document.body.classList.contains("correcting") || bubble.contains(e.target)) return;
+        if (!asking || !document.body.classList.contains("correcting")) return;
         ripple(e.clientX, e.clientY);
         moveTo(e.clientX, e.clientY, 200);
-        finish({ choice: "no", x: e.clientX, y: e.clientY });
+        window.avo.send("answer", { choice: "no", x: e.clientX, y: e.clientY });
+        endAsk();
       });
 
       window.avo.onEvent((m) => {
         switch (m.type) {
           case "confirm":
-            ask(m);
+            asking = true;
+            document.body.classList.add("asking");
+            document.body.classList.remove("correcting");
+            moveTo(m.x, m.y, 450);
+            placeSpot(m);
             break;
-          case "cancel": // the agent went away; drop the question without answering
-            if (asking) {
-              asking = null;
-              document.body.classList.remove("asking", "correcting");
-              spot.classList.remove("on");
-              bubble.classList.remove("on");
-            }
+          case "correct":
+            document.body.classList.add("correcting");
+            break;
+          case "answered":
+          case "cancel":
+            endAsk();
             break;
           case "move":
             moveTo(m.x, m.y, m.ms);

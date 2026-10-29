@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const TO_MAIN = new Set(["caption-size", "caption-hide", "answer"]);
+const TO_MAIN = new Set([
+  "island-size", "island-open", "island-cancel", "island-submit",
+  "bubble-size", "bubble-choice", "answer",
+]);
 
 contextBridge.exposeInMainWorld("avo", {
   onEvent: (handler) => ipcRenderer.on("avo", (_e, msg) => handler(msg)),

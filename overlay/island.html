@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <title>AVO island</title>
+    <style>
+      /* The window itself is the glass (macOS blur, rounded in glass.js); the page
+         only adds a white tint and the content. Every state is one height, so
+         the native resize animation morphs between them without the corners
+         changing. */
+      :root {
+        --h: 44px;
+        --ink: #111;
+        --muted: rgba(0, 0, 0, 0.45);
+      }
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        user-select: none;
+        -webkit-font-smoothing: antialiased;
+        font: 500 14px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        color: var(--ink);
+      }
+      html {
+        background: rgba(255, 255, 255, 0.62);
+        border-radius: 22px;
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.7);
+      }
+      #row { display: flex; align-items: center; height: var(--h); white-space: nowrap; }
+      #icon {
+        flex: none;
+        width: var(--h);
+        height: var(--h);
+        display: grid;
+        place-items: center;
+      }
+      .mark { width: 15px; height: 17px; transition: transform 200ms ease; }
+      body.idle:hover .mark { transform: scale(1.12); }
+      body.busy .mark { animation: breathe 1.4s ease-in-out infinite; }
+      @keyframes breathe { 50% { opacity: 0.35; transform: scale(0.9); } }
+      .badge { width: 20px; height: 20px; }
+
+      #text {
+        flex: 1;
+        min-width: 0;
+        padding-right: 18px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: -0.01em;
+      }
+      body.busy #text {
+        background: linear-gradient(100deg, var(--ink) 38%, rgba(0, 0, 0, 0.28) 50%, var(--ink) 62%);
+        background-size: 260% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: shimmer 1.9s linear infinite;
+      }
+      @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -160% 0; } }
+
+      #ask {
+        display: none;
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        font: 400 15px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        color: var(--ink);
+        caret-color: var(--ink);
+      }
+      #ask::placeholder { color: var(--muted); }
+      .key {
+        display: none;
+        flex: none;
+        margin: 0 14px 0 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      body.input #ask, body.input .key { display: block; }
+      body.input #text, body.idle #text { display: none; }
+      body.idle { cursor: pointer; }
+    </style>
+  </head>
+  <body class="idle">
+    <div id="row">
+      <span id="icon"></span>
+      <span id="text"></span>
+      <input id="ask" placeholder="Tell AVO what to do" spellcheck="false" />
+      <span class="key">return ↩</span>
+    </div>
+    <script>
+      const body = document.body;
+      const icon = document.getElementById("icon");
+      const text = document.getElementById("text");
+      const ask = document.getElementById("ask");
+
+      const H = 44, MIN_W = 150, MAX_W = 600, INPUT_W = 520;
+      const MARK = `<svg class="mark" viewBox="0 0 32 36" aria-hidden="true">
+        <path d="M16 2 L27 31 L16 24.5 L5 31 Z" fill="#111" stroke="#111" stroke-width="2.5" stroke-linejoin="round" /></svg>`;
+      const CHECK = `<svg class="badge" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="#111" />
+        <path d="M5.8 10.3 L8.7 13 L14.2 7.4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+      const BANG = `<svg class="badge" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9.25" fill="none" stroke="#111" stroke-width="1.5" />
+        <path d="M10 5.5 V11" stroke="#111" stroke-width="2" stroke-linecap="round" /><circle cx="10" cy="14.2" r="1.2" fill="#111" /></svg>`;
+
+      let doneTimer = null;
+
+      function setState(state, message = "") {
+        clearTimeout(doneTimer);
+        body.className = state;
+        icon.innerHTML = state === "done" ? CHECK : state === "warn" ? BANG : MARK;
+        text.textContent = message;
+        let width = H;
+        if (state === "input") width = INPUT_W;
+        else if (state !== "idle") {
+          // Measure the one-line text at its natural width, then clamp.
+          text.style.flex = "none";
+          width = Math.min(MAX_W, Math.max(MIN_W, H + text.scrollWidth + 18));
+          text.style.flex = "";
+        }
+        window.avo.send("island-size", { state, width });
+      }
+
+      window.avo.onEvent((m) => {
+        switch (m.type) {
+          case "status":
+            setState(m.busy ? "busy" : "info", m.text);
+            break;
+          case "done":
+            setState(m.ok === false ? "warn" : "done", m.text);
+            doneTimer = setTimeout(() => setState("idle"), m.ms ?? 5000);
+            break;
+          case "hide":
+          case "idle":
+            setState("idle");
+            break;
+          case "input":
+            setState("input");
+            ask.value = "";
+            setTimeout(() => ask.focus(), 30);
+            break;
+        }
+      });
+
+      body.addEventListener("click", () => {
+        if (body.classList.contains("idle")) window.avo.send("island-open");
+      });
+      ask.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") window.avo.send("island-cancel");
+        if (e.key === "Enter" && !e.isComposing && ask.value.trim()) {
+          window.avo.send("island-submit", { text: ask.value.trim() });
+        }
+      });
+      ask.addEventListener("blur", () => {
+        if (body.classList.contains("input")) window.avo.send("island-cancel");
+      });
+      setState("idle");
+    </script>
+  </body>
+</html>
