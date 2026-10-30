@@ -5,11 +5,11 @@
     <meta name="google" content="notranslate" /> <!-- no Chrome Translate bubble over the demo -->
     <title>Approval Queue</title>
     <!--
-      Test page for AVO's look-again check (fake data). One second after
-      "Show receipt details" is clicked, the details slide in above the
-      buttons: Approve moves down, and a "Request changes" button lands where
-      Approve was. A click aimed from a screenshot taken before the shift hits
-      the wrong button.
+      Test page for AVO's look-again check (fake data). Clicking "Show receipt
+      details" turns it into "Hide receipt details" at once, and one second
+      later the details load in above the buttons: Approve moves down, and a
+      "Request changes" button lands where Approve was. A click aimed from a
+      screenshot taken before the shift hits the wrong button.
     -->
     <style>
       :root { --line: #e3e5e8; --ink: #1d2129; --muted: #6b7280; --accent: #2563eb; }
@@ -69,12 +69,15 @@
     </main>
     <script>
       const details = document.getElementById("details");
-      const status = document.getElementById("status");
-      document.getElementById("show").addEventListener("click", () => {
-        setTimeout(() => details.classList.add("open"), 1000);
+      const statusLine = document.getElementById("status");
+      const show = document.getElementById("show");
+      show.addEventListener("click", () => {
+        if (show.textContent.startsWith("Hide")) return;
+        show.textContent = "Hide receipt details"; // at once, so it's clear the click landed
+        setTimeout(() => details.classList.add("open"), 1000); // the details load a second later
       });
       for (const b of document.querySelectorAll("button")) {
-        b.addEventListener("click", () => (status.textContent = b.dataset.result));
+        b.addEventListener("click", () => (statusLine.textContent = b.dataset.result));
       }
     </script>
   </body>

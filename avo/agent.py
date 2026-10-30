@@ -12,7 +12,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from avo.desktop import frontmost_app
+from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.gate import ask_user, assess
 from avo.human import AUTO_RESUME_S, HumanGuard
@@ -307,6 +307,7 @@ def run(
         log.screenshot(0, png)
         if snap_to_controls:
             warm_up(*driver.to_screen(640, 400))  # Chrome builds its AX tree on first use
+        ours = {w["bundle"] for w in overlay_windows()}  # the overlay app: never the one to refocus
         work_app = frontmost_app()
         selected = prepare(driver, regions) if regions else []
         if selected:
@@ -410,6 +411,9 @@ def run(
                     log.annotate(step, paused="stopped", executed=len(executed))
                     result = "stopped: user stopped the task"
                     break
+                if work_app and guard.overlay_in_front():  # clicking Resume can focus the overlay
+                    subprocess.run(["open", "-b", work_app])
+                    time.sleep(0.3)
                 print(f"[{step}] resumed; re-planning")
                 log.annotate(step, paused="resumed", interrupt=stop, executed=len(executed))
                 notes.append(RESUME_NOTE)
@@ -422,7 +426,8 @@ def run(
                     "the screen changed before the click. Decide again from this screenshot."
                 )
 
-            work_app = frontmost_app()  # refocus this after a question, not whatever the user clicked meanwhile
+            if (front := frontmost_app()) and front not in ours:
+                work_app = front  # refocus this after a question, not whatever the user clicked meanwhile
             if changed and not stop:
                 png = changed.png  # the screen as it was when the click was called off
             else:

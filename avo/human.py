@@ -219,8 +219,8 @@ class HumanGuard:
             yield
         finally:
             self._acting -= 1
-            if not self._acting and self._running:
-                self._expected_app = frontmost_app()
+            if not self._acting:
+                self._note_front()
 
     def resume(self) -> None:
         """After the user resumes: forget the trip and take the screen as it now is."""
@@ -228,9 +228,19 @@ class HumanGuard:
         if self.interruptions and self.interruptions[-1].paused_s is None:
             self.interruptions[-1].paused_s = now - self.interruptions[-1].at
         self.rules.reset(now)
-        if self._running:
-            self._expected_app = frontmost_app()
+        self._note_front()
         self.tripped.clear()
+
+    def _note_front(self) -> None:
+        """Take the front app as the one AVO works in; never AVO's own overlay (clicking Resume can focus it)."""
+        if not self._running:
+            return
+        front = frontmost_app()
+        if front and front not in self._overlay_apps:
+            self._expected_app = front
+
+    def overlay_in_front(self) -> bool:
+        return frontmost_app() in self._overlay_apps
 
     def stopped_batch(self) -> None:
         """The driver has stopped the batch that was running when the guard tripped."""
