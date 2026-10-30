@@ -121,9 +121,10 @@ ipcMain.on("island-size", (_e, { state, width }) => {
 });
 
 // ---- pause ----
-// Option-Space while the agent works asks it to pause; it stops before its next
-// action (an in-flight model call finishes first) and drops that plan, so
-// after Resume it re-plans from a fresh screenshot.
+// Option-Space while the agent works asks it to pause; it stops at once, mid-batch
+// if need be (an in-flight model call finishes first, its actions unused), and
+// after Resume it re-plans from a fresh screenshot. The agent also pauses itself
+// when the user touches the mouse or keyboard ("interrupt" below).
 
 let paused = false;
 
@@ -343,6 +344,17 @@ function route(msg) {
   switch (msg.type) {
     case "status":
       if (!paused) island.webContents.send("avo", msg); // keep showing "Paused"
+      return;
+    case "interrupt":
+      // The agent noticed the user taking over and paused itself ("You moved —
+      // paused.", or a countdown with auto-resume). Resume / Stop / Option-Space
+      // work as for any pause.
+      paused = true;
+      island.webContents.send("avo", { type: "paused", text: msg.text });
+      return;
+    case "resumed": // auto-resumed by the agent
+      paused = false;
+      island.webContents.send("avo", { type: "status", text: "Resuming…", busy: true });
       return;
     case "done":
       paused = false;

@@ -172,7 +172,7 @@
             setState("idle");
             break;
           case "paused":
-            setState("paused", "Paused");
+            setState("paused", m.text || "Paused");
             break;
           case "guide":
             setState("guide", m.text);

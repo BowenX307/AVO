@@ -11,7 +11,7 @@ The click is left alone unless it lands on blank space: on something clickable
 the page may handle clicks on itself. It is also left alone when nothing
 clickable is near, or when two candidates are about equally close (the gate
 asks the user then).
-All coordinates here are screen points, the space pyautogui and AX share.
+All coordinates here are screen points, the space mouse events and AX share.
 """
 
 from __future__ import annotations

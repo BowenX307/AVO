@@ -1,14 +1,16 @@
 """Best-effort client for the Electron overlay (overlay/).
 
 If the overlay isn't running, every call is a no-op and the agent works as before.
-Coordinates sent here are screen points, the same space pyautogui uses.
+Coordinates sent here are screen points, the same space the mouse events use.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import threading
 import uuid
+from typing import Callable
 
 from websockets.sync.client import connect
 
@@ -20,6 +22,7 @@ class Overlay:
         """Connect to the overlay; url=None gives a disabled client."""
         self._ws = None
         self._control = None  # "pause" or "stop" from the user, until resumed
+        self._send_lock = threading.Lock()  # the human guard sends from its own thread
         if url is None:
             return
         try:
@@ -35,7 +38,8 @@ class Overlay:
         if self._ws is None:
             return
         try:
-            self._ws.send(json.dumps({"type": type, **fields}, ensure_ascii=False))
+            with self._send_lock:
+                self._ws.send(json.dumps({"type": type, **fields}, ensure_ascii=False))
         except Exception:
             self._ws = None  # overlay went away mid-run
 
@@ -81,14 +85,21 @@ class Overlay:
         """Mark the task paused, e.g. when the user paused instead of answering a question."""
         self._control = "pause"
 
-    def wait_while_paused(self) -> bool:
+    def wait_while_paused(self, tick: Callable[[], bool] | None = None, every: float = 0.25) -> bool:
         """Block until the user resumes (True) or stops (False).
 
+        tick, if given, is called every `every` seconds while paused; when it
+        returns True the task resumes by itself (auto-resume) and the overlay is told.
         If the overlay goes away while paused, the task stops: nobody is left to resume it.
         """
         while self._ws is not None and self._control == "pause":
             try:
-                msg = json.loads(self._ws.recv())
+                msg = json.loads(self._ws.recv(timeout=every if tick else None))
+            except TimeoutError:
+                if tick():
+                    self._control = None
+                    self.send("resumed")
+                continue
             except Exception:
                 self._ws = None
                 break

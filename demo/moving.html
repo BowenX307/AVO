@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" /> <!-- no Chrome Translate bubble over the demo -->
+    <title>Approval Queue</title>
+    <!--
+      Test page for AVO's look-again check (fake data). One second after
+      "Show receipt details" is clicked, the details slide in above the
+      buttons: Approve moves down, and a "Request changes" button lands where
+      Approve was. A click aimed from a screenshot taken before the shift hits
+      the wrong button.
+    -->
+    <style>
+      :root { --line: #e3e5e8; --ink: #1d2129; --muted: #6b7280; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f6f7f9;
+        color: var(--ink);
+        font: 14px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      header { padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 17px; }
+      main { max-width: 640px; padding: 24px; }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px; }
+      .card h2 { margin: 0 0 4px; font-size: 16px; }
+      .meta { color: var(--muted); margin-bottom: 12px; }
+      a { color: var(--accent); cursor: pointer; }
+      #details { display: none; margin: 18px 0 0; } /* same gap as .actions: Request changes lands where Approve was */
+      #details.open { display: block; }
+      #details table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+      #details td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+      #details td:last-child { text-align: right; }
+      .actions { display: flex; gap: 10px; margin-top: 18px; }
+      button {
+        font: inherit;
+        padding: 8px 20px;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .approve { background: var(--accent); color: #fff; }
+      .reject { background: #eef0f3; color: var(--ink); }
+      .changes { background: #b45309; color: #fff; }
+      #status { margin-top: 16px; font-weight: 600; min-height: 21px; }
+    </style>
+  </head>
+  <body>
+    <header>Approval Queue</header>
+    <main>
+      <div class="card">
+        <h2>Expense report #1042 — Jordan Lee</h2>
+        <div class="meta">Team offsite lunch · $212.40 · submitted Oct 24</div>
+        <a id="show">Show receipt details</a>
+        <div id="details">
+          <button class="changes" data-result="Changes requested">Request changes</button>
+          <table>
+            <tr><td>Harbor Grill (4 people)</td><td>$186.00</td></tr>
+            <tr><td>Tax</td><td>$15.40</td></tr>
+            <tr><td>Parking</td><td>$11.00</td></tr>
+          </table>
+        </div>
+        <div class="actions">
+          <button class="approve" data-result="Approved">Approve</button>
+          <button class="reject" data-result="Rejected">Reject</button>
+        </div>
+        <div id="status"></div>
+      </div>
+    </main>
+    <script>
+      const details = document.getElementById("details");
+      const status = document.getElementById("status");
+      document.getElementById("show").addEventListener("click", () => {
+        setTimeout(() => details.classList.add("open"), 1000);
+      });
+      for (const b of document.querySelectorAll("button")) {
+        b.addEventListener("click", () => (status.textContent = b.dataset.result));
+      }
+    </script>
+  </body>
+</html>

@@ -18,9 +18,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import pyautogui
-
 from avo.agent import RUNS_DIR, run
+from avo.events import FailSafeException, chord
 
 ROOT = Path(__file__).resolve().parent.parent
 MODES = {
@@ -39,8 +38,8 @@ def setup(spec: dict) -> None:
     if "open_app" in spec:
         subprocess.run(["open", "-a", spec["open_app"]], check=True)
         time.sleep(1)
-        pyautogui.press("esc")  # Calculator: clear any previous entry
-        pyautogui.press("esc")
+        chord(["esc"])  # Calculator: clear any previous entry
+        chord(["esc"])
     time.sleep(SETUP_SETTLE)
 
 
@@ -75,7 +74,7 @@ def main() -> None:
             try:
                 # gate/snap off: the baseline measures the unassisted agent.
                 result = run(t["task"], max_steps=args.max_steps, gate=False, snap_to_controls=False, **MODES[mode])
-            except (KeyboardInterrupt, pyautogui.FailSafeException):
+            except (KeyboardInterrupt, FailSafeException):
                 print("aborted by user")
                 (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
                 raise

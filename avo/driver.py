@@ -3,9 +3,16 @@
 Two coordinate layers sit between the model and the mouse:
   1. Resize: screenshots are scaled to a fixed width (1280) so the model sees a
      stable image size for the whole task.
-  2. Retina: the raw capture may be in physical pixels while pyautogui moves in
+  2. Retina: the raw capture may be in physical pixels while the mouse moves in
      screen points (typically 2x apart on Retina displays).
 The model returns coordinates in the screenshot it saw; to_screen() undoes both.
+
+Every mouse and keyboard event goes out through avo/events.py, marked as AVO's,
+so avo/human.py can tell them from the user's. A batch stops part-way when
+interrupt() says so (the user took over, or paused): Interrupted. Before each
+pointer action the screen around the target is compared with the screenshot
+the model planned on; if it changed, the rest of the batch is skipped:
+ScreenChanged.
 """
 
 from __future__ import annotations
@@ -14,13 +21,15 @@ import io
 import subprocess
 import time
 from dataclasses import dataclass
+from typing import Callable
 
 import mss
-import pyautogui
 import Quartz
-from PIL import Image
-from pyautogui._pyautogui_osx import keyboardMapping
+from PIL import Image, ImageChops, ImageStat
 
+from avo import events
+from avo.desktop import OVERLAY_TITLES
+from avo.events import chord
 from avo.overlay import Overlay
 
 SHOT_WIDTH = 1280
@@ -29,17 +38,18 @@ WAIT_SECONDS = 1.0  # duration of a "wait" action
 # Scrolling. The docs don't give scroll_x/scroll_y units, but muse-spark sends small
 # counts (always 6 so far), i.e. wheel notches, not pixels. Values above
 # SCROLL_NOTCH_MAX are taken as screenshot pixels instead.
-SCROLL_PX_PER_LINE = 40  # screen points per pyautogui scroll line (measured in Chrome)
+SCROLL_PX_PER_LINE = 40  # screen points per wheel line (measured in Chrome)
 SCROLL_LINES_PER_NOTCH = 2  # 6 notches ~ half a screen
 SCROLL_NOTCH_MAX = 50
 SCROLL_LINE_PAUSE = 0.015  # one line at a time, so it reads as a smooth scroll
 GLIDE_MS = 450  # overlay cursor travel time before each pointer action
 SNAP_PAUSE = 0.25  # beat between showing the model's aim and gliding to the snapped spot
+POLL_S = 0.02  # how often waits check for an interruption
+FRESH_BOX = 96  # screenshot px: the square around a target compared before acting on it
+FRESH_THRESHOLD = 0.08  # mean grey-level change (0-1) in that square that counts as "the screen changed"
+FRESH_KINDS = ("click", "double_click", "drag", "scroll")
 
-pyautogui.FAILSAFE = True  # slam the mouse into a screen corner to abort
-pyautogui.PAUSE = 0.05
-
-# Model key names (lowercased) -> pyautogui key names on macOS.
+# Model key names (lowercased) -> key names in avo/events.py (pyautogui's).
 KEY_MAP = {
     "enter": "enter",
     "return": "enter",
@@ -76,40 +86,6 @@ KEY_MAP = {
 }
 
 
-MODIFIER_FLAGS = {
-    "command": Quartz.kCGEventFlagMaskCommand,
-    "shift": Quartz.kCGEventFlagMaskShift,
-    "option": Quartz.kCGEventFlagMaskAlternate,
-    "ctrl": Quartz.kCGEventFlagMaskControl,
-}
-
-
-def chord(keys: list[str]) -> None:
-    """Press a key combination, e.g. ["command", "v"].
-
-    pyautogui.hotkey presses the modifier as a separate key and relies on macOS
-    to remember it is held; with another app watching modifier keys, that state
-    got lost and cmd+v typed a bare "v" into the page. Here every key event
-    carries the modifier flags itself.
-    """
-    flags = 0
-    for k in keys:
-        flags |= MODIFIER_FLAGS.get(k, 0)
-    main = [k for k in keys if k not in MODIFIER_FLAGS]
-    if not main:  # modifiers alone
-        pyautogui.hotkey(*keys, interval=0.05)
-        return
-    source = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
-    for k in main:
-        code = keyboardMapping[k]
-        for down in (True, False):
-            event = Quartz.CGEventCreateKeyboardEvent(source, code, down)
-            Quartz.CGEventSetFlags(event, flags)
-            Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
-            time.sleep(0.02)
-
-
-OVERLAY_TITLES = ("AVO pointer", "AVO island", "AVO question")  # overlay/*.html <title>s
 IMAGE_OPTIONS = (
     Quartz.kCGWindowImageBoundsIgnoreFraming
     | Quartz.kCGWindowImageShouldBeOpaque
@@ -139,6 +115,39 @@ def capture_below_overlay(mon: dict) -> Image.Image | None:
     return Image.frombuffer("RGBA", (w, h), bytes(data), "raw", "BGRA", row, 1).convert("RGB")
 
 
+class Interrupted(Exception):
+    """The batch stopped part-way because interrupt() fired."""
+
+    def __init__(self, reason: str, done: int):
+        super().__init__(f"interrupted ({reason}) after {done} action(s)")
+        self.reason, self.done = reason, done
+
+
+class ScreenChanged(Exception):
+    """The screen around the next target changed since the model looked; it wasn't run."""
+
+    def __init__(self, done: int, diff: float, png: bytes):
+        super().__init__(f"screen changed before action {done + 1} (diff {diff:.3f})")
+        self.done, self.diff, self.png = done, diff, png
+
+
+def region_diff(a: Image.Image, b: Image.Image, x: float, y: float, box: int = FRESH_BOX) -> float:
+    """Mean grey-level difference (0-1) between two screenshots in a box x box square around (x, y)."""
+    w, h = a.size
+    left = min(max(round(x) - box // 2, 0), max(w - box, 0))
+    top = min(max(round(y) - box // 2, 0), max(h - box, 0))
+    crop = (left, top, left + box, top + box)
+    diff = ImageChops.difference(a.crop(crop).convert("L"), b.crop(crop).convert("L"))
+    return ImageStat.Stat(diff).mean[0] / 255
+
+
+def _target(a: dict) -> tuple[float, float] | None:
+    if a["type"] == "drag":
+        path = a.get("path") or []
+        return (path[0]["x"], path[0]["y"]) if path else None
+    return (a["x"], a["y"]) if "x" in a else None
+
+
 @dataclass
 class Geometry:
     """How the last screenshot maps onto the screen."""
@@ -151,15 +160,30 @@ class Geometry:
 
 
 class MacDriver:
-    def __init__(self, shot_width: int = SHOT_WIDTH, overlay: Overlay | None = None):
+    def __init__(
+        self,
+        shot_width: int = SHOT_WIDTH,
+        overlay: Overlay | None = None,
+        interrupt: Callable[[], str | None] | None = None,
+        fresh_threshold: float | None = FRESH_THRESHOLD,
+    ):
+        """interrupt: polled during a batch; a non-empty reason stops it (Interrupted).
+        fresh_threshold: None turns off the look-again check before pointer actions."""
         self.shot_width = shot_width
         self.geometry: Geometry | None = None
         self.overlay = overlay or Overlay(url=None)
+        self.interrupt = interrupt or (lambda: None)
+        self.fresh_threshold = fresh_threshold
+        self.fresh_checks: list[dict] = []  # this batch's look-again checks, for the run log
 
     # ---- screenshots -------------------------------------------------------
 
     def screenshot(self) -> bytes:
-        """Capture the main display, scale to shot_width, return PNG bytes.
+        """Capture the main display, scale to shot_width, return PNG bytes."""
+        return _png(self.grab())
+
+    def grab(self) -> Image.Image:
+        """The main display scaled to shot_width.
 
         The overlay's windows are left out (see capture_below_overlay), so the
         model never sees AVO's own cursor, island or questions, while a screen
@@ -179,9 +203,7 @@ class MacDriver:
             img = img.resize((self.shot_width, shot_h), Image.LANCZOS)
 
         self.geometry = Geometry(mon["left"], mon["top"], retina, resize, img.size)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        return buf.getvalue()
+        return img
 
     def to_screen(self, x: float, y: float) -> tuple[int, int]:
         """Screenshot pixel coordinates -> screen point coordinates."""
@@ -201,106 +223,148 @@ class MacDriver:
 
     # ---- actions -----------------------------------------------------------
 
-    def execute(self, actions: list[dict]) -> None:
-        """Run a computer_call action batch in order."""
+    def execute(self, actions: list[dict], seen: bytes | None = None) -> None:
+        """Run a computer_call action batch in order.
+
+        seen: the screenshot the model planned on. Before each click, double
+        click, drag or scroll, the screen around its target is compared with it;
+        a change over fresh_threshold raises ScreenChanged with the new screen.
+        Raises Interrupted as soon as interrupt() fires.
+        """
+        self.fresh_checks = []
+        before = Image.open(io.BytesIO(seen)).convert("RGB") if seen and self.fresh_threshold is not None else None
         for i, action in enumerate(actions):
             if i:
-                time.sleep(ACTION_PAUSE)
-            self._execute_one(action)
+                self._sleep(ACTION_PAUSE, i)
+            self._check_interrupt(i)
+            point = _target(action) if action["type"] in FRESH_KINDS else None
+            if before is not None and point is not None:
+                now = self.grab()
+                diff = region_diff(before, now, *point) if now.size == before.size else 1.0
+                changed = diff > self.fresh_threshold
+                self.fresh_checks.append({"action": i, "point": list(point), "diff": round(diff, 4), "skipped": changed})
+                if changed:
+                    raise ScreenChanged(i, diff, _png(now))
+            self._execute_one(action, i)
 
-    def _point(self, x: int, y: int) -> None:
+    def _check_interrupt(self, done: int) -> None:
+        reason = self.interrupt()
+        if reason:
+            raise Interrupted(reason, done)
+
+    def _sleep(self, seconds: float, done: int) -> None:
+        """time.sleep that ends the batch the moment interrupt() fires."""
+        end = time.time() + seconds
+        while True:
+            self._check_interrupt(done)
+            left = end - time.time()
+            if left <= 0:
+                return
+            time.sleep(min(POLL_S, left))
+
+    def _point(self, x: int, y: int, done: int = 0) -> None:
         """Glide the overlay cursor to (x, y) so the user sees where we're going."""
         if self.overlay.active:
             self.overlay.send("move", x=x, y=y, ms=GLIDE_MS)
-            time.sleep(GLIDE_MS / 1000)
+            self._sleep(GLIDE_MS / 1000, done)
 
-    def _show_snap(self, a: dict) -> None:
+    def _show_snap(self, a: dict, done: int) -> None:
         """For a snapped click, first show where the model aimed, then the fix."""
         snapped = a.get("_snap")
         if snapped and self.overlay.active:
-            self._point(*self.to_screen(*snapped["from"]))
+            self._point(*self.to_screen(*snapped["from"]), done)
             self.overlay.send("snap", label=snapped["label"])
-            time.sleep(SNAP_PAUSE)
+            self._sleep(SNAP_PAUSE, done)
 
-    def _execute_one(self, a: dict) -> None:
+    def _execute_one(self, a: dict, done: int = 0) -> None:
+        """One action; `done` is how many of the batch ran before it (for Interrupted)."""
         kind = a["type"]
         if kind == "click":
             x, y = self.to_screen(a["x"], a["y"])
             button = a.get("button", "left")
-            self._show_snap(a)
-            self._point(x, y)
+            self._show_snap(a, done)
+            self._point(x, y, done)
+            self._check_interrupt(done)
             self.overlay.send("click", x=x, y=y, button=button)
             if button in ("back", "forward"):
                 # No mouse back/forward on a trackpad; use the browser shortcut.
                 chord(["command", "[" if button == "back" else "]"])
             else:
-                button = {"wheel": "middle"}.get(button, button)
-                pyautogui.click(x, y, button=button)
+                events.click(x, y, button={"wheel": "middle"}.get(button, button))
         elif kind == "double_click":
             x, y = self.to_screen(a["x"], a["y"])
-            self._show_snap(a)
-            self._point(x, y)
+            self._show_snap(a, done)
+            self._point(x, y, done)
+            self._check_interrupt(done)
             self.overlay.send("click", x=x, y=y, button="double")
-            pyautogui.doubleClick(x, y)
+            events.click(x, y, clicks=2)
         elif kind == "move":
             x, y = self.to_screen(a["x"], a["y"])
-            self._point(x, y)
-            pyautogui.moveTo(x, y, duration=0.1)
+            self._point(x, y, done)
+            events.move(x, y, duration=0.1)
         elif kind == "drag":
             path = [self.to_screen(p["x"], p["y"]) for p in a["path"]]
-            self._point(*path[0])
-            pyautogui.moveTo(*path[0])
-            pyautogui.mouseDown()
-            for p in path[1:]:
-                self.overlay.send("move", x=p[0], y=p[1], ms=150)
-                pyautogui.moveTo(*p, duration=0.15)
-            pyautogui.mouseUp()
+            self._point(*path[0], done)
+            self._check_interrupt(done)
+            events.move(*path[0])
+            events.down(*path[0])
+            try:
+                for p in path[1:]:
+                    self.overlay.send("move", x=p[0], y=p[1], ms=150)
+                    events.move(*p, duration=0.15, button="left")
+            finally:
+                events.up(*events.position())  # never leave the button held
         elif kind == "scroll":
             x, y = self.to_screen(a["x"], a["y"])
-            self._point(x, y)
+            self._point(x, y, done)
             self.overlay.send("scroll", dy=a.get("scroll_y") or 0)
-            pyautogui.moveTo(x, y)
-            # Model: positive scroll_y scrolls down. pyautogui: positive scrolls up.
-            self._scroll(pyautogui.scroll, -self._lines(a.get("scroll_y") or 0))
-            self._scroll(pyautogui.hscroll, self._lines(a.get("scroll_x") or 0))
+            events.move(x, y)
+            # Model: positive scroll_y scrolls down. Wheel lines: positive scrolls up.
+            self._scroll(-self._lines(a.get("scroll_y") or 0), 0, done)
+            self._scroll(0, -self._lines(a.get("scroll_x") or 0), done)
         elif kind == "keypress":
             keys = [KEY_MAP.get(k.lower(), k.lower()) for k in a["keys"]]
             self.overlay.send("keys", keys=keys)
-            if len(keys) == 1:
-                pyautogui.press(keys[0])
-            else:
-                chord(keys)
+            chord(keys)
         elif kind == "type":
             self.overlay.send("type", text=a["text"])
             self._type(a["text"])
         elif kind == "wait":
-            time.sleep(WAIT_SECONDS)
+            self._sleep(WAIT_SECONDS, done)
         elif kind == "screenshot":
             pass  # the agent loop sends a fresh screenshot after every batch
         else:
             raise ValueError(f"unknown action type: {kind!r}")
 
     def _lines(self, delta: float) -> int:
-        """A model scroll delta -> pyautogui scroll lines."""
+        """A model scroll delta -> wheel lines."""
         if abs(delta) <= SCROLL_NOTCH_MAX:
             return round(delta * SCROLL_LINES_PER_NOTCH)
         g = self.geometry
         return round(delta / g.resize / g.retina / SCROLL_PX_PER_LINE)
 
-    @staticmethod
-    def _scroll(fn, lines: int) -> None:
-        step = 1 if lines > 0 else -1
-        for _ in range(abs(lines)):
-            fn(step)
+    def _scroll(self, lines_y: int, lines_x: int, done: int) -> None:
+        """One line at a time, so it reads as a smooth scroll (and can stop part-way)."""
+        for _ in range(max(abs(lines_y), abs(lines_x))):
+            self._check_interrupt(done)
+            events.scroll((lines_y > 0) - (lines_y < 0), (lines_x > 0) - (lines_x < 0))
             time.sleep(SCROLL_LINE_PAUSE)
+            lines_y -= (lines_y > 0) - (lines_y < 0)
+            lines_x -= (lines_x > 0) - (lines_x < 0)
 
     @staticmethod
     def _type(text: str) -> None:
         # Paste rather than type keystrokes: keystrokes go through the active
-        # input method (e.g. Pinyin swallows "example.com"), and pyautogui
+        # input method (e.g. Pinyin swallows "example.com"), and key codes
         # can't type non-ASCII at all. Restores the user's clipboard text after.
         saved = subprocess.run(["pbpaste"], capture_output=True).stdout
         subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
         chord(["command", "v"])
         time.sleep(0.2)  # let the target app read the clipboard before restoring
         subprocess.run(["pbcopy"], input=saved, check=True)
+
+
+def _png(img: Image.Image) -> bytes:
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()

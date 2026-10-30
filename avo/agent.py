@@ -12,8 +12,10 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from avo.driver import MacDriver
+from avo.desktop import frontmost_app
+from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.gate import ask_user, assess
+from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.overlay import Overlay
 from avo.regions import Region, highlight, mark, prepare
@@ -42,15 +44,6 @@ result is on screen. Don't scroll back and forth to re-check what you have alrea
 # standing approval), it is acknowledged without asking; any other code, e.g.
 # malicious_instructions, still needs a human.
 ROUTINE_CHECKS = {"computer_action_requires_confirmation"}
-
-
-def frontmost_app() -> str | None:
-    """Bundle id of the frontmost app, e.g. com.google.Chrome."""
-    asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True).stdout.strip()
-    info = subprocess.run(
-        ["lsappinfo", "info", "-only", "bundleid", asn], capture_output=True, text=True
-    ).stdout
-    return info.split("=", 1)[1].strip().strip('"') if "=" in info else None
 
 
 def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool) -> bool:
@@ -161,6 +154,15 @@ def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, 
     return response, seconds
 
 
+RESUME_NOTE = (
+    "The user interacted with the screen while AVO was paused. The screen may have changed. "
+    "Re-evaluate from the current screenshot before acting."
+)
+CHANGED_NOTE = (
+    "Your previous actions were NOT executed because the screen changed before the click. "
+    "Decide again from this screenshot."
+)
+
 STILL_STEPS = 5  # this many batches in a row without a click or typing: nudge to finish
 
 LOOKING_KINDS = ("scroll", "keypress", "wait", "screenshot", "move")
@@ -214,6 +216,9 @@ def run(
     gate: bool = True,
     snap_to_controls: bool = True,
     regions: dict[str, tuple[int, int, int, int]] | None = None,
+    human_guard: bool = True,
+    human_resume: str = "manual",
+    freshness: float | None = FRESH_THRESHOLD,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -228,24 +233,76 @@ def run(
         (macOS accessibility), before the gate looks at them.
     regions: boxes the user dragged over the screen, {"A": (l, t, r, b)} in screen
         points; the model gets their positions and close-ups (avo/regions.py).
+    human_guard: pause the moment the user touches the mouse or keyboard or
+        switches apps (avo/human.py).
+    human_resume: "manual" waits for Resume; "auto" resumes once the user has
+        kept still for AUTO_RESUME_S (always auto without the overlay).
+    freshness: before each pointer action, skip the rest of the batch if the
+        screen around its target changed by more than this since the model
+        looked (0-1, mean grey-level change); None turns the check off.
     """
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
+    if human_resume not in ("manual", "auto"):
+        raise ValueError(f"human_resume must be 'manual' or 'auto', not {human_resume!r}")
     client = make_client()
     overlay = Overlay()
-    driver = MacDriver(overlay=overlay)
+    guard = HumanGuard(overlay, enabled=human_guard)
+
+    def interrupted() -> str | None:
+        if guard.tripped.is_set():
+            return "human"
+        return "pause" if overlay.pause_requested() else None
+
+    driver = MacDriver(overlay=overlay, interrupt=interrupted, fresh_threshold=freshness)
     gate = gate and overlay.active
-    log = RunLog(task, {"model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls})
+    log = RunLog(
+        task,
+        {
+            "model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls,
+            "human_guard": human_guard, "human_resume": human_resume, "freshness": freshness,
+        },
+    )
     started = time.time()
     print(f"run dir: {log.dir}  (effort={effort}, history={history}, gate={gate})")
     print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
+
+    def hold(reason: str) -> bool:
+        """Wait out a pause: the user took over ("human") or pressed Option-Space ("pause").
+
+        True once resumed, False if the user stopped the task.
+        """
+        overlay.pause()
+        if reason == "human" and (human_resume == "auto" or not overlay.active):
+            shown = [None]
+
+            def still() -> bool:
+                left = AUTO_RESUME_S - (time.time() - guard.last_human)
+                if left <= 0:
+                    return True
+                if shown[0] != (n := int(left) + 1):
+                    shown[0] = n
+                    overlay.send("interrupt", text=f"You moved — resuming in {n}s")
+                return False
+
+            if overlay.active:
+                ok = overlay.wait_while_paused(tick=still)
+            else:
+                while not still():
+                    time.sleep(0.25)
+                ok = True
+        else:
+            ok = overlay.wait_while_paused()
+        guard.resume()
+        return ok
 
     result = "stopped: step budget reached"
     step = 0
     past: list[str] = []  # text history, used when history == "text"
     done: list[list[dict]] = []  # executed batches, for repeat detection
-    asked = corrected = 0
+    asked = corrected = skipped = 0
     try:
+        guard.start()
         png = driver.screenshot()
         log.screenshot(0, png)
         if snap_to_controls:
@@ -273,9 +330,11 @@ def run(
             checks = call.get("pending_safety_checks") or []
             log.response(step, response, {"actions": actions, "model_seconds": round(seconds, 1)})
             note = (response.output_text or "").strip()
+            notes: list[str] = []  # for the model's next turn
             if note:
                 print(f"[{step}] model: {note}")
-                overlay.send("status", text=note, busy=False)
+                if not guard.tripped.is_set():
+                    overlay.send("status", text=note, busy=False)
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
             if checks and not approve_safety_checks(step, checks, auto_ack):
@@ -289,11 +348,12 @@ def run(
                     print(f"[{step}] snapped: " + ", ".join(f"{s['from']}->{s['to']} {s['label'] or s['role']}" for s in snapped))
                     log.annotate(step, snapped=snapped)
 
-            paused = overlay.pause_requested()
-            if gate and not paused:
+            stop = interrupted()
+            if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
                 a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
-                if a:
+                stop = interrupted()  # the user may have taken over during the check
+                if a and not stop:
                     print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
                     entry = a.to_log()
                     if a.flagged:
@@ -301,10 +361,11 @@ def run(
                         front = work_app or frontmost_app()
                         ask = "Which one did you mean? Pick on screen" if a.candidates else "AVO needs your OK — see the highlight"
                         overlay.send("status", text=ask, busy=False)
-                        choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
-                        if front:  # answering on the overlay may have focused it
-                            subprocess.run(["open", "-b", front])
-                            time.sleep(0.3)
+                        with guard.acting(), guard.asking():
+                            choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
+                            if front:  # answering on the overlay may have focused it
+                                subprocess.run(["open", "-b", front])
+                                time.sleep(0.3)
                         print(f"[{step}] user: {choice}" + (f" -> {describe(actions)}" if choice == "no" else ""))
                         entry["user"] = {"choice": choice, "answer": answer, "actions": actions}
                         if choice == "stop":
@@ -312,8 +373,7 @@ def run(
                             result = "stopped: user stopped the task"
                             break
                         if choice == "pause":
-                            overlay.pause()
-                            paused = True
+                            stop = "pause"
                         elif choice == "pick":
                             corrected += 1
                             note = (note + " " if note else "") + f"(the user chose “{answer['label']}”)"
@@ -324,25 +384,54 @@ def run(
                             note = (note + " " if note else "") + "(the user confirmed this step)"
                     log.annotate(step, gate=entry)
 
-            if paused or overlay.pause_requested():
-                # The user may change the screen while paused, so this plan is
-                # dropped and the model re-plans from a fresh screenshot.
-                print(f"[{step}] paused by user")
-                if not overlay.wait_while_paused():
-                    log.annotate(step, paused="stopped")
+            executed: list[dict] = []
+            changed: ScreenChanged | None = None
+            if not stop:
+                print(f"[{step}] executing {len(actions)} action(s)", flush=True)
+                try:
+                    with guard.acting():
+                        driver.execute(actions, seen=png)
+                    executed = actions
+                except Interrupted as e:
+                    executed, stop = actions[: e.done], e.reason
+                    if e.reason == "human":
+                        guard.stopped_batch()
+                except ScreenChanged as e:
+                    executed, changed = actions[: e.done], e
+                if driver.fresh_checks:
+                    log.annotate(step, fresh=driver.fresh_checks)
+
+            if stop:
+                # The user may change the screen while paused, so what was left of
+                # this batch is dropped and the model re-plans from a fresh screenshot.
+                left = len(actions) - len(executed)
+                print(f"[{step}] paused ({'you moved' if stop == 'human' else 'by user'}); {left} action(s) not run")
+                if not hold(stop):
+                    log.annotate(step, paused="stopped", executed=len(executed))
                     result = "stopped: user stopped the task"
                     break
                 print(f"[{step}] resumed; re-planning")
-                log.annotate(step, paused="resumed")
-                actions, note = [], "(paused by the user; this step was not executed)"
+                log.annotate(step, paused="resumed", interrupt=stop, executed=len(executed))
+                notes.append(RESUME_NOTE)
+            elif changed:
+                skipped += 1
+                print(f"[{step}] screen changed before action {changed.done + 1} (diff {changed.diff:.3f}); not run")
+                notes.append(
+                    CHANGED_NOTE if not executed
+                    else f"Only the first {len(executed)} of your actions ran; the rest were NOT executed because "
+                    "the screen changed before the click. Decide again from this screenshot."
+                )
 
-            driver.execute(actions)
             work_app = frontmost_app()  # refocus this after a question, not whatever the user clicked meanwhile
-            time.sleep(SETTLE_SECONDS)
-            png = driver.screenshot()
+            if changed and not stop:
+                png = changed.png  # the screen as it was when the click was called off
+            else:
+                time.sleep(SETTLE_SECONDS)
+                png = driver.screenshot()
             log.screenshot(step, png)
-            past.append(f"{step}. {note + ' | ' if note else ''}{describe(actions)}")
-            done.append(actions)
+            line = f"{step}. {note + ' | ' if note else ''}{describe(executed) or '(nothing executed)'}"
+            past.append("\n".join([line] + [f"   Note: {n}" for n in notes]))
+            done.append(executed)
 
             if history == "full":
                 response, seconds = ask_model(
@@ -358,7 +447,8 @@ def run(
                             "acknowledged_safety_checks": checks,
                             "output": {"type": "computer_screenshot", "image_url": data_url(png)},
                         }
-                    ],
+                    ]
+                    + ([{"role": "user", "content": [{"type": "input_text", "text": " ".join(notes)}]}] if notes else []),
                 )
             else:
                 # Checks were approved above, before executing; a fresh turn has no
@@ -374,13 +464,19 @@ def run(
         else:
             log.response(max_steps + 1, response)  # the reply we never acted on
 
-    except BaseException as e:  # incl. Ctrl+C and pyautogui's FailSafeException
+    except BaseException as e:  # incl. Ctrl+C and the mouse-in-a-corner emergency stop
         result = f"crashed: {type(e).__name__}: {e}"
         raise
     finally:
-        log.settings.update(asked=asked, corrected=corrected)
+        guard.stop()
+        log.settings.update(
+            asked=asked, corrected=corrected, skipped_screen_changed=skipped,
+            interruptions=[i.to_log() for i in guard.interruptions],
+        )
         log.summary(result, step, time.time() - started)
         print(f"result: {result}")
+        if guard.interruptions:
+            print("interruptions: " + json.dumps([i.to_log() for i in guard.interruptions]))
         ok = not result.startswith(("crashed", "stopped"))
         # "stopped: user stopped the task" -> "User stopped the task" on screen
         shown = result.strip() if ok else result.split(": ", 1)[-1].strip().capitalize()

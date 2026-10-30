@@ -6,6 +6,7 @@
 import argparse
 
 from avo.agent import run
+from avo.driver import FRESH_THRESHOLD
 
 
 def main() -> None:
@@ -46,8 +47,30 @@ def main() -> None:
         action="store_true",
         help="don't move clicks that land just off a button or field onto it",
     )
+    parser.add_argument(
+        "--no-human-guard",
+        action="store_true",
+        help="don't pause when you touch the mouse or keyboard or switch apps mid-task",
+    )
+    parser.add_argument(
+        "--human-resume",
+        choices=["manual", "auto"],
+        default="manual",
+        help="after you moved: wait for Resume (manual) or resume once you keep still for 3 s (auto)",
+    )
+    parser.add_argument(
+        "--no-freshness",
+        action="store_true",
+        help="don't re-check the screen around a target right before acting on it",
+    )
+    parser.add_argument(
+        "--fresh-threshold",
+        type=float,
+        default=FRESH_THRESHOLD,
+        help="how much the screen around a target may change (0-1) before a click is called off",
+    )
     args = parser.parse_args()
-    print("Agent is taking over the mouse. Fling it into a screen corner to abort.")
+    print("Agent is taking over the mouse. Move it to pause; fling it into a screen corner to abort.")
     run(
         args.task,
         max_steps=args.max_steps,
@@ -57,6 +80,9 @@ def main() -> None:
         gate=not args.no_gate,
         snap_to_controls=not args.no_snap,
         regions={label: tuple(int(v) for v in box.split(",")) for label, box in (r.split("=", 1) for r in args.region)},
+        human_guard=not args.no_human_guard,
+        human_resume=args.human_resume,
+        freshness=None if args.no_freshness else args.fresh_threshold,
     )
 
 
