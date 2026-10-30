@@ -46,7 +46,7 @@ GLIDE_MS = 450  # overlay cursor travel time before each pointer action
 SNAP_PAUSE = 0.25  # beat between showing the model's aim and gliding to the snapped spot
 POLL_S = 0.02  # how often waits check for an interruption
 FRESH_BOX = 96  # screenshot px: the square around a target compared before acting on it
-FRESH_THRESHOLD = 0.08  # mean grey-level change (0-1) in that square that counts as "the screen changed"
+FRESH_THRESHOLD = 0.08  # mean colour change (0-1) in that square that counts as "the screen changed"
 FRESH_KINDS = ("click", "double_click", "drag", "scroll")
 
 # Model key names (lowercased) -> key names in avo/events.py (pyautogui's).
@@ -132,13 +132,18 @@ class ScreenChanged(Exception):
 
 
 def region_diff(a: Image.Image, b: Image.Image, x: float, y: float, box: int = FRESH_BOX) -> float:
-    """Mean grey-level difference (0-1) between two screenshots in a box x box square around (x, y)."""
+    """Mean colour difference (0-1, over R, G and B) between two screenshots in a box x box square around (x, y).
+
+    Colour, not grey: in a live run a blue Approve button was replaced by a brown
+    "Request changes" button of the same brightness, a grey-level change of 0.033.
+    In colour it is 0.129.
+    """
     w, h = a.size
     left = min(max(round(x) - box // 2, 0), max(w - box, 0))
     top = min(max(round(y) - box // 2, 0), max(h - box, 0))
     crop = (left, top, left + box, top + box)
-    diff = ImageChops.difference(a.crop(crop).convert("L"), b.crop(crop).convert("L"))
-    return ImageStat.Stat(diff).mean[0] / 255
+    diff = ImageChops.difference(a.crop(crop).convert("RGB"), b.crop(crop).convert("RGB"))
+    return sum(ImageStat.Stat(diff).mean) / 3 / 255
 
 
 def _target(a: dict) -> tuple[float, float] | None:

@@ -89,7 +89,8 @@ def main() -> None:
     log_path = ROOT / "runs" / f"live-{name}.log"
     out = open(log_path, "w")
     proc = subprocess.Popen(
-        [sys.executable, "-u", "scripts/run_task.py", task], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT
+        # A short step cap: a test that loops shouldn't hold the screen for minutes.
+        [sys.executable, "-u", "scripts/run_task.py", task, "--max-steps", "8"], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT
     )
     plan = ["mouse", "key"] if name == "expense" else []
     answered = 0

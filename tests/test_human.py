@@ -75,6 +75,18 @@ class RulesTest(unittest.TestCase):
         self.assertIsNone(r.judge(Input("click", 300, 300), 0.0))
         self.assertIsNone(r.judge(move(200), 0.0))
 
+    def test_an_answer_reaching_the_tap_late_still_answers(self):
+        r = Rules(asked=[(1_000, 2_000)])  # a question was up from t=1000 to t=2000 (event clock)
+        self.assertIsNone(r.judge(Input("click", 300, 300, ts=1_500), 0.0))
+        self.assertEqual(r.judge(Input("click", 300, 300, ts=2_500), 0.0), "mouse")
+
+    def test_events_posted_by_avo_count_as_avo_even_unmarked(self):
+        from avo.human import OWN_PID
+
+        r = Rules()
+        self.assertIsNone(r.judge(Input("click", 100, 100, pid=OWN_PID), 0.0))
+        self.assertEqual(r.judge(Input("click", 100, 100, pid=OWN_PID + 1), 0.0), "mouse")
+
     def test_moving_away_right_after_answering_doesnt_count(self):
         r = Rules()
         r.reset(10.0)  # a question just closed
@@ -174,6 +186,10 @@ class DriverTest(unittest.TestCase):
     def test_region_diff(self):
         self.assertEqual(region_diff(screen(), screen(), 100, 100), 0.0)
         self.assertGreater(region_diff(screen(), screen((100, 300)), 100, 100), 0.08)
+        blue, brown = screen(), screen()  # same brightness, different button
+        ImageDraw.Draw(blue).rectangle((70, 88, 130, 112), fill=(37, 99, 235))
+        ImageDraw.Draw(brown).rectangle((70, 88, 130, 112), fill=(180, 83, 9))
+        self.assertGreater(region_diff(blue, brown, 100, 100), 0.08)
         elsewhere = screen()
         ImageDraw.Draw(elsewhere).rectangle((450, 250, 600, 350), fill="red")  # a change far from the target
         self.assertEqual(region_diff(screen(), elsewhere, 100, 100), 0.0)

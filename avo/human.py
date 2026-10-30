@@ -20,6 +20,7 @@ they have kept still for AUTO_RESUME_S).
 from __future__ import annotations
 
 import math
+import os
 import threading
 import time
 from contextlib import contextmanager
@@ -61,6 +62,22 @@ class Input:
     avo: bool = False  # carries AVO_MAGIC
     keycode: int = -1
     flags: int = 0
+    pid: int = 0  # the process that posted it (0: hardware)
+    ts: int = 0  # when it happened, CGEventTimestamp nanoseconds; 0 = unknown
+
+    @property
+    def from_avo(self) -> bool:
+        # The mark, or else the posting process: AVO's own events count as AVO's
+        # even if some path loses the mark.
+        return self.avo or self.pid == OWN_PID
+
+
+OWN_PID = os.getpid()
+
+
+def event_clock() -> int:
+    """Now, on the clock CGEventGetTimestamp uses."""
+    return Quartz.CGEventGetTimestamp(Quartz.CGEventCreate(None))
 
 
 def from_cg(kind_code: int, event) -> Input | None:
@@ -86,6 +103,8 @@ def from_cg(kind_code: int, event) -> Input | None:
         avo=is_avo(event),
         keycode=Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode),
         flags=Quartz.CGEventGetFlags(event),
+        pid=Quartz.CGEventGetIntegerValueField(event, Quartz.kCGEventSourceUnixProcessID),
+        ts=Quartz.CGEventGetTimestamp(event),
     )
 
 
@@ -102,9 +121,16 @@ class Rules:
     on_overlay: Callable[[float, float], bool] = lambda x, y: False  # is (x, y) on the island or question card?
     asking: bool = False  # a question is up: clicking answers it
     quiet_until: float = 0.0  # moves before this don't count (just answered or resumed)
+    # Event-clock spans when a question was up. An event is judged by when it
+    # happened, not when the tap got to it: a click that answered a question
+    # can reach the tap after the question has closed.
+    asked: list[tuple[int, int]] = field(default_factory=list)
     _travel: float = 0.0
     _last_move: float = field(default=-math.inf)
     _last_pos: tuple[float, float] | None = None  # where the pointer was after the last move, anyone's
+
+    def answering(self, e: Input) -> bool:
+        return self.asking or any(start <= e.ts <= end for start, end in self.asked[-3:])
 
     def judge(self, e: Input, now: float) -> str | None:
         """'mouse' or 'keyboard' if this event is the user taking over, else None."""
@@ -113,7 +139,7 @@ class Rules:
             # automation) carry no deltas, and AVO's own moves reset the start point.
             step = math.dist((e.x, e.y), self._last_pos) if self._last_pos else math.hypot(e.dx, e.dy)
             self._last_pos = (e.x, e.y)
-            if e.avo or self.asking:
+            if e.from_avo or self.answering(e):
                 return None
             if now - self._last_move > MOVE_WINDOW_S:
                 self._travel = 0.0
@@ -122,7 +148,7 @@ class Rules:
                 return None
             self._travel += step
             return "mouse" if self._travel >= JITTER_PT else None
-        if e.avo or self.asking:
+        if e.from_avo or self.answering(e):
             return None
         if e.kind == "flags":  # a modifier alone, e.g. the Option of Option-Space; wait for the key
             return None
@@ -204,10 +230,12 @@ class HumanGuard:
     @contextmanager
     def asking(self):
         """A question is on screen: the user's clicks answer it."""
+        start = event_clock()
         self.rules.asking = True
         try:
             yield
         finally:
+            self.rules.asked.append((start, event_clock()))
             self.rules.asking = False
             self.rules.reset(time.time())
 
@@ -262,7 +290,7 @@ class HumanGuard:
 
     def feed(self, e: Input, now: float | None = None) -> None:
         now = time.time() if now is None else now
-        if e.avo and e.kind == "click" and self.tripped.is_set() and self.interruptions:
+        if e.from_avo and e.kind == "click" and self.tripped.is_set() and self.interruptions:
             self.interruptions[-1].avo_clicks_while_paused += 1  # a bug if it ever happens
         reason = self.rules.judge(e, now)
         if reason is None:
@@ -270,7 +298,9 @@ class HumanGuard:
         if self.tripped.is_set():
             self.last_human = now  # still moving: push back an auto-resume
             return
-        self._trip(reason, f"{e.kind} at ({e.x:.0f},{e.y:.0f})" if reason == "mouse" else f"key {e.keycode}")
+        what = f"{e.kind} at ({e.x:.0f},{e.y:.0f})" if reason == "mouse" else f"key {e.keycode}"
+        late = f", seen {(event_clock() - e.ts) / 1e6:.0f} ms late" if e.ts else ""
+        self._trip(reason, f"{what} (from pid {e.pid}{late})")
 
     def _on_overlay(self, x: float, y: float) -> bool:
         at, boxes = self._overlay_boxes

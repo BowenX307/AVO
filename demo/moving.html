@@ -42,7 +42,9 @@
       .approve { background: var(--accent); color: #fff; }
       .reject { background: #eef0f3; color: var(--ink); }
       .changes { background: #b45309; color: #fff; }
+      button:disabled { opacity: 0.4; cursor: default; }
       #status { margin-top: 16px; font-weight: 600; min-height: 21px; }
+      #status:not(:empty) { padding: 8px 12px; border-radius: 6px; background: #ecfdf5; color: #065f46; }
     </style>
   </head>
   <body>
@@ -76,8 +78,12 @@
         show.textContent = "Hide receipt details"; // at once, so it's clear the click landed
         setTimeout(() => details.classList.add("open"), 1000); // the details load a second later
       });
-      for (const b of document.querySelectorAll("button")) {
-        b.addEventListener("click", () => (statusLine.textContent = b.dataset.result));
+      const buttons = document.querySelectorAll("button");
+      for (const b of buttons) {
+        b.addEventListener("click", () => {
+          statusLine.textContent = "Status: " + b.dataset.result; // a decision is final, as in a real queue
+          for (const other of buttons) other.disabled = true;
+        });
       }
     </script>
   </body>
