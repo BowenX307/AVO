@@ -75,6 +75,11 @@ def main() -> None:
         help="the app to work in, e.g. com.google.Chrome (the overlay passes the one you were in); "
         "default: the front app",
     )
+    parser.add_argument(
+        "--no-tools",
+        action="store_true",
+        help="don't offer the model open_url / open_app; it opens pages and apps with the keyboard and mouse",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Move it to pause; fling it into a screen corner to abort.")
     run(
@@ -90,6 +95,7 @@ def main() -> None:
         human_resume=args.human_resume,
         freshness=None if args.no_freshness else args.fresh_threshold,
         app=args.app,
+        tools=not args.no_tools,
     )
 
 

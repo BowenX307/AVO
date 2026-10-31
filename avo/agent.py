@@ -47,6 +47,39 @@ something you can't see yet (a page loading, a menu's options). After each turn 
 until the screen stops changing, so don't end a turn with wait.
 - Always write in English, even when the task is in another language."""
 
+# AVO's own tools next to the computer tool: opening a page or an app directly
+# beats focusing the address bar and pasting, or finding the Dock icon.
+FUNCTION_TOOLS = [
+    {
+        "type": "function",
+        "name": "open_url",
+        "description": "Open a web address in a new browser tab. Use this instead of typing into the address bar.",
+        "parameters": {
+            "type": "object",
+            "properties": {"url": {"type": "string", "description": "e.g. https://example.com"}},
+            "required": ["url"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function",
+        "name": "open_app",
+        "description": "Bring a macOS app to the front, starting it if needed. Use this instead of the Dock or Spotlight.",
+        "parameters": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "e.g. Google Chrome, Calculator, Notes"}},
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+]
+TOOLS_PROMPT = (
+    "\n- To open a web address, call open_url; to switch to or start an app, call open_app. They are "
+    "faster and more reliable than the keyboard or the Dock. Use the computer tool for everything else."
+)
+
 
 # The generic check Meta attaches to every action. With auto_ack on (the user's
 # standing approval), it is acknowledged without asking; any other code, e.g.
@@ -148,6 +181,21 @@ def computer_calls(response) -> list[dict]:
     return [item.model_dump() for item in response.output if item.type == "computer_call"]
 
 
+def function_calls(response) -> list[dict]:
+    return [item.model_dump() for item in response.output if item.type == "function_call"]
+
+
+def as_action(fn: dict) -> dict | None:
+    """A function call to one of FUNCTION_TOOLS as a driver action, e.g. {"type": "open_url", "url": ...}."""
+    if fn.get("name") not in {t["name"] for t in FUNCTION_TOOLS}:
+        return None
+    try:
+        args = json.loads(fn.get("arguments") or "{}")
+    except json.JSONDecodeError:
+        args = {}
+    return {"type": fn["name"], **args}
+
+
 def snap_clicks(driver: MacDriver, actions: list[dict]) -> list[dict]:
     """Move left clicks that land just off a clickable element onto it (see avo/snap.py).
 
@@ -175,7 +223,7 @@ def focus(bundle: str) -> None:
 KEY_KINDS = ("keypress", "type")
 
 
-def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, **kwargs):
+def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, tools: list[dict], **kwargs):
     """responses.create with a visible waiting line, so a slow reply doesn't look like a hang.
 
     Returns (response, seconds).
@@ -185,7 +233,7 @@ def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, 
     if effort:
         kwargs["reasoning"] = {"effort": effort}
     t0 = time.time()
-    response = client.responses.create(model=MODEL, tools=[{"type": "computer"}], **kwargs)
+    response = client.responses.create(model=MODEL, tools=tools, **kwargs)
     seconds = time.time() - t0
     print(f" {seconds:.1f}s")
     return response, seconds
@@ -257,6 +305,7 @@ def run(
     human_resume: str = "manual",
     freshness: float | None = FRESH_THRESHOLD,
     app: str | None = None,
+    tools: bool = True,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -282,6 +331,8 @@ def run(
         passes the app the user was in: typing the task into the island brings
         AVO's own overlay to the front, and keys pressed then go nowhere.
         Default: the front app, unless that is the overlay.
+    tools: offer the model open_url and open_app (FUNCTION_TOOLS) next to the
+        computer tool.
     """
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
@@ -303,9 +354,11 @@ def run(
         task,
         {
             "model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls,
-            "human_guard": human_guard, "human_resume": human_resume, "freshness": freshness,
+            "human_guard": human_guard, "human_resume": human_resume, "freshness": freshness, "tools": tools,
         },
     )
+    tool_list = [{"type": "computer"}] + (FUNCTION_TOOLS if tools else [])
+    instructions = SYSTEM_PROMPT + (TOOLS_PROMPT if tools else "")
     started = time.time()
     print(f"run dir: {log.dir}  (effort={effort}, history={history}, gate={gate})")
     print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
@@ -381,24 +434,29 @@ def run(
             log.settings["regions"] = {r.label: r.shot for r in selected}
             highlight(client, overlay, png, selected, log.dir)  # SAM, alongside the first model call
         response, seconds = ask_model(
-            client, overlay, "1", effort, instructions=SYSTEM_PROMPT, input=fresh_input(task, [], png, regions=selected)
+            client, overlay, "1", effort, tool_list, instructions=instructions, input=fresh_input(task, [], png, regions=selected)
         )
 
         for step in range(1, max_steps + 1):
             calls = computer_calls(response)
-            if not calls:
+            fns = function_calls(response)
+            if not calls and not fns:
                 log.response(step, response, {"model_seconds": round(seconds, 1)})
                 result = response.output_text or "(model finished without a message)"
                 break
             if len(calls) > 1:
                 print(f"warning: {len(calls)} computer_calls in one response; handling the first")
 
-            call = calls[0]
-            actions = call.get("actions") or ([call["action"]] if call.get("action") else [])
-            checks = call.get("pending_safety_checks") or []
+            call = calls[0] if calls else None
+            notes: list[str] = []  # for the model's next turn
+            # open_url / open_app first: computer actions in the same turn were planned on this screen.
+            actions = [act for f in fns if (act := as_action(f))]
+            notes += [f"There is no tool called {f.get('name')!r}." for f in fns if not as_action(f)]
+            if call:
+                actions += call.get("actions") or ([call["action"]] if call.get("action") else [])
+            checks = (call or {}).get("pending_safety_checks") or []
             log.response(step, response, {"actions": actions, "model_seconds": round(seconds, 1)})
             note = (response.output_text or "").strip()
-            notes: list[str] = []  # for the model's next turn
             if note:
                 print(f"[{step}] model: {note}")
                 if not guard.tripped.is_set():
@@ -469,6 +527,7 @@ def run(
                         if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:
                             print(f"[{step}] the overlay had the keyboard; giving it back to {work_app}")
                             focus(work_app)
+                        driver.work_app = work_app
                         driver.execute(actions, seen=png)
                     executed = actions
                 except Interrupted as e:
@@ -479,6 +538,9 @@ def run(
                     executed, changed = actions[: e.done], e
                 if driver.fresh_checks:
                     log.annotate(step, fresh=driver.fresh_checks)
+                if driver.failures:
+                    print(f"[{step}] failed: " + "; ".join(driver.failures))
+                    notes += driver.failures
 
             if stop:
                 # The user may change the screen while paused, so what was left of
@@ -553,21 +615,27 @@ def run(
             done.append(executed)
 
             if history == "full":
+                replies = [
+                    {"type": "function_call_output", "call_id": f["call_id"], "output": "done"} for f in fns
+                ]
+                if call:
+                    replies.append({
+                        "type": "computer_call_output",
+                        "call_id": call["call_id"],
+                        "acknowledged_safety_checks": checks,
+                        "output": {"type": "computer_screenshot", "image_url": data_url(png)},
+                    })
+                said = [{"type": "input_text", "text": " ".join(notes)}] if notes else []
+                if not call:  # no computer_call_output to carry the screenshot
+                    said.append({"type": "input_image", "image_url": data_url(png)})
                 response, seconds = ask_model(
                     client,
                     overlay,
                     str(step + 1),
                     effort,
+                    tool_list,
                     previous_response_id=response.id,
-                    input=[
-                        {
-                            "type": "computer_call_output",
-                            "call_id": call["call_id"],
-                            "acknowledged_safety_checks": checks,
-                            "output": {"type": "computer_screenshot", "image_url": data_url(png)},
-                        }
-                    ]
-                    + ([{"role": "user", "content": [{"type": "input_text", "text": " ".join(notes)}]}] if notes else []),
+                    input=replies + ([{"role": "user", "content": said}] if said else []),
                 )
             else:
                 # Checks were approved above, before executing; a fresh turn has no
@@ -577,7 +645,8 @@ def run(
                     overlay,
                     str(step + 1),
                     effort,
-                    instructions=SYSTEM_PROMPT,
+                    tool_list,
+                    instructions=instructions,
                     input=fresh_input(task, past, png, nudge=only_looking(done), regions=selected),
                 )
         else:

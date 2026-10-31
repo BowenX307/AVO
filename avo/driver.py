@@ -18,6 +18,7 @@ ScreenChanged.
 from __future__ import annotations
 
 import io
+import re
 import subprocess
 import time
 from dataclasses import dataclass
@@ -43,6 +44,11 @@ SETTLE_MIN = 0.3
 SETTLE_POLL = 0.2
 SETTLE_MAX = 3.0
 PASSIVE = ("wait", "screenshot")  # at the end of a batch these add nothing: the settle waits anyway
+# open_url opens in the app AVO works in when it is one of these, else in the default browser.
+BROWSERS = {
+    "com.google.Chrome", "com.microsoft.edgemac", "com.apple.Safari", "company.thebrowser.Browser",
+    "org.mozilla.firefox", "com.brave.Browser",
+}
 # Scrolling. The docs don't give scroll_x/scroll_y units, but muse-spark sends small
 # counts (always 6 so far), i.e. wheel notches, not pixels. Values above
 # SCROLL_NOTCH_MAX are taken as screenshot pixels instead.
@@ -190,6 +196,8 @@ class MacDriver:
         self.fresh_checks: list[dict] = []  # this batch's look-again checks, for the run log
         self.settle_s = 0.0  # how long the last settle took
         self.settle_area = None  # where it looked (work_box) on its last frame
+        self.work_app: str | None = None  # bundle id of the app AVO works in (open_url's browser)
+        self.failures: list[str] = []  # this batch's open_url / open_app that didn't work, for the model
 
     # ---- screenshots -------------------------------------------------------
 
@@ -247,6 +255,7 @@ class MacDriver:
         Raises Interrupted as soon as interrupt() fires.
         """
         self.fresh_checks = []
+        self.failures = []
         before = Image.open(io.BytesIO(seen)).convert("RGB") if seen and self.fresh_threshold is not None else None
         last = max((i for i, a in enumerate(actions) if a["type"] not in PASSIVE), default=-1)
         for i, action in enumerate(actions[: last + 1]):
@@ -381,6 +390,10 @@ class MacDriver:
             self.settle(done, WAIT_SECONDS)
         elif kind == "screenshot":
             pass  # the agent loop sends a fresh screenshot after every batch
+        elif kind == "open_url":  # AVO's own tools (function calls), next to the computer tool
+            self._open_url(a.get("url") or "")
+        elif kind == "open_app":
+            self._open_app(a.get("name") or "")
         else:
             raise ValueError(f"unknown action type: {kind!r}")
 
@@ -399,6 +412,26 @@ class MacDriver:
             time.sleep(SCROLL_LINE_PAUSE)
             lines_y -= (lines_y > 0) - (lines_y < 0)
             lines_x -= (lines_x > 0) - (lines_x < 0)
+
+    def _open_url(self, url: str) -> None:
+        """Open a web address in a new tab: no address bar to focus, nothing to paste."""
+        if not re.match(r"(https?|file)://", url):
+            if not re.match(r"[\w-]+(\.[\w-]+)+(/|$)", url):
+                self.failures.append(f"open_url: {url!r} is not a web address")
+                return
+            url = "https://" + url
+        self.overlay.send("type", text=url)
+        browser = ["-b", self.work_app] if self.work_app in BROWSERS else []
+        r = subprocess.run(["open", *browser, url], capture_output=True, text=True)
+        if r.returncode:
+            self.failures.append(f"open_url {url}: {r.stderr.strip()[:160]}")
+
+    def _open_app(self, name: str) -> None:
+        """Bring an app to the front, starting it if needed: no Dock or Spotlight to click through."""
+        self.overlay.send("type", text=name)
+        r = subprocess.run(["open", "-a", name], capture_output=True, text=True)
+        if r.returncode:
+            self.failures.append(f"open_app: there is no app called {name!r}")
 
     @staticmethod
     def _type(text: str) -> None:

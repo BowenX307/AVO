@@ -44,6 +44,10 @@ def describe(actions: list[dict]) -> str:
             path = a.get("path") or []
             if path:
                 parts.append(f"drag({path[0]['x']},{path[0]['y']}->{path[-1]['x']},{path[-1]['y']})")
+        elif kind == "open_url":
+            parts.append(f"open_url({a.get('url', '')})")
+        elif kind == "open_app":
+            parts.append(f"open_app({json.dumps(a.get('name', ''), ensure_ascii=False)})")
         else:
             parts.append(kind)
     return ", ".join(parts)

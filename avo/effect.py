@@ -96,6 +96,8 @@ def plain(actions: list[dict]) -> str:
         "double_click": "clicking there",
         "scroll": "scrolling",
         "drag": "dragging",
+        "open_url": "opening that page",
+        "open_app": "opening the app",
     }.get(kinds[-1], kinds[-1])
 
 
