@@ -18,6 +18,12 @@ Computer-use models don't say how sure they are. Before every click, AVO runs a 
 
 If the check passes, AVO clicks. If not, it points back: it rings the target, or every candidate, and you answer with one click. It also pauses the moment you touch the mouse or keyboard, and looks at the screen again before each click in case something moved.
 
+## Privacy & safety
+
+- Screenshots, your task and the boxes you draw go to the Meta Model API, in Standard mode. When you speak to AVO, your voice (only while it shows it's listening) and names read from the front window go to Meta's speech recognition.
+- Meta attaches a routine safety check, `computer_action_requires_confirmation`, to almost every action. AVO doesn't acknowledge it silently: it rings the target on screen and counts down one second, and you can say "no" to call it off. That counts only if the ring was really shown; otherwise AVO asks for a yes.
+- Actions that can't be undone (send, submit, delete, pay, book) and every other safety check show a preview and wait for your "yes". Every confirmation is logged in `runs/<time>/`.
+
 ## Run it
 
 macOS 15 on Apple silicon, Python 3.11+ with [uv](https://docs.astral.sh/uv/), Node.js, and a Meta Model API key.

@@ -149,6 +149,7 @@ cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay 
           <ul>
             <li>Screenshots of your screen (without AVO’s own overlay), your typed task and the boxes you drew go to the Meta Model API (<code>api.meta.ai</code>) — nowhere else.</li>
             <li>AVO calls <code>muse-spark-1.3</code> in Standard mode. Meta’s docs say Standard-mode content <a href="https://dev.meta.ai/docs/pricing-rate-limits">isn’t used to train Meta models</a>. Targets are found with <code>sam-3.1</code>, which Meta’s docs don’t place in either mode.</li>
+            <li>When you speak to AVO, your voice — only while the island shows it’s listening — and names read from the front window (button labels, names on the page, which help recognition) go to Meta’s speech recognition, <code>muse-voice-transcribe-1.0</code>.</li>
             <li>Turn on Do Not Disturb before a task: a notification that pops up gets into the screenshots.</li>
           </ul>
           <h3>What stays on your Mac</h3>
@@ -157,11 +158,12 @@ cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay 
             <li>Your API key, in <code>.env</code> or the environment.</li>
           </ul>
           <h3>Safety checks</h3>
-          <p>The model can attach safety checks to an action. Meta attaches a routine one, <code>computer_action_requires_confirmation</code>, to every action; AVO acknowledges that one for you (run with <code>--confirm</code> to approve each yourself). Any other check — for example <code>malicious_instructions</code> — stops and waits for your answer.</p>
+          <p>The model can attach safety checks to an action. Meta attaches a routine one, <code>computer_action_requires_confirmation</code>, to almost every action. AVO doesn’t acknowledge it silently: before the action it rings the target on screen and counts down one second, and saying “no” (or pressing Cancel) calls it off. The countdown stands in for your review only if the ring was really drawn — when there is nothing to ring, or the overlay isn’t running, AVO asks for a yes instead (in the terminal, without the overlay).</p>
+          <p>Actions that can’t be undone — sending, submitting, deleting, paying, booking — and every other check code (for example <code>malicious_instructions</code>) show a preview, such as the reply about to be sent, and wait for your “yes”. Every confirmation is written to the run’s log: the check codes, how it was confirmed, and whether you said no.</p>
           <h3>Staying in control</h3>
           <ul>
             <li>Before an uncertain click, AVO shows you the target and asks.</li>
-            <li>Touch the mouse or keyboard and AVO pauses within a fraction of a second. It doesn’t click while paused, and after Resume it looks at the screen again before acting.</li>
+            <li>Touch the mouse or keyboard and AVO pauses within a fraction of a second. It doesn’t click while paused, and after Resume it looks at the screen again before acting. For a spoken task only a click counts, so an unintended nudge of the mouse doesn’t stop it; say “stop” or tap right <kbd>⌥</kbd> instead.</li>
             <li>Before each click it compares the target area with what the model saw; if it changed, the click is skipped and the model decides again.</li>
             <li><kbd>⌥</kbd> <kbd>Space</kbd> pauses, Stop ends the task, and the pointer in a screen corner stops it at once.</li>
           </ul>
