@@ -9,6 +9,9 @@
 //     then optionally B); the island then moves under the box as the input.
 //     While the agent works it widens to show the step, Option-Space pauses
 //     it, and when the agent asks it opens into the question card.
+//     Or tap right Option and say the task (voice.js): the island shows what
+//     it hears; while that task runs AVO keeps listening for "stop", "yes" /
+//     "no" and answers like "two", and the same tap stops it.
 // The island is real macOS glass (vibrancy, rounded in glass.js).
 // The Python agent connects over a local WebSocket and sends events.
 
@@ -16,9 +19,10 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execFile, execFileSync, spawn } = require("child_process");
-const { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen } = require("electron");
+const { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen, session, systemPreferences } = require("electron");
 const { WebSocketServer } = require("ws");
 const { roundGlass } = require("./glass");
+const voice = require("./voice");
 
 const PORT = Number(process.env.AVO_OVERLAY_PORT || 8765);
 // The overlay shows up in screen recordings; the agent's own screenshots
@@ -294,7 +298,10 @@ function watchFrontApp() {
     pending = lines.pop();
     for (const line of lines) {
       const id = /"CFBundleIdentifier"="([^"]+)"/.exec(line)?.[1];
-      if (id && id !== ownBundle) userApp = id;
+      if (id && id !== ownBundle) {
+        userApp = id;
+        prefetchKeywords();
+      }
     }
   });
   frontWatch.on("exit", () => {
@@ -307,6 +314,8 @@ let quitting = false;
 app.on("will-quit", () => {
   quitting = true;
   frontWatch?.kill();
+  helper?.kill();
+  stopListening();
 });
 
 function openInput(placeholder) {
@@ -376,7 +385,7 @@ function findUv() {
 // Run the agent on a typed task, in the app the user was in. Its events (status,
 // confirm, done) come back over the WebSocket like any other run; this only
 // watches for a silent crash.
-function runTask({ text, regions: chosen = [], app: workApp }) {
+function runTask({ text, regions: chosen = [], app: workApp, voice: spoken = false }) {
   fs.mkdirSync(path.join(ROOT, "runs"), { recursive: true });
   const log = fs.openSync(path.join(ROOT, "runs", "island.log"), "a");
   fs.writeSync(log, `\n=== ${new Date().toISOString()} ${text}  (in ${workApp || "the front app"})\n`);
@@ -384,11 +393,13 @@ function runTask({ text, regions: chosen = [], app: workApp }) {
   const args = ["run", "scripts/run_task.py", text];
   for (const r of chosen) args.push("--region", `${r.label}=${r.box.map(Math.round).join(",")}`);
   if (workApp) args.push("--app", workApp);
+  if (spoken) args.push("--voice");
   task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log], env: { ...process.env, PYTHONUNBUFFERED: "1" } });
   task.sawDone = () => (finished = true);
   task.on("exit", (code) => {
     fs.closeSync(log);
     task = null;
+    if (listening?.phase === "task") stopListening();
     if (!finished) {
       island.webContents.send("avo", { type: "done", text: `AVO stopped (exit ${code}). See runs/island.log`, ok: false, retry: true });
     }
@@ -477,6 +488,11 @@ function toPointerWindow(msg) {
 }
 
 function route(msg) {
+  if (msg.type === "confirm" && listening?.phase === "task") {
+    // Listen with this question's answers as keywords ("Anna Smith", "Physics 212").
+    const labels = (msg.candidates || []).map((c) => c.label).concat(msg.options || []);
+    if (labels.length) listenDuringTask(labels);
+  }
   switch (msg.type) {
     case "status":
       if (!paused) island.webContents.send("avo", msg); // keep showing "Paused"
@@ -494,6 +510,7 @@ function route(msg) {
       return;
     case "done":
       paused = false;
+      if (listening?.phase === "task") stopListening();
       task?.sawDone();
       island.webContents.send("avo", { ...msg, retry: !!task }); // Retry only what the island started
       break;
@@ -520,7 +537,7 @@ function route(msg) {
         // A safety check Meta raised, or the planner's question before the task
         // starts: a card on the island only, nothing on screen to ring or
         // correct, so the screen stays click-through. Number keys pick an answer.
-        pendingAsk = { id: msg.id, rect: null };
+        pendingAsk = { id: msg.id, kind: msg.kind, rect: null, labels: msg.options || [] };
         island.webContents.send("avo", msg);
         if (msg.options) bindDigits(msg.options.length);
         return;
@@ -528,7 +545,12 @@ function route(msg) {
       // The card keeps clear of the target, or of all the candidates.
       const boxes = msg.candidates ? msg.candidates.map((c) => c.box) : [msg.box || [msg.x - 28, msg.y - 18, msg.x + 28, msg.y + 18]];
       const [l, t, r, b] = [0, 1, 2, 3].map((i) => (i < 2 ? Math.min : Math.max)(...boxes.map((x) => x[i])));
-      pendingAsk = { id: msg.id, rect: { l, t, r: r + (msg.candidates ? 40 : 0), b } }; // + the number tags right of the rings
+      pendingAsk = {
+        id: msg.id,
+        kind: msg.candidates ? "which" : "ok",
+        rect: { l, t, r: r + (msg.candidates ? 40 : 0), b }, // + the number tags right of the rings
+        labels: (msg.candidates || []).map((c) => c.label),
+      };
       pointer.setIgnoreMouseEvents(false); // the corrected point is clicked on the pointer window
       island.webContents.send("avo", msg);
       if (msg.candidates) bindDigits(msg.candidates.length);
@@ -536,6 +558,224 @@ function route(msg) {
     }
   }
   pointer.webContents.send("avo", toPointerWindow(msg));
+}
+
+// ---- voice ----
+// helper.py (a Python process kept running) reports taps of the summon key and
+// reads names off the screen; voice.js streams the microphone to Meta's
+// recogniser. Phases: "command" (the task, said after a tap) and "task" (while
+// the spoken task runs: stop, yes / no, answers to questions).
+
+let helper = null;
+const helperWaits = new Map(); // request id -> resolve
+let helperSeq = 0;
+let keywordCache = { app: null, words: [] };
+let listening = null; // { phase, session, partial, timers: [] }
+let micAllowed = null;
+
+function startHelper() {
+  helper = spawn(findUv(), ["run", "python", "-m", "avo.helper"], { cwd: ROOT, stdio: ["pipe", "pipe", "inherit"] });
+  let pending = "";
+  helper.stdout.on("data", (chunk) => {
+    const lines = (pending + chunk).split("\n");
+    pending = lines.pop();
+    for (const line of lines) {
+      let m;
+      try {
+        m = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (m.event === "summon") summonVoice();
+      else if (m.event === "ready") prefetchKeywords();
+      else if (m.event === "error") console.log(`helper: ${m.text}`);
+      else if (m.id && helperWaits.has(m.id)) {
+        helperWaits.get(m.id)(m.keywords || []);
+        helperWaits.delete(m.id);
+      }
+    }
+  });
+  helper.on("exit", () => {
+    helper = null;
+    if (!quitting) setTimeout(startHelper, 2000);
+  });
+}
+
+function screenWords(bundle, waitMs) {
+  if (!helper || !bundle) return Promise.resolve([]);
+  const id = ++helperSeq;
+  helper.stdin.write(JSON.stringify({ id, cmd: "keywords", bundle }) + "\n");
+  return new Promise((resolve) => {
+    helperWaits.set(id, resolve);
+    setTimeout(() => helperWaits.delete(id) && resolve(null), waitMs);
+  });
+}
+
+// Read the user's app ahead of time: Chrome only builds its accessibility tree
+// for web pages once asked, so the first read of a page comes back thin.
+let prefetchTimer = null;
+function prefetchKeywords() {
+  clearTimeout(prefetchTimer);
+  prefetchTimer = setTimeout(async () => {
+    const app = userApp;
+    const words = await screenWords(app, 1500);
+    if (words) keywordCache = { app, words };
+  }, 400);
+}
+
+function mic(on) {
+  island.webContents.send("avo", { type: "mic", on });
+}
+
+function stopListening() {
+  if (!listening) return;
+  listening.timers.forEach(clearTimeout);
+  listening.session?.close();
+  listening = null;
+  mic(false);
+}
+
+async function micOk() {
+  if (micAllowed) return true;
+  micAllowed = systemPreferences.getMediaAccessStatus("microphone") === "granted" || (await systemPreferences.askForMediaAccess("microphone"));
+  return micAllowed;
+}
+
+function voiceKey() {
+  const key = voice.apiKey(ROOT);
+  if (!key) island.webContents.send("avo", { type: "done", ok: false, text: "MODEL_API_KEY is not set", ms: 4000 });
+  return key;
+}
+
+// Tap right Option: listen for a task; tap again: that's the end of it; while
+// a task runs: stop it.
+function summonVoice() {
+  if (task || clients.size) return stopByVoice();
+  if (listening?.phase === "command") return finishCommand();
+  if (!selecting && AT_REST.has(islandState)) startCommand();
+}
+
+async function startCommand() {
+  const key = voiceKey();
+  if (!key) return;
+  if (!(await micOk())) {
+    island.webContents.send("avo", { type: "done", ok: false, text: "Microphone access is off: System Settings → Privacy → Microphone", ms: 5000 });
+    return;
+  }
+  stopListening();
+  const app = userApp;
+  const state = (listening = { phase: "command", partial: "", timers: [], app });
+  island.webContents.send("avo", { type: "listening", text: "" });
+  mic(true);
+  const fresh = await screenWords(app, 300); // audio is buffered meanwhile
+  if (listening !== state) return;
+  const words = fresh && fresh.length ? fresh : keywordCache.app === app ? keywordCache.words : [];
+  state.session = new voice.Session({
+    key,
+    keywords: words,
+    onPartial: (text) => {
+      if (listening !== state) return;
+      state.partial = text;
+      island.webContents.send("avo", { type: "listening", text });
+    },
+    onFinal: (text) => listening === state && commandHeard(text || state.partial),
+    onError: (e) => console.log(`voice: ${e}`),
+    onClose: () => {
+      if (listening === state) commandHeard(state.partial);
+    },
+  });
+  // Nothing said for a while: give up quietly.
+  state.timers.push(setTimeout(() => listening === state && !state.partial && cancelCommand("Didn't hear anything"), 8000));
+  state.timers.push(setTimeout(() => listening === state && finishCommand(), 30000));
+}
+
+// The island receives the microphone's audio and passes it here.
+ipcMain.on("voice-audio", (_e, buf) => listening?.session?.send(Buffer.from(buf)));
+
+function finishCommand() {
+  const state = listening;
+  if (!state || state.phase !== "command") return;
+  state.session?.end();
+  mic(false);
+  state.timers.push(setTimeout(() => listening === state && commandHeard(state.partial), 1500));
+}
+
+function cancelCommand(text) {
+  stopListening();
+  island.webContents.send("avo", { type: "done", ok: false, text, ms: 1800 });
+}
+
+function commandHeard(text) {
+  const app = listening?.app || userApp;
+  stopListening();
+  text = String(text || "").trim();
+  if (!text) return island.webContents.send("avo", { type: "idle" });
+  if (voice.understand(text).stop && text.split(/\s+/).length <= 2) return island.webContents.send("avo", { type: "idle" });
+  const run = (lastRun = { text, regions: [], app, voice: true });
+  island.webContents.send("avo", { type: "heard", text });
+  setTimeout(() => {
+    runTask(run);
+    listenDuringTask([]);
+  }, 600);
+}
+
+// While a spoken task runs: listen for stop, yes / no, and answers.
+function listenDuringTask(labels) {
+  const key = voice.apiKey(ROOT);
+  if (!key) return;
+  listening?.session?.close();
+  listening?.timers.forEach(clearTimeout);
+  const state = (listening = { phase: "task", partial: "", timers: [], labels });
+  mic(true);
+  state.session = new voice.Session({
+    key,
+    keywords: labels,
+    onFinal: (text) => listening === state && text && heardDuringTask(text),
+    onError: (e) => console.log(`voice: ${e}`),
+    onClose: (code) => {
+      // The session ended by itself (e.g. its time limit): keep listening while the task runs.
+      if (listening === state && (task || clients.size)) setTimeout(() => listening === state && listenDuringTask(labels), 300);
+    },
+  });
+}
+
+function stopByVoice() {
+  if (pendingAsk) answer({ choice: "stop", how: "voice" });
+  else tellAgents({ type: "stop" });
+  paused = false;
+  island.webContents.send("avo", { type: "status", text: "Stopping…", busy: true });
+}
+
+function heardDuringTask(text) {
+  const u = voice.understand(text);
+  console.log(`heard: ${JSON.stringify(text)} -> ${JSON.stringify(u)}`);
+  if (u.stop) return stopByVoice();
+  const ask = pendingAsk;
+  if (ask) {
+    const said = { how: "voice", said: text };
+    if (ask.kind === "which" || ask.kind === "clarify") {
+      const byName = voice.labelIndex(text, ask.labels);
+      const index = byName >= 0 ? byName : u.index;
+      if (index !== undefined && index >= 0 && index < ask.labels.length) return answer({ choice: "pick", index, ...said });
+      if (u.none || u.no) return answer({ choice: "none", ...said });
+      return;
+    }
+    if (ask.kind === "countdown") {
+      if (u.no) return answer({ choice: "no", ...said });
+      if (u.yes) return answer({ choice: "go", shown: true, ...said }); // the ring is up; no need to wait
+      return;
+    }
+    if (ask.kind === "ok") {
+      if (u.yes) return answer({ choice: "yes", ...said });
+      if (u.no || u.none) return answer({ choice: "none", ...said });
+      return;
+    }
+    // "Send — OK?", a safety check
+    if (u.yes) return answer({ choice: "yes", ...said });
+    if (u.no) return answer({ choice: "no", ...said });
+    return;
+  }
+  if (paused && u.resume) togglePause();
 }
 
 function startServer() {
@@ -569,10 +809,14 @@ function startServer() {
 
 app.dock?.hide(); // no Dock icon, not in Cmd-Tab
 app.whenReady().then(() => {
+  // The island page records the microphone for voice input; nothing else asks.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === "media"));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === "media");
   watchFrontApp();
   createPointer();
   createIsland();
   startServer();
+  startHelper();
   if (!globalShortcut.register(SUMMON_KEY, summon)) console.log(`could not register ${SUMMON_KEY}`);
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());

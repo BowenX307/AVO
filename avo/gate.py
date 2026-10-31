@@ -225,8 +225,9 @@ def ask_user(
 ) -> tuple[str, list[dict], dict | None]:
     """Point at the target and ask. Returns (choice, actions to run, raw answer).
 
-    choice is "yes", "no" (actions rewritten to the user's point), "stop", or
-    "pause" (the user paused instead of answering).
+    choice is "yes", "no" (actions rewritten to the user's point), "stop",
+    "pause" (the user paused instead of answering), or "none" (said "none of
+    these" or "no, ..." aloud: nothing runs; answer["said"] has their words).
     If the overlay can't ask, proceeds with the original actions.
     """
     if a.candidates:
@@ -253,7 +254,7 @@ def ask_user(
     choice = answer.get("choice")
     if choice == "no" and answer.get("x") is not None:
         return "no", correct(actions, driver.to_shot(answer["x"], answer["y"])), answer
-    if choice in ("stop", "pause"):
+    if choice in ("stop", "pause", "none"):
         return choice, [], answer
     return "yes", actions, answer
 
@@ -294,7 +295,7 @@ def _ask_which(
         return "pick", correct(actions, driver.to_shot(pick["x"], pick["y"])), answer
     if choice == "no" and answer.get("x") is not None:
         return "no", correct(actions, driver.to_shot(answer["x"], answer["y"])), answer
-    if choice in ("stop", "pause"):
+    if choice in ("stop", "pause", "none"):
         return choice, [], answer
     return "yes", actions, answer
 

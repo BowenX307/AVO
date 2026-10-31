@@ -513,6 +513,7 @@ def run(
             stop = interrupted()
             a = None  # this step's gate assessment
             answered = False  # the user answered a question about this batch
+            skip = False  # the user said no to this batch: nothing runs
             if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
@@ -546,12 +547,19 @@ def run(
                         elif choice == "no":
                             corrected += 1
                             note = (note + " " if note else "") + "(the user corrected the click point on screen)"
+                        elif choice == "none":
+                            corrected += 1
+                            skip = True
+                            said = (answer or {}).get("said") or ""
+                            notes.append(
+                                f"AVO asked the user about this step; they said none of the options is right"
+                                + (f": “{said}”" if said else "") + ". It was NOT executed. Do what they said."
+                            )
                         else:
                             note = (note + " " if note else "") + "(the user confirmed this step)"
                     log.annotate(step, gate=entry)
 
-            skip = False  # the user said no to this batch
-            if not stop and actions:
+            if not stop and not skip and actions:
                 if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:
                     focus(work_app)  # so the countdown rings the field the keys will go to
                 with guard.acting(), guard.asking(), timed("you"):

@@ -158,6 +158,17 @@
             reason: "The page asks to send payment details to an unknown site.",
           });
         },
+        async listening() {
+          const said = "Reply to Professor Smith, say I'll be ten minutes late";
+          const words = said.split(" ");
+          for (let i = 1; i <= words.length; i++) {
+            to("island", { type: "listening", text: words.slice(0, i).join(" ") });
+            await wait(160);
+          }
+        },
+        async heard() {
+          to("island", { type: "heard", text: "Reply to Professor Smith, say I'll be ten minutes late" });
+        },
         async countdown() {
           step(2, 0, "Opening the owner menu");
           const box = owner();

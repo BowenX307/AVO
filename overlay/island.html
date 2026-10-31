@@ -127,6 +127,28 @@
       #progress.open i { width: 30%; animation: sweep 2.2s var(--avo-ease) infinite; } /* no plan: no total */
       @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 
+      /* ---- voice: what AVO hears, large ---- */
+      #listen { display: none; width: 560px; box-sizing: border-box; padding: 14px 20px 18px; }
+      body.listening #listen, body.heard #listen { display: block; }
+      body.listening #pill, body.heard #pill { display: none; }
+      body.listening, body.heard { --r: var(--avo-radius-card); }
+      .lhead { display: flex; align-items: center; gap: 10px; font: 500 12px/1 var(--avo-font-mono); color: var(--soft); }
+      .lhead .hint { display: block; margin: 0 0 0 auto; }
+      .micglyph { width: 10px; height: 10px; border-radius: 50%; background: var(--avo-paper); }
+      body.listening .micglyph { animation: breathe 1.2s ease-in-out infinite; }
+      .ltext {
+        margin-top: 12px;
+        min-height: 30px;
+        font: 500 24px/1.3 var(--avo-font-sans);
+        letter-spacing: -0.015em;
+        color: var(--avo-paper);
+        overflow-wrap: anywhere;
+      }
+      .ltext:empty::before { content: "Say what you want done"; color: rgba(245, 245, 242, 0.4); }
+      /* AVO is listening during a spoken task (for "stop", "yes", "two"). */
+      #micdot { display: none; flex: none; width: 7px; height: 7px; margin: 0 4px 0 -4px; border-radius: 50%; background: var(--avo-paper); opacity: 0.75; }
+      html.mic body:not(.idle):not(.listening):not(.heard) #micdot { display: block; }
+
       /* Before an ordinary step: what AVO is about to do, a line that runs out
          in COUNTDOWN seconds, and Cancel (or say "no"). */
       body.countdown .ctl.countdown { display: flex; }
@@ -232,6 +254,7 @@
     <div id="shell">
       <div id="pill">
         <span id="icon"></span>
+        <span id="micdot" title="AVO is listening"></span>
         <span id="text"></span>
         <input id="ask" placeholder="Tell AVO what to do" spellcheck="false" />
         <span class="hint send"><b class="glyph">⏎</b> send · esc cancel</span>
@@ -242,6 +265,10 @@
         <span class="ctl error"><button class="ghost" data-cmd="dismiss">Stop</button><button class="solid" data-cmd="retry">Retry</button></span>
         <span class="ctl countdown"><button class="ghost" data-cmd="cancel">Cancel</button></span>
         <span id="progress"><i></i></span>
+      </div>
+      <div id="listen">
+        <div class="lhead"><span class="micglyph"></span><span class="ltitle">Listening</span><span class="hint">tap right ⌥ when done</span></div>
+        <div class="ltext"></div>
       </div>
       <div id="card">
         <div class="head"><span class="q"></span></div>
@@ -266,7 +293,7 @@
       const icon = $("#icon"), text = $("#text"), ask = $("#ask"), pill = $("#pill"), card = $("#card"), shell = $("#shell");
       const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
-      const H = 36, IDLE_W = 72, MAX_W = 560, INPUT_W = 520, INPUT_H = 46, CARD_W = 400;
+      const H = 36, IDLE_W = 72, MAX_W = 560, INPUT_W = 520, INPUT_H = 46, CARD_W = 400, LISTEN_W = 560;
       const MARK = AVOLogo.markup({ className: "mark", strokeWidth: 15 });
       const CHECK = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 9.5 L7.5 13 L14 5.5" fill="none" stroke="#F5F5F2" stroke-width="2" stroke-linecap="square" /></svg>`;
       const PAUSE = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><rect x="5.5" y="4.5" width="2.2" height="9" fill="#F5F5F2" /><rect x="10.3" y="4.5" width="2.2" height="9" fill="#F5F5F2" /></svg>`;
@@ -289,7 +316,10 @@
         bar.style.setProperty("--done", task.total ? `${(100 * task.step) / task.total}%` : "0%");
         let width = IDLE_W, height = H;
         if (state === "input") (width = INPUT_W), (height = INPUT_H);
-        else if (state === "ask") {
+        else if (state === "listening" || state === "heard") {
+          width = LISTEN_W;
+          height = Math.ceil($("#listen").getBoundingClientRect().height);
+        } else if (state === "ask") {
           width = CARD_W;
           height = Math.ceil(card.getBoundingClientRect().height);
         } else if (state !== "idle") {
@@ -445,8 +475,57 @@
         setState("ask", "", { cls: "confirming" });
       }
 
+      // ---- the microphone: 24 kHz 16-bit mono PCM, ~85 ms a chunk, to the main process ----
+      let micStream = null, micCtx = null;
+      async function micOn() {
+        if (micStream) return;
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+        } catch (e) {
+          console.log("microphone:", e.message);
+          return;
+        }
+        micCtx = new AudioContext({ sampleRate: 24000 }); // Chromium resamples the mic to this
+        const src = micCtx.createMediaStreamSource(micStream);
+        const node = micCtx.createScriptProcessor(2048, 1, 1);
+        node.onaudioprocess = (e) => {
+          const f = e.inputBuffer.getChannelData(0);
+          const pcm = new Int16Array(f.length);
+          for (let i = 0; i < f.length; i++) pcm[i] = Math.max(-1, Math.min(1, f[i])) * 0x7fff;
+          window.avo.send("voice-audio", pcm.buffer);
+        };
+        src.connect(node);
+        node.connect(micCtx.destination); // a script processor only runs when connected; it outputs silence
+      }
+      function micOff() {
+        micStream?.getTracks().forEach((t) => t.stop());
+        micCtx?.close();
+        micStream = micCtx = null;
+      }
+
+      function showListening(m, state = "listening") {
+        $(".ltitle").textContent = state === "heard" ? "Got it" : "Listening";
+        $("#listen .hint").style.visibility = state === "heard" ? "hidden" : "";
+        $(".ltext").textContent = m.text || "";
+        if (body.classList.contains(state)) {
+          // Same state, more words: grow in place.
+          window.avo.send("island-size", { state, width: LISTEN_W, height: Math.ceil($("#listen").getBoundingClientRect().height) });
+        } else setState(state);
+      }
+
       window.avo.onEvent((m) => {
         switch (m.type) {
+          case "listening":
+            showListening(m);
+            break;
+          case "heard":
+            showListening(m, "heard");
+            break;
+          case "mic":
+            document.documentElement.classList.toggle("mic", !!m.on);
+            if (m.on) micOn();
+            else micOff();
+            break;
           case "status":
             showStatus(m);
             break;
