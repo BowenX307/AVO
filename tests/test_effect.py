@@ -4,10 +4,12 @@
 """
 
 import unittest
+from unittest import mock
 
 from PIL import Image, ImageDraw
 
-from avo.effect import MIN_CHANGED_PX, EffectWatch, changed_pixels, plain
+from avo.driver import MacDriver
+from avo.effect import MIN_CHANGED_PX, EffectWatch, changed_pixels, plain, still
 
 W, H = 1280, 832
 CMD_L = [{"type": "keypress", "keys": ["cmd", "L"]}, {"type": "wait"}]
@@ -84,6 +86,46 @@ class EffectWatchTest(unittest.TestCase):
         watch.record(CMD_L, BLANK, BLANK)
         watch.reset()
         self.assertEqual(watch.record(CMD_L, BLANK, BLANK), "none")
+
+
+class SettleTest(unittest.TestCase):
+    def test_still(self):
+        self.assertTrue(still(BLANK, screen()))
+        self.assertTrue(still(BLANK, screen((600, 400, 601, 417))))  # caret blink
+        self.assertFalse(still(BLANK, screen((40, 60, 50, 70))))  # tab spinner, a 10 px square
+        self.assertFalse(still(BLANK, screen((0, 100, 1279, 800))))  # the new page paints
+
+    def frames(self, *imgs):
+        """A driver whose screenshots are imgs in turn (the last one repeats); no waiting."""
+        driver = MacDriver()
+        seq = list(imgs)
+        driver.grab = lambda: seq.pop(0) if len(seq) > 1 else seq[0]
+        return driver
+
+    @mock.patch("avo.driver.SETTLE_MIN", 0)
+    @mock.patch("avo.driver.SETTLE_POLL", 0)
+    def test_settle_waits_out_a_loading_page(self):
+        spin = [screen((40, 60, 50, 70 - i)) for i in range(4)]  # the spinner turns: every frame differs
+        page = screen((0, 100, 1279, 800))
+        driver = self.frames(*spin, page, page)
+        self.assertIs(driver.settle(), page)
+
+    @mock.patch("avo.driver.SETTLE_MIN", 0)
+    @mock.patch("avo.driver.SETTLE_POLL", 0.01)
+    def test_settle_gives_up_on_a_screen_that_never_stops(self):
+        frames = [screen((40, 60, 50, 60 + i % 2 * 9)) for i in range(1000)]
+        driver = self.frames(*frames)
+        driver.settle(longest=0.1)
+        self.assertLess(driver.settle_s, 0.3)
+
+    def test_trailing_waits_are_skipped(self):
+        driver = MacDriver(fresh_threshold=None)
+        ran = []
+        driver._execute_one = lambda a, i: ran.append(a["type"])
+        driver.execute([{"type": "keypress", "keys": ["cmd", "L"]}, {"type": "wait"}, {"type": "screenshot"}])
+        self.assertEqual(ran, ["keypress"])
+        driver.execute([{"type": "wait"}])
+        self.assertEqual(ran, ["keypress"])
 
 
 class PlainTest(unittest.TestCase):

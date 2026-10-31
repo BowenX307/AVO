@@ -24,7 +24,6 @@ from avo.regions import describe as describe_regions
 from avo.snap import snap, warm_up
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
-SETTLE_SECONDS = 0.8  # let the UI settle before the post-action screenshot
 
 SYSTEM_PROMPT = """\
 You are operating a macOS computer through screenshots of its main display.
@@ -484,8 +483,8 @@ def run(
             if changed and not stop:
                 png = changed.png  # the screen as it was when the click was called off
             else:
-                time.sleep(SETTLE_SECONDS)
-                png = driver.screenshot()
+                png = driver.settled_screenshot()  # once a page load or a menu has finished moving
+                log.annotate(step, settle_s=driver.settle_s)
             log.screenshot(step, png)
 
             # Did the batch do anything? Nothing changing on screen, again and
@@ -494,7 +493,7 @@ def run(
             if stop or changed:
                 effect.reset()  # the user or the page moved things: count afresh
             else:
-                verdict = effect.record(executed, seen, png)
+                verdict = effect.record(executed, seen, png, driver.settle_area)
                 log.annotate(step, changed_px=effect.last_px)
                 if verdict == "none":
                     print(f"[{step}] nothing changed on screen")

@@ -21,6 +21,11 @@ MIN_CHANGED_PX = 40
 PIXEL_DIFF = 32  # a pixel counts as changed when a channel moves by more than this (0-255)
 MENU_BAR = 0.03  # top share of the screen left out: the clock ticks there
 STUCK_AFTER = 3  # batches in a row that changed nothing
+# Settling (driver.settle): two frames in a row count as still when fewer pixels
+# than this differ, or the change is no wider than a text caret. A loading
+# page is never still: Chrome's tab spinner keeps turning.
+STILL_PX = 8
+CARET_W = 3
 
 # Batches of only these expect no change, so they neither count nor clear a streak.
 PASSIVE_KINDS = ("wait", "screenshot", "move")
@@ -41,16 +46,40 @@ def _image(png: bytes | Image.Image) -> Image.Image:
     return png if isinstance(png, Image.Image) else Image.open(io.BytesIO(png))
 
 
-def changed_pixels(before: bytes | Image.Image, after: bytes | Image.Image) -> int:
-    """How many pixels differ between two screenshots, menu bar left out."""
+Box = tuple[int, int, int, int]  # (l, t, r, b) in screenshot pixels
+
+
+def _changes(before: bytes | Image.Image, after: bytes | Image.Image, area: Box | None = None) -> Image.Image | None:
+    """A mask of the pixels that differ, within `area` (default: the whole screen),
+    menu bar left out; None if the sizes differ."""
     a, b = _image(before).convert("RGB"), _image(after).convert("RGB")
     if a.size != b.size:
-        return a.size[0] * a.size[1]
+        return None
     w, h = a.size
-    box = (0, int(h * MENU_BAR), w, h)
+    l, t, r, btm = area or (0, 0, w, h)
+    box = (max(0, l), max(int(h * MENU_BAR), t), min(w, r), min(h, btm))
+    if box[2] - box[0] < 1 or box[3] - box[1] < 1:
+        return None
     r, g, bl = ImageChops.difference(a.crop(box), b.crop(box)).split()
     most = ImageChops.lighter(ImageChops.lighter(r, g), bl)
-    return most.point(lambda v: 255 if v > PIXEL_DIFF else 0).histogram()[255]
+    return most.point(lambda v: 255 if v > PIXEL_DIFF else 0)
+
+
+def changed_pixels(before: bytes | Image.Image, after: bytes | Image.Image, area: Box | None = None) -> int:
+    """How many pixels differ between two screenshots (within `area`), menu bar left out."""
+    mask = _changes(before, after, area)
+    return mask.histogram()[255] if mask else _image(after).size[0] * _image(after).size[1]
+
+
+def still(before: bytes | Image.Image, after: bytes | Image.Image, area: Box | None = None) -> bool:
+    """Has the screen (within `area`) stopped changing between these two frames, a blinking caret aside?"""
+    mask = _changes(before, after, area)
+    if mask is None:
+        return False
+    if mask.histogram()[255] < STILL_PX:
+        return True
+    l, _, r, _ = mask.getbbox()
+    return r - l <= CARET_W
 
 
 def plain(actions: list[dict]) -> str:
@@ -78,9 +107,12 @@ class EffectWatch:
         self.streak = 0
         self.last_px = 0  # changed pixels of the last batch, for the run log
 
-    def record(self, actions: list[dict], before, after) -> str:
-        """'changed', 'passive' (only waited), 'none' (no effect) or 'stuck' (no effect, stuck_after times in a row)."""
-        self.last_px = changed_pixels(before, after)
+    def record(self, actions: list[dict], before, after, area: Box | None = None) -> str:
+        """'changed', 'passive' (only waited), 'none' (no effect) or 'stuck' (no effect, stuck_after times in a row).
+
+        area: where to look, the window being worked in (desktop.work_area).
+        """
+        self.last_px = changed_pixels(before, after, area)
         if self.last_px >= MIN_CHANGED_PX:
             self.streak = 0
             return "changed"

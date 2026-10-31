@@ -28,6 +28,39 @@ def _bundle(pid: int) -> str | None:
     return app.bundleIdentifier() if app else None
 
 
+def work_area() -> tuple[float, float, float, float] | None:
+    """Screen points (l, t, r, b) around the window being worked in.
+
+    The topmost ordinary window (not AVO's), plus any menus or popups its app
+    has open above it. Whether the screen is still, or an action did
+    anything, is judged here only: elsewhere a chat app streams text or a
+    spinner turns, and that isn't the task's doing.
+    """
+    windows = Quartz.CGWindowListCopyWindowInfo(
+        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID
+    )  # front to back
+
+    def box(w):
+        b = w["kCGWindowBounds"]
+        return (b["X"], b["Y"], b["X"] + b["Width"], b["Y"] + b["Height"])
+
+    def visible(w):
+        b = w["kCGWindowBounds"]
+        return w.get("kCGWindowAlpha", 1) > 0 and b["Width"] >= 80 and b["Height"] >= 40
+
+    front = next(
+        (w for w in windows if w.get("kCGWindowLayer") == 0 and visible(w) and w.get("kCGWindowName") not in OVERLAY_TITLES),
+        None,
+    )
+    if front is None:
+        return None
+    pid = front["kCGWindowOwnerPID"]
+    boxes = [box(front)] + [
+        box(w) for w in windows if w["kCGWindowOwnerPID"] == pid and w.get("kCGWindowLayer", 0) > 0 and visible(w)
+    ]
+    return (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+
+
 def overlay_windows() -> list[dict]:
     """AVO's overlay windows on screen: [{title, box (l, t, r, b) in points, pid, bundle}]."""
     out = []

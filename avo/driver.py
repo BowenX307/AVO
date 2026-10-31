@@ -28,13 +28,21 @@ import Quartz
 from PIL import Image, ImageChops, ImageStat
 
 from avo import events
-from avo.desktop import OVERLAY_TITLES
+from avo.desktop import OVERLAY_TITLES, work_area
+from avo.effect import still
 from avo.events import chord
 from avo.overlay import Overlay
 
 SHOT_WIDTH = 1280
 ACTION_PAUSE = 0.3  # seconds between actions in one batch
-WAIT_SECONDS = 1.0  # duration of a "wait" action
+WAIT_SECONDS = 2.0  # a "wait" action lasts until the screen is still, at most this long
+# After a batch, the next screenshot waits until the screen is still (a page
+# loading, a menu opening): first look after SETTLE_MIN, then every SETTLE_POLL,
+# at most SETTLE_MAX. It replaced a fixed 0.8 s, which a slow page outlasted.
+SETTLE_MIN = 0.3
+SETTLE_POLL = 0.2
+SETTLE_MAX = 3.0
+PASSIVE = ("wait", "screenshot")  # at the end of a batch these add nothing: the settle waits anyway
 # Scrolling. The docs don't give scroll_x/scroll_y units, but muse-spark sends small
 # counts (always 6 so far), i.e. wheel notches, not pixels. Values above
 # SCROLL_NOTCH_MAX are taken as screenshot pixels instead.
@@ -180,6 +188,8 @@ class MacDriver:
         self.interrupt = interrupt or (lambda: None)
         self.fresh_threshold = fresh_threshold
         self.fresh_checks: list[dict] = []  # this batch's look-again checks, for the run log
+        self.settle_s = 0.0  # how long the last settle took
+        self.settle_area = None  # where it looked (work_box) on its last frame
 
     # ---- screenshots -------------------------------------------------------
 
@@ -238,7 +248,8 @@ class MacDriver:
         """
         self.fresh_checks = []
         before = Image.open(io.BytesIO(seen)).convert("RGB") if seen and self.fresh_threshold is not None else None
-        for i, action in enumerate(actions):
+        last = max((i for i, a in enumerate(actions) if a["type"] not in PASSIVE), default=-1)
+        for i, action in enumerate(actions[: last + 1]):
             if i:
                 self._sleep(ACTION_PAUSE, i)
             self._check_interrupt(i)
@@ -251,6 +262,38 @@ class MacDriver:
                 if changed:
                     raise ScreenChanged(i, diff, _png(now))
             self._execute_one(action, i)
+
+    def settle(self, done: int = 0, longest: float = SETTLE_MAX) -> Image.Image:
+        """Wait until the screen stops changing, at most `longest` s; returns the last frame.
+
+        Interrupted like any wait. self.settle_s says how long it took.
+        """
+        t0 = time.time()
+        self._sleep(SETTLE_MIN, done)
+        frame, area = self.grab(), self.work_box()
+        while time.time() - t0 < longest:
+            self._sleep(SETTLE_POLL, done)
+            prev, prev_area = frame, area
+            frame, area = self.grab(), self.work_box()
+            if area == prev_area and still(prev, frame, area):
+                break
+        self.settle_s = round(time.time() - t0, 2)
+        self.settle_area = area
+        return frame
+
+    def work_box(self) -> tuple[int, int, int, int] | None:
+        """The window being worked in (desktop.work_area), in screenshot pixels."""
+        area = work_area() if self.geometry else None
+        if area is None:
+            return None
+        return (*self.to_shot(area[0], area[1]), *self.to_shot(area[2], area[3]))
+
+    def settled_screenshot(self) -> bytes:
+        """The screen once it is still after a batch (see settle), as PNG bytes."""
+        try:
+            return _png(self.settle())
+        except Interrupted:  # the user took over meanwhile; the loop pauses before acting
+            return self.screenshot()
 
     def _check_interrupt(self, done: int) -> None:
         reason = self.interrupt()
@@ -335,7 +378,7 @@ class MacDriver:
             self.overlay.send("type", text=a["text"])
             self._type(a["text"])
         elif kind == "wait":
-            self._sleep(WAIT_SECONDS, done)
+            self.settle(done, WAIT_SECONDS)
         elif kind == "screenshot":
             pass  # the agent loop sends a fresh screenshot after every batch
         else:
