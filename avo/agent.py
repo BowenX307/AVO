@@ -25,7 +25,7 @@ from avo.overlay import Overlay
 from avo.planner import Plan, make_plan
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
-from avo.snap import snap, warm_up
+from avo.snap import location, snap, warm_up
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
 
@@ -573,11 +573,11 @@ def run(
             if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
-                    a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size, skip_ok=not selected)
+                    a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size,
+                               where=(lambda x, y: location(*driver.to_screen(x, y))) if snap_to_controls else None)
                 stop = interrupted()  # the user may have taken over during the check
                 if a and not stop:
-                    skipped_review = " (SAM sure; review not waited for)" if a.late_review else ""
-                    print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s){skipped_review}")
+                    print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
                     entry = a.to_log()
                     if a.flagged:
                         asked += 1
@@ -664,11 +664,6 @@ def run(
                 spent["settle"] += driver.settle_s
                 log.annotate(step, settle_s=driver.settle_s)
             log.screenshot(step, png)
-            if a and a.late_review:  # by now (actions, settle) the review has usually landed
-                try:
-                    log.annotate(step, late_review=a.late_review.result(timeout=10))
-                except Exception as e:
-                    log.annotate(step, late_review={"error": f"{type(e).__name__}: {e}"[:200]})
 
             # Did the batch do anything? Nothing changing on screen, again and
             # again, means the agent is stuck: say so to the model the first

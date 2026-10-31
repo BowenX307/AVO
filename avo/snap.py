@@ -115,6 +115,20 @@ def on_blank(x: float, y: float) -> bool:
     return _attr(el, "AXRole") in BLANK and not _text(el)
 
 
+def location(x: float, y: float) -> str | None:
+    """What the accessibility tree says about a click point, for the gate (avo/gate.py).
+
+    "on" a control; "gap" when the point is on layout-only space with controls
+    nearby (a click between two fields, which snap() leaves alone); None when it
+    can't tell, e.g. a canvas or an app without accessibility info.
+    """
+    if clickable_at(x, y):
+        return "on"
+    if on_blank(x, y) and nearby(x, y):
+        return "gap"
+    return None
+
+
 def nearby(x: float, y: float, radius: float = RADIUS) -> list[Target]:
     """Clickable elements whose hit area comes within `radius` of (x, y), nearest first."""
     seen: dict[tuple, Target] = {}

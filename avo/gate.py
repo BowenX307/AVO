@@ -1,20 +1,24 @@
 """The confidence gate: before a pointer batch runs, decide whether to ask the user.
 
-assess() runs the model review and SAM in parallel and adds repeat detection.
-A batch is flagged when the review says the click misses its target or doesn't
-move the task forward, when it repeats a recent batch, or when the click picks
-one of several options that fit the task equally well (two people named Alex). SAM can overrule a
-"missed" review: when every click sits on a mask SAM is sure about, the reviewer
-has misread the location (real misses, in gaps or just past a button's edge,
-score lower in SAM), and its progress verdict, built on that misreading, is
-dropped too. A "hit but no progress" review still asks.
+Each question costs the user an answer, so the gate asks on two primary
+signals and lets the model review break ties:
 
-The review is the slow half (median 3.7 s against SAM's 1.9 s). When SAM comes
-back at least SAM_CONFIDENT sure of every click and the batch isn't a repeat,
-the batch goes ahead without waiting for it; the review still finishes in the
-background and is logged as late_review, to keep calibrating. Never when the
-user boxed what the task is about (skip_ok=False): those tasks are where a
-"which one?" question matters most.
+  1. Choice: does the click pick one of several options that all fit the task
+     (two people named Alex, two Professor Smiths)? Then always ask "Which one?".
+  2. Location: is every click on a clear target? The accessibility tree decides
+     when it knows (a control under the point: yes; layout-only space between
+     controls: no); elsewhere SAM must be at least SAM_CLEAR sure, with the
+     point on its mask.
+
+Not ambiguous and a clear location: go. Not ambiguous but the location is in
+doubt: the review's "hits its target" verdict decides. The review's "moves the
+task forward" verdict and repeat detection no longer ask by themselves: on the
+39 labelled baseline clicks they caused most false alarms (a done task's
+repeated clicks), and a click that does nothing is caught afterwards by the
+stuck detector (avo/effect.py). Both are still logged.
+
+The choice question comes from the review (the same call), so the gate waits
+for it on every click batch; SAM runs alongside.
 
 ask_user() then points at the target on screen and asks "OK to click here?":
 yes runs the batch, no lets the user click the right spot, stop ends the task.
@@ -26,7 +30,8 @@ from __future__ import annotations
 import io
 import re
 import time
-from concurrent.futures import Future, ThreadPoolExecutor
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from openai import OpenAI
@@ -42,12 +47,12 @@ from avo.snap import Target, clickable_at, nearby
 GATED_KINDS = ("click", "double_click", "drag")
 POINTER_KINDS = ("click", "double_click", "move", "scroll", "drag")
 MAX_HIGHLIGHT_FRACTION = 0.25  # ignore SAM boxes bigger than this share of the screen
-SAM_SURE = 0.9  # SAM confidence at which a point on its mask overrides a "missed" review
-# SAM confidence on every click at which the review isn't waited for. On the 39
-# labelled baseline clicks, 0.8 skips 6 reviews and still catches 14/14 wrong
-# clicks (0.5 let a click between two fields through, at 0.668); the "which
-# Alex?" clicks scored 0.59-0.71, below it.
-SAM_CONFIDENT = 0.8
+# SAM confidence (point on the mask) at which a click's location counts as clear.
+# On the 39 labelled baseline clicks, 0.7-0.9 all catch 14/14 wrong clicks with
+# 1-2/25 false alarms (0.65 and below let a click between two fields through, at
+# 0.668). On the 38 live asks you answered, 0.8 still asks about 18/23 real
+# problems against 14/23 at 0.7: gaps between fields there scored 0.73-0.79.
+SAM_CLEAR = 0.8
 
 
 @dataclass
@@ -55,15 +60,16 @@ class Assessment:
     flagged: bool
     reasons: list[str] = field(default_factory=list)
     review: dict | None = None
-    repeat: bool = False
+    repeat: bool = False  # logged; doesn't ask by itself
     target: tuple[int, int] | None = None  # screenshot px of the first gated action
     box: tuple[float, float, float, float] | None = None  # SAM box around it, screenshot px
     sam_conf: float | None = None
     on_mask: bool = False
+    places: list[str | None] = field(default_factory=list)  # per click: the accessibility verdict, "on" / "gap" / None
+    clear: bool = False  # every click on a clear target
     candidates: list[dict] = field(default_factory=list)  # ambiguous click: [{label, x, y}], screenshot px
     plain: list[str] = field(default_factory=list)  # the reasons, in words for the user
     seconds: float = 0.0
-    late_review: Future | None = None  # the review not waited for (SAM was confident), still running
 
     def to_log(self) -> dict:
         return {
@@ -75,9 +81,10 @@ class Assessment:
             "box": [round(v) for v in self.box] if self.box else None,
             "sam_conf": self.sam_conf,
             "on_mask": self.on_mask,
+            "places": self.places,
+            "clear": self.clear,
             "candidates": self.candidates,
             "seconds": round(self.seconds, 1),
-            "review_skipped": self.late_review is not None,
         }
 
 
@@ -101,11 +108,12 @@ def assess(
     actions: list[dict],
     note: str,
     screen_size: tuple[int, int],
-    skip_ok: bool = True,
+    where: Callable[[int, int], str | None] | None = None,
 ) -> Assessment | None:
     """Score a batch; None if it has no click or drag to check.
 
-    skip_ok: go ahead without the review when SAM is confident (SAM_CONFIDENT).
+    where: the accessibility verdict for a click point in screenshot px ("on",
+    "gap" or None, see avo/snap.py location); None to go on SAM alone.
     """
     i = first_gated(actions)
     if i is None:
@@ -116,6 +124,13 @@ def assess(
     pool = ThreadPoolExecutor(1 + len(points))
     f_review = pool.submit(review, client, task, past, png, actions, note)
     f_sams = [pool.submit(segment, client, png, points=[p]) for p in points]
+    places = []
+    for p in points:  # meanwhile: tens of ms, no API call
+        try:
+            places.append(where(*p) if where else None)
+        except Exception as e:
+            print(f"accessibility check failed: {type(e).__name__}: {e}")
+            places.append(None)
     best = []  # per click point: its most confident segment, or None
     for f in f_sams:
         try:
@@ -124,26 +139,20 @@ def assess(
             print(f"SAM failed: {type(e).__name__}: {e}")
             segments = []
         best.append(max(segments, key=lambda s: s.confidence or 0) if segments else None)
-    rep = repeats(history, actions)
-    confident = skip_ok and not rep and all(
-        seg is not None and (seg.confidence or 0) >= SAM_CONFIDENT and seg.contains(*p) for p, seg in zip(points, best)
-    )
-    late, rev = None, None
-    if confident:
-        late = f_review  # don't wait; it is logged when it lands
-    else:
-        try:
-            rev = f_review.result()
-        except Exception as e:  # a failed review shouldn't kill the run
-            print(f"review failed: {type(e).__name__}: {e}")
+    rev = None
+    try:
+        rev = f_review.result()
+    except Exception as e:  # a failed review shouldn't kill the run
+        print(f"review failed: {type(e).__name__}: {e}")
     pool.shutdown(wait=False)
+    rep = repeats(history, actions)
 
-    # SAM vouches for the batch only if it is sure about every click point.
-    sure = [
-        seg is not None and (seg.confidence or 0) >= SAM_SURE and seg.contains(*p)
-        for p, seg in zip(points, best)
-    ]
-    sam_vouches = all(sure)
+    def clear_at(p, seg, place) -> bool:
+        if place is not None:  # the accessibility tree knows: on a control, or in a gap
+            return place == "on"
+        return seg is not None and (seg.confidence or 0) >= SAM_CLEAR and seg.contains(*p)
+
+    clear = all(clear_at(p, seg, place) for p, seg, place in zip(points, best, places))
     box, sam_conf, on_mask = None, None, False
     seg = best[0]
     if seg is not None:
@@ -154,12 +163,6 @@ def assess(
             box = seg.box
 
     under = (rev or {}).get("element_under_click", "")
-    hit = (rev or {}).get("hits_intended_target", True)
-    forward = (rev or {}).get("moves_task_forward", True)
-    if sam_vouches and not hit:
-        # The reviewer misread where the clicks land; its "no progress" call
-        # usually follows from that misreading, so drop both.
-        hit = forward = True
     w, h = screen_size
     candidates = [
         c for c in (rev or {}).get("candidates") or [] if 0 <= c["x"] < w and 0 <= c["y"] < h
@@ -170,15 +173,11 @@ def assess(
     if candidates:
         reasons.append("More than one fits: " + " or ".join(c["label"] for c in candidates))
         plain.append("Your task fits more than one of these.")
-    if not hit:
-        reasons.append(f"May miss — under the click: {under}" if under else "The click may miss its target")
-        plain.append("It might miss what it's aiming at.")
-    if not forward:
-        reasons.append("This step may not move the task forward")
-        plain.append("It might not help with your task.")
-    if rep:
-        reasons.append("Repeats an earlier action")
-        plain.append("It already tried this once.")
+    elif not clear:
+        # The location is in doubt: the review breaks the tie. Without a review, ask.
+        if rev is None or not rev.get("hits_intended_target", True):
+            reasons.append(f"May miss — under the click: {under}" if under else "The click may miss its target")
+            plain.append("It might miss what it's aiming at.")
     return Assessment(
         flagged=bool(reasons),
         reasons=reasons,
@@ -188,10 +187,11 @@ def assess(
         box=box,
         sam_conf=sam_conf,
         on_mask=on_mask,
+        places=places,
+        clear=clear,
         candidates=candidates,
         plain=plain,
         seconds=time.time() - t0,
-        late_review=late,
     )
 
 

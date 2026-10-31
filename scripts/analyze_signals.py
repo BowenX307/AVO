@@ -2,7 +2,8 @@
 
     uv run scripts/analyze_signals.py runs/baseline-<timestamp>
 
-Reads sam_scores.json, consistency.json and review.json, plus labels.json (human labels
+Reads sam_scores.json, consistency.json and review.json (--review review_v3.json:
+the review with the ambiguity question, 10/31), plus labels.json (human labels
 exported from review.html) or, if that's missing, draft_labels.json. Only steps
 with at least one click and an ok/bad label are counted. For each flagging rule,
 prints how many wrong steps it catches and how many right steps it flags.
@@ -15,8 +16,8 @@ from pathlib import Path
 SAM_CONF_MIN = 0.5
 AGREE_MIN = 0.75  # flag when fewer than 3 of 4 samples agree
 REVIEW_CONF_MIN = 0.5
-GATE_SAM_SURE = 0.9
-GATE_SAM_CONFIDENT = 0.8  # avo/gate.py SAM_CONFIDENT: the review isn't waited for above this
+GATE_SAM_SURE = 0.9  # the 10/29 gate: SAM this sure overruled a "missed" review
+GATE_SAM_CLEAR = 0.8  # avo/gate.py SAM_CLEAR
 
 
 def load(batch: Path, review_file: str = "review.json") -> tuple[list[dict], str]:
@@ -70,8 +71,8 @@ def cons_flag(r: dict) -> bool:
     return r["agreement"] is not None and r["agreement"] < AGREE_MIN
 
 
-def gate_flag(r: dict) -> bool:
-    """The live gate's rule (avo/gate.py); keep the two in sync."""
+def old_gate_flag(r: dict) -> bool:
+    """The gate from 10/29 to 10/31: review (miss / no progress) with a SAM veto, plus repeats."""
     rev = r["rev"] or {}
     sam_vouches = not r["off_mask"] and r["sam_min"] >= GATE_SAM_SURE  # every click on a sure mask
     hit = rev.get("hits_intended_target", True)
@@ -81,11 +82,18 @@ def gate_flag(r: dict) -> bool:
     return (not hit) or (not forward) or r["repeat"]
 
 
-def gate_skip_flag(r: dict) -> bool:
-    """The live gate when it doesn't wait for the review because SAM is confident (avo/gate.py)."""
-    if not r["off_mask"] and r["sam_min"] >= GATE_SAM_CONFIDENT and not r["repeat"]:
+def gate_flag(r: dict) -> bool:
+    """The live gate's rule (avo/gate.py), without its accessibility check (not in saved runs); keep in sync.
+
+    Ambiguous: ask. Else every click on a mask SAM is GATE_SAM_CLEAR sure of: go.
+    Else the review's "hits its target" decides.
+    """
+    rev = r["rev"] or {}
+    if rev.get("ambiguous") and len(rev.get("candidates") or []) >= 2:
+        return True
+    if not r["off_mask"] and r["sam_min"] >= GATE_SAM_CLEAR:
         return False
-    return gate_flag(r)
+    return not rev or not rev.get("hits_intended_target", True)
 
 
 RULES = {
@@ -96,8 +104,8 @@ RULES = {
     "SAM or review": lambda r: sam_flag(r) or r["review"],
     "SAM or review or repeat": lambda r: sam_flag(r) or r["review"] or r["repeat"],
     "review or repeat": lambda r: r["review"] or r["repeat"],
-    "live gate (review + SAM veto + repeat)": gate_flag,
-    "live gate, review skipped if SAM >= 0.8": gate_skip_flag,
+    "10/29 gate (review + SAM veto + repeat)": old_gate_flag,
+    "gate: ambiguity, SAM >= 0.8, else review": gate_flag,
 }
 
 
