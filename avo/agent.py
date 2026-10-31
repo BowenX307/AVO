@@ -7,6 +7,8 @@ import subprocess
 import sys
 import termios
 import time
+from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -18,6 +20,7 @@ from avo.effect import NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, EffectWatch, pla
 from avo.gate import ask_user, assess
 from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
+from avo.meter import Meter
 from avo.overlay import Overlay
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
@@ -134,6 +137,10 @@ class RunLog:
         (self.dir / "result.json").write_text(
             json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+
+    def report(self, record: dict) -> None:
+        """summary.json: what the run cost, where its time went, how often it asked."""
+        (self.dir / "summary.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def computer_calls(response) -> list[dict]:
@@ -280,7 +287,8 @@ def run(
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
     if human_resume not in ("manual", "auto"):
         raise ValueError(f"human_resume must be 'manual' or 'auto', not {human_resume!r}")
-    client = make_client()
+    meter = Meter()  # every API call of the run, for summary.json
+    client = meter.wrap(make_client())
     overlay = Overlay()
     guard = HumanGuard(overlay, enabled=human_guard)
 
@@ -339,11 +347,21 @@ def run(
         if work_app and frontmost_app() in ours:
             focus(work_app)
 
+    spent: dict[str, float] = defaultdict(float)  # where the run's time went, for summary.json
+
+    @contextmanager
+    def timed(key: str):
+        t0 = time.time()
+        try:
+            yield
+        finally:
+            spent[key] += time.time() - t0
+
     result = "stopped: step budget reached"
     step = 0
     past: list[str] = []  # text history, used when history == "text"
     done: list[list[dict]] = []  # executed batches, for repeat detection
-    asked = corrected = skipped = stuck = 0
+    asked = corrected = skipped = stuck = no_effect = snaps = 0
     effect = EffectWatch()
     try:
         ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
@@ -389,7 +407,7 @@ def run(
 
             held = None  # "pause" if the user paused instead of answering a safety check
             if checks:
-                with guard.acting(), guard.asking():
+                with guard.acting(), guard.asking(), timed("you"):
                     verdict = approve_safety_checks(step, checks, auto_ack, overlay, note)
                     refocus()  # answering on the island brings the overlay to the front
                 if verdict == "no":
@@ -402,13 +420,15 @@ def run(
                 actions = snap_clicks(driver, actions)
                 snapped = [a["_snap"] | {"to": [a["x"], a["y"]]} for a in actions if "_snap" in a]
                 if snapped:
+                    snaps += len(snapped)
                     print(f"[{step}] snapped: " + ", ".join(f"{s['from']}->{s['to']} {s['label'] or s['role']}" for s in snapped))
                     log.annotate(step, snapped=snapped)
 
             stop = held or interrupted()
             if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
-                a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
+                with timed("checks"):
+                    a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
                 stop = interrupted()  # the user may have taken over during the check
                 if a and not stop:
                     print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
@@ -418,7 +438,7 @@ def run(
                         front = work_app or frontmost_app()
                         ask = "Which one did you mean? Pick on screen" if a.candidates else "AVO needs your OK — see the highlight"
                         overlay.send("status", text=ask, busy=False)
-                        with guard.acting(), guard.asking():
+                        with guard.acting(), guard.asking(), timed("you"):
                             choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
                             if front:  # answering on the overlay may have focused it
                                 focus(front)
@@ -445,7 +465,7 @@ def run(
             if not stop:
                 print(f"[{step}] executing {len(actions)} action(s)", flush=True)
                 try:
-                    with guard.acting():
+                    with guard.acting(), timed("actions"):
                         if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:
                             print(f"[{step}] the overlay had the keyboard; giving it back to {work_app}")
                             focus(work_app)
@@ -465,7 +485,9 @@ def run(
                 # this batch is dropped and the model re-plans from a fresh screenshot.
                 left = len(actions) - len(executed)
                 print(f"[{step}] paused ({'you moved' if stop == 'human' else 'by user'}); {left} action(s) not run")
-                if not hold(stop):
+                with timed("paused"):
+                    resumed = hold(stop)
+                if not resumed:
                     log.annotate(step, paused="stopped", executed=len(executed))
                     result = "stopped: user stopped the task"
                     break
@@ -489,6 +511,7 @@ def run(
                 png = changed.png  # the screen as it was when the click was called off
             else:
                 png = driver.settled_screenshot()  # once a page load or a menu has finished moving
+                spent["settle"] += driver.settle_s
                 log.annotate(step, settle_s=driver.settle_s)
             log.screenshot(step, png)
 
@@ -500,6 +523,7 @@ def run(
             else:
                 verdict = effect.record(executed, seen, png, driver.settle_area)
                 log.annotate(step, changed_px=effect.last_px)
+                no_effect += verdict in ("none", "stuck")
                 if verdict == "none":
                     print(f"[{step}] nothing changed on screen")
                     notes.append(NO_EFFECT_NOTE)
@@ -512,7 +536,7 @@ def run(
                         result = f"stopped: stuck, {what} changed nothing on screen"
                         break
                     overlay.send("interrupt", text=f"Stuck — {what} changes nothing")
-                    with guard.asking():  # moving to Resume isn't "you moved"
+                    with guard.asking(), timed("paused"):  # moving to Resume isn't "you moved"
                         resumed = hold("stuck")
                     if not resumed:
                         result = "stopped: user stopped the task"
@@ -568,11 +592,27 @@ def run(
             asked=asked, corrected=corrected, skipped_screen_changed=skipped, stuck=stuck,
             interruptions=[i.to_log() for i in guard.interruptions],
         )
-        log.summary(result, step, time.time() - started)
+        elapsed = time.time() - started
+        log.summary(result, step, elapsed)
         print(f"result: {result}")
         if guard.interruptions:
             print("interruptions: " + json.dumps([i.to_log() for i in guard.interruptions]))
         ok = not result.startswith(("crashed", "stopped"))
+        api = meter.summary()
+        spent["model"] = (api["by_purpose"].get("act") or {}).get("seconds_total", 0.0)
+        spent["other"] = max(0.0, elapsed - sum(v for k, v in spent.items() if k != "other"))
+        log.report({
+            "task": task, "result": result, "ok": ok, "steps": step, "elapsed_s": round(elapsed, 1),
+            "time_s": {k: round(v, 1) for k, v in sorted(spent.items(), key=lambda kv: -kv[1])},
+            "api": api,
+            "counts": {
+                "asked": asked, "corrected": corrected, "no_effect": no_effect, "stuck": stuck, "snapped": snaps,
+                "skipped_screen_changed": skipped, "interruptions": len(guard.interruptions), "replans": 0,
+            },
+            "settings": {k: v for k, v in log.settings.items() if k not in ("interruptions", "regions")},
+        })
+        parts = ", ".join(f"{k} {v:.0f}s" for k, v in sorted(spent.items(), key=lambda kv: -kv[1]) if v >= 0.5)
+        print(f"summary: {step} steps in {elapsed:.0f}s ({parts}); ${api['usd']:.3f} over {api['calls']} API calls")
         # "stopped: user stopped the task" -> "User stopped the task" on screen
         shown = result.strip() if ok else result.split(": ", 1)[-1].strip().capitalize()
         overlay.send("done", text=shown, ok=ok)

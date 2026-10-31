@@ -7,7 +7,9 @@ Modes:
     fast  effort=minimal, history=text (latest screenshot + text log)
     full  model's default effort, history=full (every past screenshot)
 
-Writes runs/baseline-<timestamp>/summary.json; label it with review_baseline.py.
+Writes runs/baseline-<timestamp>/summary.json (one row per run, with its cost
+and where the time went, from the run's own summary.json) and prints a table;
+label the runs with review_baseline.py.
 Fling the mouse into a screen corner to abort the whole batch.
 """
 
@@ -83,6 +85,7 @@ def main() -> None:
                 print(result)
             run_dir = latest_run_dir(before)
             info = json.loads((run_dir / "result.json").read_text()) if run_dir else {}
+            report = json.loads((run_dir / "summary.json").read_text()) if run_dir and (run_dir / "summary.json").exists() else {}
             summary.append(
                 {
                     "task_id": t["id"],
@@ -91,11 +94,29 @@ def main() -> None:
                     "result": result,
                     "steps": info.get("steps"),
                     "elapsed_s": info.get("elapsed_s"),
+                    "usd": (report.get("api") or {}).get("usd"),
+                    "api_calls": (report.get("api") or {}).get("calls"),
+                    "time_s": report.get("time_s"),
+                    "counts": report.get("counts"),
                 }
             )
             (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
 
-    print(f"\ndone: {out / 'summary.json'}")
+    print(f"\ndone: {out / 'summary.json'}\n")
+    print(table(summary))
+
+
+def table(rows: list[dict]) -> str:
+    """The runs as a plain-text table: steps, seconds, cost, asks, stuck, result."""
+    lines = [f"{'task':16} {'mode':5} {'steps':>5} {'sec':>6} {'usd':>7} {'calls':>5} {'asked':>5} {'stuck':>5}  result"]
+    for r in rows:
+        c = r.get("counts") or {}
+        usd = f"{r['usd']:.3f}" if r.get("usd") is not None else "-"
+        lines.append(
+            f"{r['task_id'][:16]:16} {r['mode']:5} {r.get('steps') or 0:>5} {r.get('elapsed_s') or 0:>6.0f} {usd:>7} "
+            f"{r.get('api_calls') or 0:>5} {c.get('asked', 0):>5} {c.get('stuck', 0):>5}  {str(r['result'])[:60]}"
+        )
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
