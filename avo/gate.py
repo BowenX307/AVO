@@ -9,6 +9,13 @@ has misread the location (real misses, in gaps or just past a button's edge,
 score lower in SAM), and its progress verdict, built on that misreading, is
 dropped too. A "hit but no progress" review still asks.
 
+The review is the slow half (median 3.7 s against SAM's 1.9 s). When SAM comes
+back at least SAM_CONFIDENT sure of every click and the batch isn't a repeat,
+the batch goes ahead without waiting for it; the review still finishes in the
+background and is logged as late_review, to keep calibrating. Never when the
+user boxed what the task is about (skip_ok=False): those tasks are where a
+"which one?" question matters most.
+
 ask_user() then points at the target on screen and asks "OK to click here?":
 yes runs the batch, no lets the user click the right spot, stop ends the task.
 For an ambiguous click it rings every candidate and asks "Which one did you mean?".
@@ -19,7 +26,7 @@ from __future__ import annotations
 import io
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from openai import OpenAI
@@ -36,6 +43,11 @@ GATED_KINDS = ("click", "double_click", "drag")
 POINTER_KINDS = ("click", "double_click", "move", "scroll", "drag")
 MAX_HIGHLIGHT_FRACTION = 0.25  # ignore SAM boxes bigger than this share of the screen
 SAM_SURE = 0.9  # SAM confidence at which a point on its mask overrides a "missed" review
+# SAM confidence on every click at which the review isn't waited for. On the 39
+# labelled baseline clicks, 0.8 skips 6 reviews and still catches 14/14 wrong
+# clicks (0.5 let a click between two fields through, at 0.668); the "which
+# Alex?" clicks scored 0.59-0.71, below it.
+SAM_CONFIDENT = 0.8
 
 
 @dataclass
@@ -51,6 +63,7 @@ class Assessment:
     candidates: list[dict] = field(default_factory=list)  # ambiguous click: [{label, x, y}], screenshot px
     plain: list[str] = field(default_factory=list)  # the reasons, in words for the user
     seconds: float = 0.0
+    late_review: Future | None = None  # the review not waited for (SAM was confident), still running
 
     def to_log(self) -> dict:
         return {
@@ -64,6 +77,7 @@ class Assessment:
             "on_mask": self.on_mask,
             "candidates": self.candidates,
             "seconds": round(self.seconds, 1),
+            "review_skipped": self.late_review is not None,
         }
 
 
@@ -87,30 +101,42 @@ def assess(
     actions: list[dict],
     note: str,
     screen_size: tuple[int, int],
+    skip_ok: bool = True,
 ) -> Assessment | None:
-    """Score a batch; None if it has no click or drag to check."""
+    """Score a batch; None if it has no click or drag to check.
+
+    skip_ok: go ahead without the review when SAM is confident (SAM_CONFIDENT).
+    """
     i = first_gated(actions)
     if i is None:
         return None
     target = _point(actions[i])
     points = [p for a in actions if a["type"] in GATED_KINDS and (p := _point(a))]
     t0 = time.time()
-    with ThreadPoolExecutor(1 + len(points)) as pool:
-        f_review = pool.submit(review, client, task, past, png, actions, note)
-        f_sams = [pool.submit(segment, client, png, points=[p]) for p in points]
+    pool = ThreadPoolExecutor(1 + len(points))
+    f_review = pool.submit(review, client, task, past, png, actions, note)
+    f_sams = [pool.submit(segment, client, png, points=[p]) for p in points]
+    best = []  # per click point: its most confident segment, or None
+    for f in f_sams:
+        try:
+            segments, _ = f.result()
+        except Exception as e:
+            print(f"SAM failed: {type(e).__name__}: {e}")
+            segments = []
+        best.append(max(segments, key=lambda s: s.confidence or 0) if segments else None)
+    rep = repeats(history, actions)
+    confident = skip_ok and not rep and all(
+        seg is not None and (seg.confidence or 0) >= SAM_CONFIDENT and seg.contains(*p) for p, seg in zip(points, best)
+    )
+    late, rev = None, None
+    if confident:
+        late = f_review  # don't wait; it is logged when it lands
+    else:
         try:
             rev = f_review.result()
         except Exception as e:  # a failed review shouldn't kill the run
             print(f"review failed: {type(e).__name__}: {e}")
-            rev = None
-        best = []  # per click point: its most confident segment, or None
-        for f in f_sams:
-            try:
-                segments, _ = f.result()
-            except Exception as e:
-                print(f"SAM failed: {type(e).__name__}: {e}")
-                segments = []
-            best.append(max(segments, key=lambda s: s.confidence or 0) if segments else None)
+    pool.shutdown(wait=False)
 
     # SAM vouches for the batch only if it is sure about every click point.
     sure = [
@@ -127,7 +153,6 @@ def assess(
         if (r - l) * (b - t) <= MAX_HIGHLIGHT_FRACTION * screen_size[0] * screen_size[1]:
             box = seg.box
 
-    rep = repeats(history, actions)
     under = (rev or {}).get("element_under_click", "")
     hit = (rev or {}).get("hits_intended_target", True)
     forward = (rev or {}).get("moves_task_forward", True)
@@ -166,6 +191,7 @@ def assess(
         candidates=candidates,
         plain=plain,
         seconds=time.time() - t0,
+        late_review=late,
     )
 
 

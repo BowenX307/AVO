@@ -16,6 +16,7 @@ SAM_CONF_MIN = 0.5
 AGREE_MIN = 0.75  # flag when fewer than 3 of 4 samples agree
 REVIEW_CONF_MIN = 0.5
 GATE_SAM_SURE = 0.9
+GATE_SAM_CONFIDENT = 0.8  # avo/gate.py SAM_CONFIDENT: the review isn't waited for above this
 
 
 def load(batch: Path, review_file: str = "review.json") -> tuple[list[dict], str]:
@@ -80,6 +81,13 @@ def gate_flag(r: dict) -> bool:
     return (not hit) or (not forward) or r["repeat"]
 
 
+def gate_skip_flag(r: dict) -> bool:
+    """The live gate when it doesn't wait for the review because SAM is confident (avo/gate.py)."""
+    if not r["off_mask"] and r["sam_min"] >= GATE_SAM_CONFIDENT and not r["repeat"]:
+        return False
+    return gate_flag(r)
+
+
 RULES = {
     "SAM: conf < 0.5 or off mask": sam_flag,
     "consistency: agreement < 0.75": cons_flag,
@@ -89,6 +97,7 @@ RULES = {
     "SAM or review or repeat": lambda r: sam_flag(r) or r["review"] or r["repeat"],
     "review or repeat": lambda r: r["review"] or r["repeat"],
     "live gate (review + SAM veto + repeat)": gate_flag,
+    "live gate, review skipped if SAM >= 0.8": gate_skip_flag,
 }
 
 
