@@ -4,13 +4,17 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
     <title>AVO pointer</title>
+    <link rel="stylesheet" href="../brand/tokens.css" />
     <style>
-      /* Black and white only. The agent's pointer is the "A" of AVO: a white
-         chevron with a black rim, the inverse of the user's own black arrow. */
+      /* Black, white and grey only. The agent's pointer is the Λ of the logo
+         turned into an open arrow: off-white with a black rim, so it reads on
+         dark and light screens alike. Rings around targets are drawn like the
+         logo's O: one stroke, a little past closed, then settled back. */
       :root {
-        --glide: 450ms;
-        --ink: #111;
+        --glide: 300ms;
+        --spring: var(--avo-ease);
         --shadow: 0 6px 16px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.18);
+        --edge: drop-shadow(0 0 0.6px var(--avo-ink)) drop-shadow(0 0 0.6px var(--avo-ink)); /* a 1px black outline for thin white lines */
       }
       html, body {
         margin: 0;
@@ -21,46 +25,66 @@
         pointer-events: none;
         user-select: none;
         -webkit-font-smoothing: antialiased;
-        font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        font: 500 12px/1.3 var(--avo-font-sans);
       }
 
+      /* ---- the AVO cursor ---- */
       #cursor {
         position: absolute;
         left: 0;
         top: 0;
         opacity: 0;
         transform: translate(-100px, -100px);
-        transition: transform var(--glide) cubic-bezier(0.22, 1, 0.36, 1), opacity 250ms ease;
+        transition: transform var(--glide) var(--spring), opacity var(--avo-dur) var(--avo-ease);
         z-index: 3;
       }
       #cursor.on { opacity: 1; }
       #cursor, #cursor * { pointer-events: none; } /* it often sits right on a ring the user wants to click */
       .arrow {
         position: absolute;
-        left: -16px; /* puts the chevron's tip (16,2 in the viewBox) on the point */
-        top: -2px;
-        width: 32px;
-        height: 36px;
+        left: 0;
+        top: 0;
+        width: 1px;
+        height: 1px;
         overflow: visible;
-        transform-origin: 16px 2px;
-        transition: transform 140ms ease;
-        filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
+        transform-origin: 0 0; /* the tip is the point */
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.32));
       }
-      #cursor.press .arrow { transform: scale(0.8); }
-      .tag, .chip {
+      #cursor.press .arrow { animation: press 200ms var(--avo-ease); }
+      @keyframes press { 40% { transform: scale(0.9); } }
+
+      /* Thinking: a small ring beside the tip, drawn like the logo's O, turning slowly. */
+      .think {
         position: absolute;
         left: 17px;
-        background: rgba(17, 17, 17, 0.92);
-        color: #fff;
-        box-shadow: var(--shadow);
+        top: -9px;
+        width: 14px;
+        height: 14px;
+        overflow: visible;
+        opacity: 0;
+        transform: scale(0.6);
+        transition: opacity var(--avo-dur) var(--avo-ease), transform var(--avo-dur) var(--avo-ease);
+        filter: var(--edge);
+      }
+      #cursor.thinking .think { opacity: 1; transform: none; }
+      .think circle { animation: turn 1.6s linear infinite; transform-origin: 7px 7px; }
+      @keyframes turn { to { transform: rotate(360deg); } }
+
+      .tag, .chip {
+        position: absolute;
+        left: 16px;
+        background: var(--avo-glass);
+        color: var(--avo-paper);
+        box-shadow: var(--shadow), inset 0 0 0 1px var(--avo-glass-border);
         white-space: nowrap;
+        -webkit-backdrop-filter: blur(var(--avo-blur));
+        backdrop-filter: blur(var(--avo-blur));
       }
       .tag {
-        top: 25px;
-        padding: 3px 7px 3px 8px;
-        border-radius: 7px;
-        font-size: 9.5px;
-        font-weight: 700;
+        top: 27px;
+        padding: 3px 7px;
+        border-radius: var(--avo-radius-pill);
+        font: 600 9.5px/1.2 var(--avo-font-mono);
         letter-spacing: 0.14em;
       }
       .chip {
@@ -72,98 +96,138 @@
         overflow: hidden;
         text-overflow: ellipsis;
         opacity: 0;
-        transform: translateY(-4px) scale(0.96);
-        transform-origin: top left;
-        transition: opacity 180ms ease, transform 180ms ease;
+        transform: translateY(-4px);
+        transition: opacity var(--avo-dur-fast) var(--avo-ease), transform var(--avo-dur-fast) var(--avo-ease);
       }
       .chip.on { opacity: 1; transform: none; }
+      .chip.keys { font-family: var(--avo-font-mono); letter-spacing: 0.04em; }
 
       .ripple {
         position: absolute;
-        width: 36px;
-        height: 36px;
-        margin: -18px 0 0 -18px;
+        width: 34px;
+        height: 34px;
+        margin: -17px 0 0 -17px;
         border-radius: 50%;
-        border: 1.5px solid #fff;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
-        animation: ripple 520ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+        border: 1px solid var(--avo-paper);
+        filter: var(--edge);
+        animation: ripple 200ms var(--avo-ease) forwards;
         z-index: 2;
       }
       @keyframes ripple {
-        from { transform: scale(0.35); opacity: 1; }
+        from { transform: scale(0.3); opacity: 1; }
         to { transform: scale(1.5); opacity: 0; }
       }
 
-      /* One dim layer for both asking and selecting; the rings / selections are
+      /* One dim layer for both asking and selecting; rings and selections are
          holes cut into it (an SVG mask), so several of them never stack darker. */
-      #dim { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 220ms ease; z-index: 1; }
+      #dim { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity var(--avo-dur) var(--avo-ease); z-index: 1; }
       #dim.on { opacity: 1; }
-      #dim .shade { fill: rgba(0, 0, 0, 0.34); transition: fill 200ms ease; }
-      body.selecting #dim .shade { fill: rgba(0, 0, 0, 0.18); }
-      body.correcting #dim .shade { fill: rgba(0, 0, 0, 0.14); }
+      #dim .shade { fill: rgba(10, 10, 10, 0.36); transition: fill var(--avo-dur) var(--avo-ease); }
+      body.selecting #dim .shade { fill: rgba(10, 10, 10, 0.2); }
+      body.correcting #dim .shade { fill: rgba(10, 10, 10, 0.14); }
 
-      /* "OK to click here?" / "Which one did you mean?": ring the target(s). The question itself
-         is a separate glass window (bubble.html). */
+      /* ---- asking: ring the target, or every candidate ---- */
       body.asking, body.selecting { pointer-events: auto; }
       body.asking .tag { opacity: 0; }
       body.correcting, body.selecting { cursor: crosshair; }
-      .ring {
-        position: absolute;
-        border-radius: 12px;
-        box-shadow: 0 0 0 1.5px #fff, 0 0 18px 2px rgba(255, 255, 255, 0.45);
-        animation: breathe 1.8s ease-in-out infinite;
-        z-index: 2;
-      }
-      body.correcting .ring { animation: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6); }
+      .ring { position: absolute; z-index: 2; }
+      .ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35)); }
+      .ring .under { stroke: var(--avo-ink); stroke-width: 4; opacity: 0.55; }
+      .ring .over { stroke: var(--avo-paper); stroke-width: 2; transition: stroke-width var(--avo-dur-fast) var(--avo-ease); }
+      .ring { transition: opacity var(--avo-dur-fast) var(--avo-ease); }
       body.picking .ring { cursor: pointer; }
-      body.picking .ring:hover { box-shadow: 0 0 0 2.5px #fff, 0 0 26px 6px rgba(255, 255, 255, 0.7); }
-      @keyframes breathe { 50% { box-shadow: 0 0 0 1.5px #fff, 0 0 28px 6px rgba(255, 255, 255, 0.7); } }
-      .label {
+      body.picking .ring:hover .over { stroke-width: 3; }
+      body.correcting .ring { opacity: 0.45; }
+      .ring.chosen .over { stroke-width: 4; }
+      .ring.gone { opacity: 0; }
+      .num {
+        position: absolute;
+        left: calc(100% + 10px);
+        top: 50%;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        box-sizing: border-box;
+        border-radius: var(--avo-radius-pill);
+        transform: translateY(-50%);
+        display: grid;
+        place-items: center;
+        font: 600 12px/1 var(--avo-font-mono);
+        background: var(--avo-glass);
+        color: var(--avo-paper);
+        box-shadow: var(--shadow), inset 0 0 0 1px var(--avo-glass-border);
+        -webkit-backdrop-filter: blur(var(--avo-blur));
+        backdrop-filter: blur(var(--avo-blur));
+        opacity: 0;
+        animation: fade var(--avo-dur) var(--avo-ease) forwards;
+      }
+      .num.guess { background: var(--avo-paper); color: var(--avo-ink); box-shadow: var(--shadow), 0 0 0 1px var(--avo-ink); }
+      @keyframes fade { to { opacity: 1; } }
+
+      /* ---- box selection: viewfinder corners, not a full rectangle ---- */
+      .sel { position: absolute; z-index: 2; transition: opacity var(--avo-dur) var(--avo-ease); }
+      .sel .c {
+        position: absolute;
+        width: var(--arm, 18px);
+        height: var(--arm, 18px);
+        border: 0 solid var(--avo-paper);
+        filter: var(--edge);
+      }
+      .sel .tl { left: -1px; top: -1px; border-width: 2px 0 0 2px; border-top-left-radius: 3px; }
+      .sel .tr { right: -1px; top: -1px; border-width: 2px 2px 0 0; border-top-right-radius: 3px; }
+      .sel .bl { left: -1px; bottom: -1px; border-width: 0 0 2px 2px; border-bottom-left-radius: 3px; }
+      .sel .br { right: -1px; bottom: -1px; border-width: 0 2px 2px 0; border-bottom-right-radius: 3px; }
+      .sel.faint { opacity: 0.5; }
+      .sel .label {
         position: absolute;
         left: -1px;
         bottom: calc(100% + 7px);
-        padding: 3px 8px;
-        border-radius: 7px;
-        background: rgba(17, 17, 17, 0.92);
-        color: #fff;
-        font-size: 11.5px;
-        font-weight: 600;
-        white-space: nowrap;
-        box-shadow: var(--shadow);
+        min-width: 22px;
+        height: 22px;
+        padding: 0 8px;
+        box-sizing: border-box;
+        display: grid;
+        place-items: center;
+        border-radius: var(--avo-radius-pill);
+        background: var(--avo-glass);
+        color: var(--avo-paper);
+        font: 600 12px/1 var(--avo-font-mono);
+        box-shadow: var(--shadow), inset 0 0 0 1px var(--avo-glass-border);
+        -webkit-backdrop-filter: blur(var(--avo-blur));
+        backdrop-filter: blur(var(--avo-blur));
       }
-      .label i { font-style: normal; font-weight: 500; opacity: 0.6; }
-      /* Candidates are often stacked (menu items): name each one to its right. */
-      .ring .label { left: calc(100% + 10px); bottom: auto; top: 50%; transform: translateY(-50%); }
-
-      /* Box selection: the user drags A, then optionally B. */
-      .sel {
-        position: absolute;
-        border-radius: 8px;
-        box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0, 0, 0, 0.35);
-        z-index: 2;
-        transition: opacity 300ms ease;
-      }
-      .sel.live { box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0, 0, 0, 0.35), inset 0 0 0 9999px rgba(255, 255, 255, 0.06); }
-      .sel.faint { opacity: 0.5; box-shadow: 0 0 0 1px #fff, 0 0 0 2px rgba(0, 0, 0, 0.25); }
-      .sel .label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
       .sel img {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
-        border-radius: 8px;
+        border-radius: 4px;
         opacity: 0;
-        transition: opacity 400ms ease;
+        transition: opacity 400ms var(--avo-ease);
       }
       .sel img.on { opacity: 1; }
+
+      /* Reduce motion: no glides, draws or spins; things fade in and out. */
+      @media (prefers-reduced-motion: reduce) {
+        #cursor { transition: opacity var(--avo-dur) var(--avo-ease); }
+        #cursor.press .arrow, .think circle { animation: none; }
+        .ripple { animation: fade-out var(--avo-dur) var(--avo-ease) forwards; transform: none; }
+        @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+      }
     </style>
   </head>
   <body>
     <div id="cursor">
-      <svg class="arrow" viewBox="0 0 32 36" aria-hidden="true">
-        <g transform="rotate(-24 16 2)">
-          <path d="M16 2 L27 31 L16 24.5 L5 31 Z" fill="#fff" stroke="#111" stroke-width="1.7" stroke-linejoin="round" />
+      <!-- The logo's Λ, as a thick open stroke: black rim (8) under off-white (5).
+           The rim's miter tip is at (0, 0), the point; turned 30° counter-clockwise. -->
+      <svg class="arrow" aria-hidden="true">
+        <g transform="rotate(-30)" fill="none" stroke-linejoin="miter" stroke-linecap="square">
+          <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#0A0A0A" stroke-width="8" />
+          <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#F5F5F2" stroke-width="5" />
         </g>
+      </svg>
+      <svg class="think" viewBox="0 0 14 14" aria-hidden="true">
+        <circle cx="7" cy="7" r="5" fill="none" stroke="#F5F5F2" stroke-width="1.6" stroke-linecap="square" stroke-dasharray="22 9.4" />
       </svg>
       <span class="tag">AVO</span>
       <span class="chip"></span>
@@ -175,12 +239,16 @@
     <div id="marks"></div>
 
     <script>
+      if (!window.avo) window.avo = parent.avoPreview?.("pointer"); // overlay/preview.html, outside Electron
       const cursor = document.getElementById("cursor");
       const chip = cursor.querySelector(".chip");
       const dim = document.getElementById("dim");
       const holeList = document.getElementById("hole-list");
       const marks = document.getElementById("marks"); // rings and selections
       const SVG = "http://www.w3.org/2000/svg";
+      const EASE_DRAW = "cubic-bezier(0.65, 0, 0.35, 1)"; // --avo-ease-draw
+      const EASE = "cubic-bezier(0.2, 0.8, 0.2, 1)"; // --avo-ease
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
       let pos = null;
       let chipTimer = null;
@@ -196,6 +264,20 @@
         arrowup: "↑", arrowdown: "↓", arrowleft: "←", arrowright: "→",
       };
 
+      // A lightly damped spring as a CSS easing: it overshoots by ~2% and settles.
+      const SPRING = (() => {
+        const zeta = 0.72, w = 9.5;
+        const wd = w * Math.sqrt(1 - zeta * zeta);
+        const x = (t) => 1 - Math.exp(-zeta * w * t) * (Math.cos(wd * t) + ((zeta * w) / wd) * Math.sin(wd * t));
+        const stops = Array.from({ length: 33 }, (_, i) => x(i / 32).toFixed(4));
+        stops[32] = "1";
+        return `linear(${stops.join(", ")})`;
+      })();
+      document.documentElement.style.setProperty("--spring", SPRING);
+
+      // Glide to (x, y). Long trips take 250-400 ms by distance (always within
+      // the agent's own `ms`, which it waits before clicking); short hops
+      // (drag segments) use the time they're given.
       function moveTo(x, y, ms = 450) {
         clearTimeout(hideTimer);
         if (!pos) {
@@ -204,16 +286,21 @@
           cursor.style.transform = `translate(${innerWidth / 2}px, ${innerHeight / 2}px)`;
           cursor.getBoundingClientRect(); // commit the start position
           cursor.style.transition = "";
+          pos = { x: innerWidth / 2, y: innerHeight / 2 };
         }
-        cursor.style.setProperty("--glide", `${ms}ms`);
+        const dist = Math.hypot(x - pos.x, y - pos.y);
+        const glide = ms >= 250 ? Math.min(ms, Math.max(250, Math.min(400, 250 + dist * 0.25))) : ms;
+        cursor.style.setProperty("--glide", `${glide}ms`);
+        cursor.style.setProperty("--spring", ms >= 250 ? SPRING : "cubic-bezier(0.2, 0.8, 0.2, 1)");
         cursor.classList.add("on");
         cursor.style.transform = `translate(${x}px, ${y}px)`;
         pos = { x, y };
       }
 
       function press() {
+        cursor.classList.remove("press");
+        cursor.getBoundingClientRect(); // restart the animation
         cursor.classList.add("press");
-        setTimeout(() => cursor.classList.remove("press"), 140);
       }
 
       function ripple(x, y) {
@@ -225,15 +312,16 @@
         r.addEventListener("animationend", () => r.remove());
       }
 
-      function showChip(text, ms = 1600) {
+      function showChip(text, ms = 1600, keys = false) {
         chip.textContent = text;
+        chip.classList.toggle("keys", keys);
         chip.classList.add("on");
         clearTimeout(chipTimer);
         chipTimer = setTimeout(() => chip.classList.remove("on"), ms);
       }
 
       function hideCursor() {
-        cursor.classList.remove("on");
+        cursor.classList.remove("on", "thinking");
         chip.classList.remove("on");
         pos = null;
       }
@@ -243,7 +331,8 @@
         holeList.replaceChildren(
           ...boxes.map(([l, t, r, b]) => {
             const h = document.createElementNS(SVG, "rect");
-            for (const [k, v] of Object.entries({ x: l, y: t, width: r - l, height: b - t, rx: 10, fill: "#000" })) h.setAttribute(k, v);
+            const rx = Math.min(12, (r - l) / 2, (b - t) / 2);
+            for (const [k, v] of Object.entries({ x: l, y: t, width: r - l, height: b - t, rx, fill: "#000" })) h.setAttribute(k, v);
             return h;
           }),
         );
@@ -253,67 +342,151 @@
         Object.assign(el.style, { left: `${l}px`, top: `${t}px`, width: `${r - l}px`, height: `${b - t}px` });
       }
 
-      function labelled(cls, box, text, extra) {
+      // ---- rings, drawn like the logo's O ----
+      // A rounded rectangle w x h, starting at "half past ten" (the middle of
+      // the top-left corner) and going clockwise, plus a short overshoot along
+      // the top edge that strays 2px outwards, the way a hand overshoots a loop.
+      function ringPath(w, h) {
+        const r = Math.min(12, w / 2, h / 2);
+        const k = r * (1 - Math.SQRT1_2);
+        const over = Math.min(0.04 * 2 * (w + h), w - 2 * r + r);
+        const f = (n) => n.toFixed(1);
+        return (
+          `M${f(k)} ${f(k)} A${r} ${r} 0 0 1 ${f(r)} 0 H${f(w - r)} A${r} ${r} 0 0 1 ${f(w)} ${f(r)} ` +
+          `V${f(h - r)} A${r} ${r} 0 0 1 ${f(w - r)} ${f(h)} H${f(r)} A${r} ${r} 0 0 1 0 ${f(h - r)} ` +
+          `V${f(r)} A${r} ${r} 0 0 1 ${f(k)} ${f(k)} Q${f(r * 0.6)} -1 ${f(Math.min(r + over * 0.7, w - r))} -2`
+        );
+      }
+
+      function drawRing(svg, w, h, delay) {
+        const closed = 2 * (w + h) - (8 - 2 * Math.PI) * Math.min(12, w / 2, h / 2);
+        for (const p of svg.querySelectorAll("path")) {
+          p.setAttribute("d", ringPath(w, h));
+          if (reduced.matches) continue;
+          const total = p.getTotalLength();
+          p.style.strokeDasharray = `${total} ${total + 2}`;
+          p.animate(
+            [
+              { strokeDashoffset: total + 1, easing: EASE_DRAW },
+              { strokeDashoffset: 0, offset: 0.86, easing: EASE },
+              { strokeDashoffset: total - closed },
+            ],
+            { duration: 620, delay, fill: "both" },
+          );
+        }
+        if (reduced.matches) {
+          svg.querySelectorAll("path").forEach((p) => (p.style.strokeDasharray = `${closed} 9999`));
+          svg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 280, delay, fill: "both" });
+        }
+      }
+
+      function makeRing(box, n, guess) {
         const el = document.createElement("div");
-        el.className = cls;
+        el.className = "ring";
         place(el, box);
-        const tag = document.createElement("span");
-        tag.className = "label";
-        tag.textContent = text;
-        if (extra) tag.insertAdjacentHTML("beforeend", ` <i>· ${extra}</i>`);
-        el.appendChild(tag);
+        const svg = document.createElementNS(SVG, "svg");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("stroke-linecap", "square");
+        svg.innerHTML = `<path class="under"/><path class="over"/>`;
+        el.appendChild(svg);
+        if (n) {
+          const tag = document.createElement("span");
+          tag.className = "num" + (guess ? " guess" : "");
+          tag.textContent = n;
+          el.appendChild(tag);
+        }
         marks.appendChild(el);
         return el;
       }
 
       // ---- asking: ring the target, or every candidate of an ambiguous click ----
+      let rings = [];
+
       function ask(m) {
         asking = true;
         document.body.classList.add("asking");
         document.body.classList.remove("correcting");
         document.body.classList.toggle("picking", !!m.candidates);
-        marks.querySelectorAll(".ring").forEach((r) => r.remove());
+        clearRings();
         const pad = 6;
         const grow = ([l, t, r, b]) => [l - pad, t - pad, r + pad, b + pad];
         const targets = m.candidates
-          ? m.candidates.map((c) => ({ box: grow(c.box), label: c.label, guess: c.guess }))
+          ? m.candidates.map((c, i) => ({ box: grow(c.box), n: String(i + 1), guess: c.guess }))
           : [{ box: grow(m.box || [m.x - 28, m.y - 18, m.x + 28, m.y + 18]) }];
-        targets.forEach((t, i) => {
-          const ring = t.label ? labelled("ring", t.box, t.label, t.guess ? "AVO's guess" : "") : labelled("ring", t.box, "");
-          if (!t.label) ring.querySelector(".label").remove();
+        rings = targets.map((t, i) => {
+          const ring = makeRing(t.box, t.n, t.guess);
+          const [l, tp, r, b] = t.box;
+          drawRing(ring.querySelector("svg"), r - l, b - tp, 120 * i); // one after another
+          ring.querySelector(".num")?.style.setProperty("animation-delay", `${120 * i + 400}ms`);
           ring.addEventListener("click", (e) => {
             if (document.body.classList.contains("correcting")) return;
             e.stopPropagation(); // a ring answers directly: this candidate, or "yes, that one"
-            window.avo.send("answer", m.candidates ? { choice: "pick", index: i } : { choice: "yes" });
-            endAsk();
+            reply(m.candidates ? { choice: "pick", index: i } : { choice: "yes" });
           });
+          return ring;
         });
         setHoles(targets.map((t) => t.box));
         dim.classList.add("on");
         moveTo(m.x, m.y, 450);
       }
 
-      function endAsk() {
+      // Answer once; the rings stay until the overlay confirms ("answered").
+      function reply(a) {
+        if (!asking) return;
         asking = false;
-        document.body.classList.remove("asking", "correcting", "picking");
-        marks.querySelectorAll(".ring").forEach((r) => r.remove());
-        if (!document.body.classList.contains("selecting")) dim.classList.remove("on");
+        window.avo.send("answer", a);
       }
 
-      // While asking, a click anywhere outside the rings (and outside the bubble
-      // window above) is the user pointing at the right spot themselves, with or
-      // without pressing "No" first.
+      function clearRings() {
+        marks.querySelectorAll(".ring").forEach((r) => r.remove());
+        rings = [];
+      }
+
+      // The answer is in: the chosen ring flexes, the others fade, then all go.
+      function endAsk(a = {}) {
+        asking = false;
+        document.body.classList.remove("asking", "correcting", "picking");
+        const chosen = a.choice === "pick" ? rings[a.index] : a.choice === "yes" ? rings[0] : null;
+        for (const r of rings) r.classList.add(r === chosen ? "chosen" : "gone");
+        const old = rings;
+        rings = [];
+        // The dim stays while the chosen ring flexes: a white ring on a white menu needs it.
+        setTimeout(() => {
+          old.forEach((r) => r.classList.add("gone"));
+          if (!asking && !document.body.classList.contains("selecting")) dim.classList.remove("on");
+        }, chosen ? 220 : 0);
+        setTimeout(() => old.forEach((r) => r.remove()), chosen ? 460 : 240);
+      }
+
+      // While asking, a click anywhere outside the rings (and outside the card)
+      // is the user pointing at the right spot themselves, with or without
+      // pressing "No" first.
       document.addEventListener("click", (e) => {
         if (!asking) return;
         ripple(e.clientX, e.clientY);
         moveTo(e.clientX, e.clientY, 200);
-        window.avo.send("answer", { choice: "no", x: e.clientX, y: e.clientY });
-        endAsk();
+        reply({ choice: "no", x: e.clientX, y: e.clientY });
       });
 
       // ---- box selection: drag A, then optionally B ----
       let regions = []; // [{label, box, el}]
       let drag = null;
+
+      function makeSel(box, label) {
+        const el = document.createElement("div");
+        el.className = "sel";
+        el.innerHTML = `<i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>`;
+        if (label) el.insertAdjacentHTML("beforeend", `<span class="label">${label}</span>`);
+        fitSel(el, box);
+        marks.appendChild(el);
+        return el;
+      }
+
+      function fitSel(el, box) {
+        place(el, box);
+        const arm = Math.max(6, Math.min(18, (box[2] - box[0]) / 3, (box[3] - box[1]) / 3));
+        el.style.setProperty("--arm", `${arm}px`);
+      }
 
       function clearRegions() {
         regions.forEach((r) => r.el.remove());
@@ -329,27 +502,31 @@
         else clearRegions();
       }
 
+      const dragBox = (e) => [Math.min(drag.x, e.clientX), Math.min(drag.y, e.clientY), Math.max(drag.x, e.clientX), Math.max(drag.y, e.clientY)];
+
       document.addEventListener("mousedown", (e) => {
         if (!document.body.classList.contains("selecting") || e.button !== 0) return;
-        const el = document.createElement("div");
-        el.className = "sel live";
-        marks.appendChild(el);
-        drag = { x: e.clientX, y: e.clientY, el };
-        place(el, [e.clientX, e.clientY, e.clientX, e.clientY]);
+        drag = { x: e.clientX, y: e.clientY, el: makeSel([e.clientX, e.clientY, e.clientX, e.clientY]) };
       });
       document.addEventListener("mousemove", (e) => {
         if (!drag) return;
-        place(drag.el, [Math.min(drag.x, e.clientX), Math.min(drag.y, e.clientY), Math.max(drag.x, e.clientX), Math.max(drag.y, e.clientY)]);
+        const box = dragBox(e);
+        fitSel(drag.el, box);
+        setHoles(regions.filter((r) => regions.length < 2 || r.label !== "B").map((r) => r.box).concat([box]));
       });
       document.addEventListener("mouseup", (e) => {
         if (!drag) return;
-        const box = [Math.min(drag.x, e.clientX), Math.min(drag.y, e.clientY), Math.max(drag.x, e.clientX), Math.max(drag.y, e.clientY)];
+        const box = dragBox(e);
         drag.el.remove();
         drag = null;
-        if (box[2] - box[0] < 8 || box[3] - box[1] < 8) return; // a click, not a drag
+        if (box[2] - box[0] < 8 || box[3] - box[1] < 8) {
+          setHoles(regions.map((r) => r.box));
+          return; // a click, not a drag
+        }
         if (regions.length === 2) regions.pop().el.remove(); // a third drag redoes B
         const label = regions.length ? "B" : "A";
-        const el = labelled("sel", box, label);
+        const el = makeSel(box, label);
+        if (!reduced.matches) el.animate([{ transform: "scale(1)" }, { transform: "scale(0.98)" }, { transform: "scale(1)" }], { duration: 240, easing: EASE }); // the corners bite
         regions.push({ label, box, el });
         setHoles(regions.map((r) => r.box));
         window.avo.send("select-box", { label, box });
@@ -371,6 +548,7 @@
       window.avo.onEvent((m) => {
         switch (m.type) {
           case "confirm":
+            cursor.classList.remove("thinking");
             ask(m);
             break;
           case "select-start":
@@ -390,12 +568,16 @@
             break;
           case "answered":
           case "cancel":
-            endAsk();
+            endAsk(m);
+            break;
+          case "status": // a small turning ring by the tip while the model thinks
+            cursor.classList.toggle("thinking", !!m.busy && /^(Thinking|Planning|Checking)/.test(m.text || ""));
             break;
           case "move":
             moveTo(m.x, m.y, m.ms);
             break;
           case "click":
+            cursor.classList.remove("thinking");
             moveTo(m.x, m.y, 0);
             press();
             ripple(m.x, m.y);
@@ -405,7 +587,7 @@
             showChip(m.label ? `Snapped to “${m.label}”` : "Snapped to the nearest control", 1400);
             break;
           case "keys":
-            showChip(m.keys.map((k) => KEY_GLYPHS[k.toLowerCase()] || k.toUpperCase()).join(" "));
+            showChip(m.keys.map((k) => KEY_GLYPHS[k.toLowerCase()] || k.toUpperCase()).join(" "), 1600, true);
             break;
           case "type":
             showChip(`Typing “${m.text}”`, 2200);
@@ -414,6 +596,7 @@
             showChip(m.dy > 0 ? "Scroll down" : "Scroll up");
             break;
           case "done":
+            cursor.classList.remove("thinking");
             hideTimer = setTimeout(hideCursor, m.ms ?? 5000);
             endSelect(false);
             break;

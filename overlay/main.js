@@ -1,14 +1,15 @@
-// AVO overlay. Three windows over the main display, kept out of the model's
+// AVO overlay. Two windows over the main display, kept out of the model's
 // screenshots (the agent captures below them):
 //   - pointer: full-screen, transparent, click-through; the agent cursor, click
-//     ripples, key/typing chips and the spotlight on a target (index.html)
-//   - island: a glass pill above the Dock (island.html). Idle it collapses to a
-//     small circle. Click it to type a task, or press Option-Space to first drag
-//     a box over what the task is about (A, then optionally B); the island
-//     then moves under the box as the input. While the agent works it widens to
-//     show what it is doing, and Option-Space pauses it.
-//   - bubble: the glass "Is this the one?" card next to a target (bubble.html)
-// Island and bubble are real macOS frosted glass (vibrancy, rounded in glass.js).
+//     ripples, key/typing chips, selection corners and the rings around a
+//     target (index.html)
+//   - island: a black glass capsule at the top centre of the screen
+//     (island.html). Idle it shrinks to the AVO mark. Click it to type a task,
+//     or press Option-Space to first drag a box over what the task is about (A,
+//     then optionally B); the island then moves under the box as the input.
+//     While the agent works it widens to show the step, Option-Space pauses
+//     it, and when the agent asks it opens into the question card.
+// The island is real macOS glass (vibrancy, rounded in glass.js).
 // The Python agent connects over a local WebSocket and sends events.
 
 const fs = require("fs");
@@ -25,21 +26,24 @@ const PORT = Number(process.env.AVO_OVERLAY_PORT || 8765);
 // all capture instead.
 const HIDE_FROM_CAPTURE = process.env.AVO_OVERLAY_HIDE_FROM_CAPTURE === "1";
 const ROOT = path.resolve(__dirname, "..");
-const ISLAND_H = 44; // every island state is this tall (island.html --h)
-const ISLAND_GAP = 14; // px between the island and the Dock / bottom of work area
-const GLASS_RADIUS = 22;
-const BUBBLE_GAP = 14; // px between the target and the bubble
+const ISLAND_H = 36; // the one-line island states (island.html --h)
+const ISLAND_TOP = 8; // px between the menu bar and the island
+const ISLAND_GAP = 14; // px between a selection box and the input under it
+const PILL_RADIUS = ISLAND_H / 2;
+const CARD_RADIUS = 14; // --avo-radius-card: the input and the question card
+const CARD_GAP = 14; // px between a target and the card, when the card must sit beside it
 const SUMMON_KEY = "Alt+Space";
+const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 let pointer = null;
 let island = null;
-let bubble = null;
 const clients = new Set(); // connected agents
 let pendingAsk = null; // the confirm request being answered: { id, rect }
 let task = null; // the agent process started from the island, if any
+let lastRun = null; // { text, regions, app } of the last task started from the island, for Retry
 let returnTo = null; // bundle id of the app to refocus after typing a task
 
-nativeTheme.themeSource = "light"; // light glass even when macOS is in dark mode
+nativeTheme.themeSource = "dark"; // black glass, whatever the macOS appearance
 
 function float(win, clickThrough = true) {
   win.setAlwaysOnTop(true, "screen-saver");
@@ -61,7 +65,7 @@ const common = {
 const glass = {
   transparent: true,
   backgroundColor: "#00000000",
-  vibrancy: "popover",
+  vibrancy: "hud",
   visualEffectState: "active",
   hasShadow: true,
 };
@@ -77,46 +81,95 @@ function createPointer() {
 
 let islandAnchor = null; // a selection box [l, t, r, b] to sit under while typing
 
-function islandBounds(width) {
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+
+function islandBounds(state, width, height = ISLAND_H) {
   const wa = screen.getPrimaryDisplay().workArea;
   let x = wa.x + (wa.width - width) / 2;
-  let y = wa.y + wa.height - ISLAND_H - ISLAND_GAP;
-  if (islandAnchor) {
+  let y = wa.y + ISLAND_TOP;
+  if (state === "input" && islandAnchor) {
     const [l, t, r, b] = islandAnchor;
-    x = Math.max(wa.x + 12, Math.min((l + r) / 2 - width / 2, wa.x + wa.width - width - 12));
+    x = clamp((l + r) / 2 - width / 2, wa.x + 12, wa.x + wa.width - width - 12);
     y = b + ISLAND_GAP;
-    if (y + ISLAND_H > wa.y + wa.height - 8) y = Math.max(wa.y + 8, t - ISLAND_GAP - ISLAND_H); // flip above
+    if (y + height > wa.y + wa.height - 8) y = Math.max(wa.y + 8, t - ISLAND_GAP - height); // flip above
+  } else if (state === "ask" && pendingAsk) {
+    // The card opens at the top. If that would cover what it asks about, it
+    // slides along the top to clear it, and failing that sits next to the
+    // target, as the old bubble did.
+    const { l, t, r, b } = pendingAsk.rect;
+    const m = 16;
+    if (x < r + m && x + width > l - m && y < b + m && y + height > t - m) {
+      if (r + m + width <= wa.x + wa.width - 12) x = r + m;
+      else if (l - m - width >= wa.x + 12) x = l - m - width;
+      else {
+        x = clamp((l + r) / 2 - width / 2, wa.x + 12, wa.x + wa.width - width - 12);
+        y = b + CARD_GAP;
+        if (y + height > wa.y + wa.height - 8) y = Math.max(wa.y + 8, t - CARD_GAP - height); // flip above near the Dock
+      }
+    }
   }
-  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: ISLAND_H };
+  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
 }
 
 function createIsland() {
-  island = new BrowserWindow({ ...common, ...glass, ...islandBounds(ISLAND_H), show: false });
+  island = new BrowserWindow({ ...common, ...glass, ...islandBounds("idle", 72), show: false });
   float(island, false); // idle: clickable
   island.loadFile("island.html");
   island.once("ready-to-show", () => {
-    roundGlass(island, GLASS_RADIUS);
+    roundGlass(island, PILL_RADIUS);
     island.showInactive();
   });
-}
-
-function createBubble() {
-  bubble = new BrowserWindow({ ...common, ...glass, width: 300, height: 300, show: false });
-  float(bubble, false);
-  bubble.loadFile("bubble.html");
-  bubble.once("ready-to-show", () => roundGlass(bubble, GLASS_RADIUS));
 }
 
 // ---- island ----
 
 let islandState = "idle";
+const CLICKABLE = new Set(["idle", "input", "paused", "ask", "error"]);
 
-ipcMain.on("island-size", (_e, { state, width }) => {
+// The window's own opacity, eased: the glass is native, so CSS can't fade it.
+let fadeTimer = null;
+function fade(to, ms, then) {
+  clearInterval(fadeTimer);
+  const from = island.getOpacity();
+  const t0 = Date.now();
+  fadeTimer = setInterval(() => {
+    const k = Math.min(1, (Date.now() - t0) / ms);
+    island.setOpacity(from + (to - from) * (1 - (1 - k) ** 3));
+    if (k === 1) {
+      clearInterval(fadeTimer);
+      then?.();
+    }
+  }, 16);
+}
+
+// A change of shape in place morphs (native animated resize). A change of
+// place (top of the screen <-> under a selection or a target) doesn't fly
+// across the screen: the island fades out, and fades back in at the new spot
+// while rising 6px.
+let morph = 0;
+ipcMain.on("island-size", (_e, { state, width, height }) => {
   islandState = state;
   // Clickable only when it's waiting for the user; while the agent works, the
   // agent's clicks must pass through it.
-  island.setIgnoreMouseEvents(!(state === "idle" || state === "input" || state === "paused"));
-  island.setBounds(islandBounds(width), true); // native, animated resize
+  island.setIgnoreMouseEvents(!CLICKABLE.has(state));
+  const to = islandBounds(state, width, height);
+  const from = island.getBounds();
+  const card = state === "input" || state === "ask";
+  if (!card) roundGlass(island, PILL_RADIUS); // rounder before shrinking to a pill...
+  const far = Math.hypot(to.x + to.width / 2 - (from.x + from.width / 2), to.y - from.y) > 120;
+  const id = ++morph;
+  if (far && island.isVisible()) {
+    fade(0, 90, () => {
+      if (id !== morph) return;
+      island.setBounds({ ...to, y: to.y + 6 });
+      island.setBounds(to, true);
+      fade(1, 180);
+    });
+  } else {
+    island.setBounds(to, true);
+    if (island.getOpacity() < 1) fade(1, 120);
+  }
+  if (card) setTimeout(() => id === morph && roundGlass(island, CARD_RADIUS), far ? 120 : 260); // ...squarer once grown into a card
   setTimeout(() => island.invalidateShadow(), 350); // shadow follows the new shape
 });
 
@@ -147,6 +200,8 @@ function togglePause() {
 }
 
 ipcMain.on("island-control", (_e, { cmd }) => {
+  if (cmd === "retry") return retry();
+  if (cmd === "dismiss") return island.webContents.send("avo", { type: "idle" });
   if (!paused) return;
   if (cmd === "resume") togglePause();
   else if (cmd === "stop") {
@@ -166,15 +221,16 @@ function summon() {
 
 let selecting = false;
 let regions = []; // [{label, box}] in screen points
+const AT_REST = new Set(["idle", "launch", "done", "warn", "error"]); // no task, nothing typed
 
 function startSelect() {
-  if (selecting || task || islandState !== "idle") return;
+  if (selecting || task || !AT_REST.has(islandState)) return;
   selecting = true;
   regions = [];
   returnTo = frontApp();
   pointer.setIgnoreMouseEvents(false);
   pointer.webContents.send("avo", { type: "select-start" });
-  island.webContents.send("avo", { type: "guide", text: "Drag over what AVO should work on" });
+  island.webContents.send("avo", { type: "guide", text: "Select A" });
   globalShortcut.register("Escape", cancelInput);
 }
 
@@ -191,7 +247,7 @@ ipcMain.on("select-box", (_e, { label, box }) => {
   const screenBox = [box[0] + o.x, box[1] + o.y, box[2] + o.x, box[3] + o.y];
   regions = regions.filter((r) => r.label !== label).concat({ label, box: screenBox });
   islandAnchor = screenBox;
-  openInput(regions.length > 1 ? "What should AVO do with A and B?" : "What should AVO do with A?");
+  openInput(regions.length > 1 ? "Tell AVO what to do with A → B" : "Tell AVO what to do with A");
 });
 
 function frontApp() {
@@ -242,11 +298,22 @@ ipcMain.on("island-cancel", cancelInput);
 ipcMain.on("island-submit", (_e, { text }) => {
   if (task) return;
   const chosen = regions;
+  lastRun = { text, regions: chosen, app: returnTo };
   if (selecting) endSelect(true); // keep the boxes, faint, while the agent works
   island.webContents.send("avo", { type: "status", text: "Starting…", busy: true });
   closeInput();
   setTimeout(() => runTask(text, chosen), 400); // let the app below take focus first
 });
+
+// Retry after AVO got stuck: the same task and boxes, with the same app in front.
+function retry() {
+  if (!lastRun || clients.size) return;
+  island.webContents.send("avo", { type: "status", text: "Starting…", busy: true });
+  if (lastRun.app) execFile("open", ["-b", lastRun.app]);
+  const go = () => setTimeout(() => runTask(lastRun.text, lastRun.regions), 400);
+  if (task) task.once("exit", go);
+  else go();
+}
 
 function findUv() {
   const dirs = (process.env.PATH || "").split(":").concat([path.join(os.homedir(), ".local/bin"), "/opt/homebrew/bin"]);
@@ -272,35 +339,31 @@ function runTask(text, chosen = []) {
     fs.closeSync(log);
     task = null;
     if (!finished) {
-      island.webContents.send("avo", { type: "done", text: `AVO stopped (exit ${code}). See runs/island.log`, ok: false });
+      island.webContents.send("avo", { type: "done", text: `AVO stopped (exit ${code}). See runs/island.log`, ok: false, retry: true });
     }
   });
 }
 
-// ---- bubble ----
+// ---- asking ----
+// The question is the island opened into a card (island.html); the rings
+// are on the pointer window. With several candidates, the number keys pick one.
 
-ipcMain.on("bubble-size", (_e, { width, height }) => {
-  if (!pendingAsk) return;
-  const wa = screen.getPrimaryDisplay().workArea;
-  const { l, t, r, b } = pendingAsk.rect;
-  const w = Math.ceil(width);
-  const h = Math.ceil(height);
-  let x = Math.round((l + r) / 2 - w / 2);
-  x = Math.max(wa.x + 12, Math.min(x, wa.x + wa.width - w - 12));
-  let y = b + BUBBLE_GAP;
-  if (y + h > wa.y + wa.height - 8) y = Math.max(wa.y + 8, t - BUBBLE_GAP - h); // flip above near the Dock
-  bubble.setBounds({ x, y: Math.round(y), width: w, height: h });
-  bubble.invalidateShadow();
-  if (!bubble.isVisible()) bubble.showInactive();
-});
+function bindDigits(n) {
+  DIGITS.slice(0, n).forEach((d, i) => globalShortcut.register(d, () => answer({ choice: "pick", index: i })));
+}
+
+function unbindDigits() {
+  for (const d of DIGITS) if (globalShortcut.isRegistered(d)) globalShortcut.unregister(d);
+}
 
 function answer(fields) {
   if (!pendingAsk) return;
   const msg = { type: "answer", id: pendingAsk.id, ...fields };
   pendingAsk = null;
+  unbindDigits();
   pointer.setIgnoreMouseEvents(true);
-  pointer.webContents.send("avo", { type: "answered" });
-  bubble.hide();
+  pointer.webContents.send("avo", { type: "answered", choice: fields.choice, index: fields.index });
+  island.webContents.send("avo", { type: "answered" });
   tellAgents(msg);
 }
 
@@ -344,7 +407,7 @@ function route(msg) {
   switch (msg.type) {
     case "status":
       if (!paused) island.webContents.send("avo", msg); // keep showing "Paused"
-      return;
+      break; // the pointer shows a thinking ring by the cursor
     case "interrupt":
       // The agent noticed the user taking over and paused itself ("You moved —
       // paused.", or a countdown with auto-resume). Resume / Stop / Option-Space
@@ -359,18 +422,19 @@ function route(msg) {
     case "done":
       paused = false;
       task?.sawDone();
-      island.webContents.send("avo", msg);
+      island.webContents.send("avo", { ...msg, retry: !!task }); // Retry only what the island started
       break;
     case "hide":
       island.webContents.send("avo", msg);
       break;
     case "confirm": {
-      // The bubble sits next to the target, or next to all the candidates.
+      // The card keeps clear of the target, or of all the candidates.
       const boxes = msg.candidates ? msg.candidates.map((c) => c.box) : [msg.box || [msg.x - 28, msg.y - 18, msg.x + 28, msg.y + 18]];
       const [l, t, r, b] = [0, 1, 2, 3].map((i) => (i < 2 ? Math.min : Math.max)(...boxes.map((x) => x[i])));
-      pendingAsk = { id: msg.id, rect: { l, t, r, b } };
+      pendingAsk = { id: msg.id, rect: { l, t, r: r + (msg.candidates ? 40 : 0), b } }; // + the number tags right of the rings
       pointer.setIgnoreMouseEvents(false); // the corrected point is clicked on the pointer window
-      bubble.webContents.send("avo", msg);
+      island.webContents.send("avo", msg);
+      if (msg.candidates) bindDigits(msg.candidates.length);
       break;
     }
   }
@@ -387,9 +451,10 @@ function startServer() {
       // An agent that quits mid-question must not leave the screen unclickable.
       if (clients.size === 0 && pendingAsk) {
         pendingAsk = null;
+        unbindDigits();
         pointer.setIgnoreMouseEvents(true);
         pointer.webContents.send("avo", { type: "cancel" });
-        bubble.hide();
+        island.webContents.send("avo", { type: "cancel" });
       }
     });
     ws.on("message", (data) => {
@@ -409,7 +474,6 @@ app.dock?.hide(); // no Dock icon, not in Cmd-Tab
 app.whenReady().then(() => {
   createPointer();
   createIsland();
-  createBubble();
   startServer();
   if (!globalShortcut.register(SUMMON_KEY, summon)) console.log(`could not register ${SUMMON_KEY}`);
 });

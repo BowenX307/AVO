@@ -2,69 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
     <title>AVO island</title>
+    <link rel="stylesheet" href="../brand/tokens.css" />
+    <script src="../brand/logo-animated.js"></script>
     <style>
-      /* The window itself is the glass (macOS blur, rounded in glass.js); the page
-         only adds a white tint and the content. Every state is one height, so
-         the native resize animation morphs between them without the corners
-         changing. */
-      :root {
-        --h: 44px;
-        --ink: #111;
-        --muted: rgba(0, 0, 0, 0.45);
-      }
+      /* The status island: a black glass capsule at the top of the screen that
+         changes shape with what AVO is doing, and opens into a card when AVO
+         asks. The window itself is the glass (macOS blur, rounded in glass.js);
+         the page adds the black tint, the hairline and the content. Outside
+         Electron (preview.html) the CSS blur stands in for the native one. */
+      :root { --h: 36px; --r: 18px; --soft: rgba(245, 245, 242, 0.58); }
       html, body {
         margin: 0;
         height: 100%;
         overflow: hidden;
+        background: transparent; /* a root background would fill the square corners too */
         user-select: none;
         -webkit-font-smoothing: antialiased;
-        font: 500 14px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-        color: var(--ink);
+        font: 500 13px/1 var(--avo-font-sans);
+        color: var(--avo-paper);
       }
-      /* The tint sits on #row, not on html: a root background fills the whole
-         window, square corners included. */
-      html, body { background: transparent; }
-      #row {
-        display: flex;
-        align-items: center;
-        height: var(--h);
-        white-space: nowrap;
-        border-radius: 22px;
-        background: rgba(255, 255, 255, 0.62);
-        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.7);
+      #shell {
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+        border-radius: var(--r);
+        background: var(--avo-glass);
+        box-shadow: inset 0 0 0 1px var(--avo-glass-border);
+        -webkit-backdrop-filter: blur(var(--avo-blur)) saturate(1.4);
+        backdrop-filter: blur(var(--avo-blur)) saturate(1.4);
+        transition: border-radius var(--avo-dur) var(--avo-ease);
       }
-      #icon {
-        flex: none;
-        width: var(--h);
-        height: var(--h);
-        display: grid;
-        place-items: center;
-      }
-      .mark { width: 15px; height: 17px; transition: transform 200ms ease; }
-      body.idle:hover .mark { transform: scale(1.12); }
-      body.busy .mark { animation: breathe 1.4s ease-in-out infinite; }
-      @keyframes breathe { 50% { opacity: 0.35; transform: scale(0.9); } }
-      .badge { width: 20px; height: 20px; }
+      body.input, body.ask { --r: var(--avo-radius-card); }
+
+      /* ---- one-line states ---- */
+      #pill { display: flex; align-items: center; height: var(--h); white-space: nowrap; }
+      body.input #pill { height: 46px; }
+      body.ask #pill { display: none; }
+      #icon { flex: none; width: var(--h); height: var(--h); display: grid; place-items: center; }
+      body.idle #icon { flex: 1; width: auto; }
+      body.idle { cursor: pointer; }
+      body.input #icon { width: 46px; height: 46px; }
+      .mark { width: 31px; height: 9px; transition: transform var(--avo-dur-fast) var(--avo-ease); }
+      body:not(.idle) .mark { width: 22px; height: 7px; }
+      body.idle:hover .mark { transform: scale(1.1); }
+      body.busy .mark { animation: breathe 1.6s ease-in-out infinite; }
+      @keyframes breathe { 50% { opacity: 0.4; } }
+      body.launch #icon { width: auto; padding: 0 12px 0 16px; }
+      .launch-logo { width: 46px; height: 14px; overflow: visible; }
+      .badge { width: 18px; height: 18px; overflow: visible; }
 
       #text {
         flex: 1;
         min-width: 0;
-        padding-right: 18px;
+        padding-right: 16px;
         overflow: hidden;
         text-overflow: ellipsis;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.005em;
       }
-      body.busy #text {
-        background: linear-gradient(100deg, var(--ink) 38%, rgba(0, 0, 0, 0.28) 50%, var(--ink) 62%);
+      #text .mono, .mono { font-family: var(--avo-font-mono); font-size: 12px; color: var(--soft); letter-spacing: 0; }
+      #text .dot { color: var(--soft); margin: 0 6px; }
+      #text .detail { color: var(--soft); }
+      /* Thinking / planning: a faint sheen sweeps across the words. */
+      .sheen {
+        background: linear-gradient(100deg, var(--soft) 38%, #fff 50%, var(--soft) 62%);
         background-size: 260% 100%;
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        animation: shimmer 1.9s linear infinite;
+        animation: sheen 1.9s linear infinite;
       }
-      @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -160% 0; } }
+      @keyframes sheen { from { background-position: 100% 0; } to { background-position: -160% 0; } }
 
       #ask {
         display: none;
@@ -73,109 +82,291 @@
         border: 0;
         outline: 0;
         background: transparent;
-        font: 400 15px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-        color: var(--ink);
-        caret-color: var(--ink);
+        font: 400 15px var(--avo-font-sans);
+        color: var(--avo-paper);
+        caret-color: var(--avo-paper);
       }
-      #ask::placeholder { color: var(--muted); }
-      .key {
-        display: none;
-        flex: none;
-        margin: 0 14px 0 8px;
-        font-size: 12px;
-        color: var(--muted);
-      }
-      body.input #ask, body.input .key { display: block; }
+      #ask::placeholder { color: rgba(245, 245, 242, 0.42); }
+      body.input #ask { display: block; }
       body.input #text, body.idle #text { display: none; }
-      body.idle { cursor: pointer; }
 
-      /* While the agent works: how to pause it. Paused: resume or stop. */
-      .hint { display: none; flex: none; margin-right: 16px; font-size: 11.5px; color: var(--muted); }
-      body.busy .hint, body.info .hint { display: block; }
-      body.busy #text, body.info #text, body.paused #text { padding-right: 12px; }
-      .esc { display: none; flex: none; margin-right: 16px; font-size: 11.5px; color: var(--muted); }
-      body.guide .esc { display: block; }
-      body.guide #text { padding-right: 12px; }
-      .ctl { display: none; flex: none; gap: 6px; margin-right: 7px; }
-      body.paused .ctl { display: flex; }
-      .ctl button {
-        height: 30px;
-        padding: 0 14px;
+      .hint { display: none; flex: none; margin-right: 16px; font: 500 11px/1 var(--avo-font-mono); color: var(--soft); }
+      body.input .hint.send, body.select .hint.esc, body.busy .hint.pause, body.step .hint.pause, body.launch .hint.key { display: block; }
+
+      .glyph { font: 400 12px -apple-system, sans-serif; } /* Geist Mono has no ⏎ */
+      .ctl { display: none; flex: none; gap: 6px; margin-right: 4px; }
+      body.paused .ctl.pause, body.error .ctl.error { display: flex; }
+      .ctl button, #card button {
+        height: 28px;
+        padding: 0 13px;
         border: 0;
-        border-radius: 15px;
-        font: 600 13px -apple-system, BlinkMacSystemFont, sans-serif;
+        border-radius: var(--avo-radius-pill);
+        font: 600 12.5px/1 var(--avo-font-sans);
         cursor: pointer;
-        transition: transform 100ms ease, background 150ms ease;
+        transition: transform 100ms var(--avo-ease), background var(--avo-dur-fast) var(--avo-ease), color var(--avo-dur-fast) var(--avo-ease);
       }
-      .ctl button:active { transform: scale(0.95); }
-      .resume { background: var(--ink); color: #fff; }
-      .stop { background: rgba(0, 0, 0, 0.07); color: var(--ink); }
+      .ctl button:active, #card button:active { transform: scale(0.95); }
+      .solid { background: var(--avo-paper); color: var(--avo-ink); }
+      .solid:hover { background: #fff; }
+      .ghost { background: rgba(255, 255, 255, 0.1); color: var(--avo-paper); }
+      .ghost:hover { background: rgba(255, 255, 255, 0.17); }
+
+      /* Executing: a 1px line along the bottom shows how far along the task is. */
+      #progress {
+        display: none;
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 0;
+        height: 1px;
+        background: rgba(245, 245, 242, 0.12);
+        overflow: hidden;
+      }
+      body.step #progress { display: block; }
+      #progress i { position: absolute; inset: 0 auto 0 0; width: var(--done, 0%); background: var(--soft); transition: width var(--avo-dur) var(--avo-ease); }
+      #progress.open i { width: 30%; animation: sweep 2.2s var(--avo-ease) infinite; } /* no plan: no total */
+      @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+
+      /* ---- the question card ---- */
+      #card { display: none; width: 340px; box-sizing: border-box; padding: 16px 16px 14px; }
+      body.ask #card { display: block; }
+      .head { display: flex; align-items: center; gap: 10px; }
+      .head .mark { flex: none; }
+      .q { font-size: 16px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
+      .intent { margin-top: 6px; font-weight: 400; font-size: 12.5px; line-height: 1.4; color: var(--soft); }
+      .under { margin-top: 8px; font-size: 12.5px; line-height: 1.35; }
+      .under::before { content: "About to click  "; font: 500 11px var(--avo-font-mono); color: var(--soft); }
+      .reason { display: flex; gap: 8px; margin-top: 8px; font-weight: 400; font-size: 12px; line-height: 1.4; color: rgba(245, 245, 242, 0.82); }
+      .reason::before {
+        content: "!";
+        flex: none;
+        width: 15px;
+        height: 15px;
+        margin-top: 1px;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 1px var(--soft);
+        font: 700 10px/15px var(--avo-font-mono);
+        text-align: center;
+      }
+      .intent:empty, .under:empty, .reason:empty, .note:empty { display: none; }
+      .loupe {
+        display: block;
+        width: 308px;
+        height: 150px;
+        margin-top: 12px;
+        border-radius: 10px;
+        object-fit: cover;
+        box-shadow: 0 0 0 1px var(--avo-glass-border);
+      }
+      .loupe:not([src]), body.correcting .loupe, body.picking .loupe { display: none; }
+      .choices { display: none; flex-direction: column; gap: 6px; margin-top: 12px; }
+      body.picking .choices { display: flex; }
+      #card .choices button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 40px;
+        padding: 0 12px 0 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--avo-paper);
+        font-weight: 500;
+        font-size: 13.5px;
+        text-align: left;
+      }
+      #card .choices button:hover { background: var(--avo-paper); color: var(--avo-ink); }
+      .choices kbd {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        border-radius: 5px;
+        box-shadow: inset 0 0 0 1px rgba(245, 245, 242, 0.3);
+        font: 600 11.5px/1 var(--avo-font-mono);
+      }
+      .choices .guess kbd { background: var(--avo-paper); color: var(--avo-ink); box-shadow: none; }
+      #card .choices button:hover kbd { box-shadow: inset 0 0 0 1px rgba(10, 10, 10, 0.35); }
+      .choices i { margin-left: auto; font: 500 10.5px var(--avo-font-mono); font-style: normal; opacity: 0.6; }
+      .note { margin-top: 12px; font-weight: 400; font-size: 11.5px; line-height: 1.4; color: var(--soft); }
+      .row { display: flex; gap: 6px; margin-top: 12px; }
+      .row .stop { margin-right: auto; background: transparent; color: var(--soft); padding: 0 4px; }
+      .row .stop:hover { color: var(--avo-paper); }
+      .row .no, .row .yes { min-width: 64px; }
+      body.picking .row .no, body.picking .row .yes, body.correcting .row .no, body.correcting .row .yes { display: none; }
+
+      /* Reduce motion: nothing sweeps, breathes or draws; states fade. */
+      @media (prefers-reduced-motion: reduce) {
+        .sheen { animation: none; background: none; color: var(--avo-paper); }
+        body.busy .mark, #progress.open i { animation: none; }
+      }
     </style>
   </head>
   <body class="idle">
-    <div id="row">
-      <span id="icon"></span>
-      <span id="text"></span>
-      <input id="ask" placeholder="Tell AVO what to do" spellcheck="false" />
-      <span class="key">return ↩</span>
-      <span class="hint">⌥ Space to pause</span>
-      <span class="esc">esc to cancel</span>
-      <span class="ctl"><button class="stop">Stop</button><button class="resume">Resume</button></span>
+    <div id="shell">
+      <div id="pill">
+        <span id="icon"></span>
+        <span id="text"></span>
+        <input id="ask" placeholder="Tell AVO what to do" spellcheck="false" />
+        <span class="hint send"><b class="glyph">⏎</b> send · esc cancel</span>
+        <span class="hint esc">esc</span>
+        <span class="hint pause">⌥Space pause</span>
+        <span class="hint key">⌥Space</span>
+        <span class="ctl pause"><button class="ghost" data-cmd="stop">Stop</button><button class="solid" data-cmd="resume">Resume</button></span>
+        <span class="ctl error"><button class="ghost" data-cmd="dismiss">Stop</button><button class="solid" data-cmd="retry">Retry</button></span>
+        <span id="progress"><i></i></span>
+      </div>
+      <div id="card">
+        <div class="head"><span class="q"></span></div>
+        <div class="intent"></div>
+        <div class="under"></div>
+        <div class="reason"></div>
+        <img class="loupe" alt="" />
+        <div class="choices"></div>
+        <div class="note"></div>
+        <div class="row">
+          <button class="stop">Stop</button>
+          <button class="ghost no">No</button>
+          <button class="solid yes">Yes</button>
+        </div>
+      </div>
     </div>
     <script>
+      if (!window.avo) window.avo = parent.avoPreview?.("island"); // overlay/preview.html, outside Electron
       const body = document.body;
-      const icon = document.getElementById("icon");
-      const text = document.getElementById("text");
-      const ask = document.getElementById("ask");
-      const row = document.getElementById("row");
+      const $ = (s) => document.querySelector(s);
+      const icon = $("#icon"), text = $("#text"), ask = $("#ask"), pill = $("#pill"), card = $("#card"), shell = $("#shell");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
-      const H = 44, MIN_W = 150, MAX_W = 600, INPUT_W = 520;
-      const MARK = `<svg class="mark" viewBox="0 0 32 36" aria-hidden="true">
-        <path d="M16 2 L27 31 L16 24.5 L5 31 Z" fill="#111" stroke="#111" stroke-width="2.5" stroke-linejoin="round" /></svg>`;
-      const CHECK = `<svg class="badge" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="#111" />
-        <path d="M5.8 10.3 L8.7 13 L14.2 7.4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
-      const PAUSE = `<svg class="badge" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="#111" />
-        <rect x="6.6" y="6" width="2.3" height="8" rx="0.8" fill="#fff" /><rect x="11.1" y="6" width="2.3" height="8" rx="0.8" fill="#fff" /></svg>`;
-      const BANG = `<svg class="badge" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9.25" fill="none" stroke="#111" stroke-width="1.5" />
-        <path d="M10 5.5 V11" stroke="#111" stroke-width="2" stroke-linecap="round" /><circle cx="10" cy="14.2" r="1.2" fill="#111" /></svg>`;
+      const H = 36, IDLE_W = 72, MAX_W = 560, INPUT_W = 520, INPUT_H = 46, CARD_W = 340;
+      const MARK = AVOLogo.markup({ className: "mark", strokeWidth: 15 });
+      const CHECK = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 9.5 L7.5 13 L14 5.5" fill="none" stroke="#F5F5F2" stroke-width="2" stroke-linecap="square" /></svg>`;
+      const PAUSE = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><rect x="5.5" y="4.5" width="2.2" height="9" fill="#F5F5F2" /><rect x="10.3" y="4.5" width="2.2" height="9" fill="#F5F5F2" /></svg>`;
+      const BANG = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="none" stroke="#F5F5F2" stroke-width="1.5" />
+        <path d="M9 5 V10" stroke="#F5F5F2" stroke-width="1.8" /><rect x="8.1" y="11.8" width="1.8" height="1.8" fill="#F5F5F2" /></svg>`;
 
-      let doneTimer = null;
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+      let timer = null;
+      let task = { step: 0, total: 0, note: "" }; // what the island knows of the running task
 
-      function setState(state, message = "") {
-        clearTimeout(doneTimer);
-        body.className = state;
-        icon.innerHTML = { done: CHECK, warn: BANG, paused: PAUSE }[state] || MARK;
-        text.textContent = message;
-        let width = H;
-        if (state === "input") width = INPUT_W;
-        else if (state !== "idle") {
-          // Measure the row at its natural one-line width, then clamp.
-          row.style.width = "max-content";
+      // Swap the content and tell the main process the new size; it morphs the
+      // window (native animation) while the new content fades in.
+      function setState(state, html = "", extra = {}) {
+        clearTimeout(timer);
+        body.className = state + (extra.cls ? " " + extra.cls : "");
+        icon.innerHTML = { done: CHECK, warn: BANG, error: BANG, paused: PAUSE }[state] || (state === "launch" ? AVOLogo.markup({ className: "launch-logo", strokeWidth: 11 }) : MARK);
+        text.innerHTML = html;
+        const bar = $("#progress");
+        bar.classList.toggle("open", !task.total);
+        bar.style.setProperty("--done", task.total ? `${(100 * task.step) / task.total}%` : "0%");
+        let width = IDLE_W, height = H;
+        if (state === "input") (width = INPUT_W), (height = INPUT_H);
+        else if (state === "ask") {
+          width = CARD_W;
+          height = Math.ceil(card.getBoundingClientRect().height);
+        } else if (state !== "idle") {
+          pill.style.width = "max-content"; // measure the row at its natural one-line width, then clamp
           text.style.flex = "none";
-          width = Math.min(MAX_W, Math.max(MIN_W, row.scrollWidth + 2)); // +2: subpixel text would ellipsize
-          row.style.width = text.style.flex = "";
+          width = Math.min(MAX_W, Math.max(120, pill.scrollWidth + 2)); // +2: subpixel text would ellipsize
+          pill.style.width = text.style.flex = "";
         }
-        window.avo.send("island-size", { state, width });
+        window.avo.send("island-size", { state, width, height });
+        if (!reduced.matches) shell.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+        if (state === "done" && !reduced.matches) draw(icon.querySelector("path"), 320);
+      }
+
+      // Draw one stroke (the done check) like the logo draws its letters.
+      function draw(path, ms) {
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = `${len} ${len + 2}`;
+        path.animate([{ strokeDashoffset: len + 1 }, { strokeDashoffset: 0 }], { duration: ms, easing: "cubic-bezier(0.65, 0, 0.35, 1)", fill: "both" });
+      }
+
+      const stepLabel = (n) => `<span class="mono">Step ${n}${task.total ? ` / ${task.total}` : ""}</span><span class="dot">·</span>`;
+
+      function showStatus(m) {
+        const words = String(m.text || "").replace(/…$/, "");
+        if (m.step) {
+          // The model's note for this step: "Step 2 / 4 · Assigning card".
+          Object.assign(task, { step: m.step, total: m.total || task.total, note: words });
+          return setState("step", stepLabel(task.step) + esc(words));
+        }
+        if (/^Starting/.test(words)) task = { step: 0, total: 0, note: "" };
+        if (m.busy && /^Checking/.test(words) && task.note) return setState("step", stepLabel(task.step) + `<span class="sheen">${esc(task.note)}</span>`);
+        if (m.busy && /^(Thinking|Planning)/.test(words) && m.phase !== "planning" && task.step)
+          return setState("busy", stepLabel(task.step + 1) + `<span class="sheen">${esc(words)}</span>`);
+        if (m.busy) return setState("busy", `<span class="sheen">${esc(m.phase === "planning" ? "Planning" : words)}</span>`);
+        setState("info", esc(words));
+      }
+
+      function back() {
+        // After a question: back to the step being worked on.
+        if (task.note) setState("step", stepLabel(task.step) + esc(task.note));
+        else setState("busy", `<span class="sheen">Working</span>`);
+      }
+
+      function showDone(m) {
+        const t = String(m.text || "");
+        if (m.ok === false && /stopped the task/i.test(t)) {
+          setState("warn", esc(t));
+          timer = setTimeout(() => setState("idle"), m.ms ?? 2500);
+        } else if (m.ok === false) {
+          const head = task.step ? `Stuck at step ${task.step}` : "AVO got stuck";
+          $(".ctl.error [data-cmd=retry]").style.display = m.retry ? "" : "none"; // only a task the island started can be retried
+          setState("error", esc(head) + (t ? `<span class="dot">·</span><span class="detail">${esc(t)}</span>` : ""));
+        } else {
+          setState("done", esc(t || "Done"));
+          timer = setTimeout(() => setState("idle"), m.ms ?? 1500 + Math.min(3500, 45 * t.length)); // 1.5 s, plus time to read it
+        }
+        task = { step: 0, total: 0, note: "" };
+      }
+
+      // ---- the card: "OK to click here?" / "Which Alex did you mean?" ----
+      function whichQuestion(labels) {
+        const first = labels.map((l) => String(l).trim().split(/\s+/)[0]);
+        const same = first.every((w) => w.toLowerCase() === first[0].toLowerCase()) && /^[A-Za-z][\w'-]*$/.test(first[0]);
+        return same && labels.length > 1 ? `Which ${first[0]} did you mean?` : "Which one did you mean?";
+      }
+
+      function showCard(m) {
+        body.classList.remove("correcting");
+        const picking = !!m.candidates;
+        $(".choices").replaceChildren(
+          ...(m.candidates || []).map((c, i) => {
+            const b = document.createElement("button");
+            if (c.guess) b.className = "guess";
+            b.innerHTML = `<kbd>${i + 1}</kbd><span>${esc(c.label)}</span>` + (c.guess ? "<i>AVO's guess</i>" : "");
+            b.addEventListener("click", () => window.avo.send("bubble-choice", { choice: "pick", index: i }));
+            return b;
+          }),
+        );
+        $(".q").textContent = picking ? whichQuestion(m.candidates.map((c) => c.label)) : "OK to click here?";
+        $(".intent").textContent = m.intent || "";
+        $(".under").textContent = picking ? "" : m.under || "";
+        $(".reason").textContent = m.reason || "";
+        $(".note").textContent = picking ? "Or click the right spot on screen" : "Yes lets AVO go ahead. No, then click the right spot yourself.";
+        if (m.loupe) $(".loupe").src = m.loupe;
+        else $(".loupe").removeAttribute("src");
+        setState("ask", "", { cls: picking ? "picking" : "" });
       }
 
       window.avo.onEvent((m) => {
         switch (m.type) {
           case "status":
-            setState(m.busy ? "busy" : "info", m.text);
+            showStatus(m);
             break;
           case "done":
-            setState(m.ok === false ? "warn" : "done", m.text);
-            doneTimer = setTimeout(() => setState("idle"), m.ms ?? 5000);
+            showDone(m);
             break;
           case "hide":
           case "idle":
             setState("idle");
             break;
           case "paused":
-            setState("paused", m.text || "Paused");
+            setState("paused", esc(String(m.text || "Paused").replace(/\.$/, "")));
             break;
           case "guide":
-            setState("guide", m.text);
+            setState("select", esc(m.text || "Select A"));
             break;
           case "input":
             if (!body.classList.contains("input")) ask.value = ""; // a second box keeps the text
@@ -183,14 +374,32 @@
             setState("input");
             setTimeout(() => ask.focus(), 30);
             break;
+          case "confirm":
+            showCard(m);
+            break;
+          case "answered":
+          case "cancel":
+            if (body.classList.contains("ask")) back();
+            break;
         }
       });
 
       body.addEventListener("click", () => {
         if (body.classList.contains("idle")) window.avo.send("island-open");
       });
-      document.querySelector(".resume").addEventListener("click", () => window.avo.send("island-control", { cmd: "resume" }));
-      document.querySelector(".stop").addEventListener("click", () => window.avo.send("island-control", { cmd: "stop" }));
+      for (const b of document.querySelectorAll(".ctl button")) {
+        b.addEventListener("click", () => window.avo.send("island-control", { cmd: b.dataset.cmd }));
+      }
+      $(".row .yes").addEventListener("click", () => window.avo.send("bubble-choice", { choice: "yes" }));
+      $(".row .stop").addEventListener("click", () => window.avo.send("bubble-choice", { choice: "stop" }));
+      $(".row .no").addEventListener("click", () => {
+        body.classList.add("correcting");
+        $(".q").textContent = "Click the right spot";
+        $(".intent").textContent = "AVO will click where you click.";
+        $(".under").textContent = $(".reason").textContent = $(".note").textContent = "";
+        window.avo.send("bubble-choice", { choice: "no" });
+        window.avo.send("island-size", { state: "ask", width: CARD_W, height: Math.ceil(card.getBoundingClientRect().height) });
+      });
       ask.addEventListener("keydown", (e) => {
         if (e.key === "Escape") window.avo.send("island-cancel");
         if (e.key === "Enter" && !e.isComposing && ask.value.trim()) {
@@ -200,7 +409,15 @@
       ask.addEventListener("blur", () => {
         if (body.classList.contains("input")) window.avo.send("island-cancel");
       });
-      setState("idle");
+
+      // On launch: the logo draws itself, then the island settles to its idle mark.
+      setState("launch", `AVO is ready`);
+      AVOLogo.drawLogo(icon.querySelector("svg"), {
+        speed: 1.25,
+        onDone: () => {
+          timer = setTimeout(() => body.classList.contains("launch") && setState("idle"), 1400);
+        },
+      });
     </script>
   </body>
 </html>

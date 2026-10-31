@@ -335,7 +335,7 @@ def run(
             if note:
                 print(f"[{step}] model: {note}")
                 if not guard.tripped.is_set():
-                    overlay.send("status", text=note, busy=False)
+                    overlay.send("status", text=note, busy=False, step=step)  # the island shows "Step N · note"
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
             if checks and not approve_safety_checks(step, checks, auto_ack):
