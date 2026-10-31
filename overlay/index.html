@@ -275,7 +275,7 @@
       })();
       document.documentElement.style.setProperty("--spring", SPRING);
 
-      // Glide to (x, y). Long trips take 250-400 ms by distance (always within
+      // Glide to (x, y). Long trips take 200-320 ms by distance (always within
       // the agent's own `ms`, which it waits before clicking); short hops
       // (drag segments) use the time they're given.
       function moveTo(x, y, ms = 450) {
@@ -289,9 +289,9 @@
           pos = { x: innerWidth / 2, y: innerHeight / 2 };
         }
         const dist = Math.hypot(x - pos.x, y - pos.y);
-        const glide = ms >= 250 ? Math.min(ms, Math.max(250, Math.min(400, 250 + dist * 0.25))) : ms;
+        const glide = ms >= 200 ? Math.min(ms, Math.max(200, Math.min(320, 200 + dist * 0.2))) : ms;
         cursor.style.setProperty("--glide", `${glide}ms`);
-        cursor.style.setProperty("--spring", ms >= 250 ? SPRING : "cubic-bezier(0.2, 0.8, 0.2, 1)");
+        cursor.style.setProperty("--spring", ms >= 200 ? SPRING : "cubic-bezier(0.2, 0.8, 0.2, 1)");
         cursor.classList.add("on");
         cursor.style.transform = `translate(${x}px, ${y}px)`;
         pos = { x, y };
@@ -371,7 +371,7 @@
               { strokeDashoffset: 0, offset: 0.86, easing: EASE },
               { strokeDashoffset: total - closed },
             ],
-            { duration: 620, delay, fill: "both" },
+            { duration: 460, delay, fill: "both" },
           );
         }
         if (reduced.matches) {
@@ -416,8 +416,8 @@
         rings = targets.map((t, i) => {
           const ring = makeRing(t.box, t.n, t.guess);
           const [l, tp, r, b] = t.box;
-          drawRing(ring.querySelector("svg"), r - l, b - tp, 120 * i); // one after another
-          ring.querySelector(".num")?.style.setProperty("animation-delay", `${120 * i + 400}ms`);
+          drawRing(ring.querySelector("svg"), r - l, b - tp, 90 * i); // one after another
+          ring.querySelector(".num")?.style.setProperty("animation-delay", `${90 * i + 300}ms`);
           ring.addEventListener("click", (e) => {
             if (document.body.classList.contains("correcting")) return;
             e.stopPropagation(); // a ring answers directly: this candidate, or "yes, that one"
@@ -454,8 +454,8 @@
         setTimeout(() => {
           old.forEach((r) => r.classList.add("gone"));
           if (!asking && !document.body.classList.contains("selecting")) dim.classList.remove("on");
-        }, chosen ? 220 : 0);
-        setTimeout(() => old.forEach((r) => r.remove()), chosen ? 460 : 240);
+        }, chosen ? 160 : 0);
+        setTimeout(() => old.forEach((r) => r.remove()), chosen ? 360 : 200);
       }
 
       // While asking, a click anywhere outside the rings (and outside the card)
@@ -526,7 +526,7 @@
         if (regions.length === 2) regions.pop().el.remove(); // a third drag redoes B
         const label = regions.length ? "B" : "A";
         const el = makeSel(box, label);
-        if (!reduced.matches) el.animate([{ transform: "scale(1)" }, { transform: "scale(0.98)" }, { transform: "scale(1)" }], { duration: 240, easing: EASE }); // the corners bite
+        if (!reduced.matches) el.animate([{ transform: "scale(1)" }, { transform: "scale(0.98)" }, { transform: "scale(1)" }], { duration: 180, easing: EASE }); // the corners bite
         regions.push({ label, box, el });
         setHoles(regions.map((r) => r.box));
         window.avo.send("select-box", { label, box });

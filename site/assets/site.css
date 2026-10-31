@@ -189,7 +189,7 @@ footer a { text-decoration: none; }
 footer a:hover { color: var(--avo-ink); }
 
 /* Scroll reveal: headings fade in and rise 8px, once. Only when JS runs. */
-.js [data-reveal] { opacity: 0; transform: translateY(8px); transition: opacity 600ms var(--avo-ease), transform 600ms var(--avo-ease); }
+.js [data-reveal] { opacity: 0; transform: translateY(8px); transition: opacity 420ms var(--avo-ease), transform 420ms var(--avo-ease); }
 .js [data-reveal].in { opacity: 1; transform: none; }
 
 /* ---- the opening: the logo draws, the cursor clicks O, O opens into the page ---- */
