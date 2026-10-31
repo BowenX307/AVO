@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="miter" stroke-linecap="square" style="color:#0A0A0A" role="img" aria-label="AVO">
+  <title>AVO</title>
+  <!-- Λ: A without its bar, a pointer facing up. V: the same pointer facing down.
+       O: the ring AVO draws around a target. One open path per letter, so each
+       can be drawn as a single stroke (logo-animated.js). -->
+  <path class="avo-a" d="M10 90 L50 10 L90 90" />
+  <path class="avo-v" d="M126 10 L166 90 L206 10" />
+  <path class="avo-o" d="M261.01 21.01 A41 41 0 1 1 318.99 78.99 A41 41 0 1 1 261.01 21.01 Z" />
+</svg>
