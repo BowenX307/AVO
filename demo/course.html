@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" /> <!-- no Chrome Translate bubble over the demo -->
+    <title>PHYS 212 — Course materials</title>
+    <style>
+      :root { --bg: #f6f7f9; --line: #dde1e6; --ink: #1d232b; --muted: #66707c; --accent: #7a3db8; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; }
+      header { display: flex; align-items: baseline; gap: 12px; padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line); }
+      header strong { font-size: 18px; }
+      header .demo { color: var(--muted); font-size: 13px; }
+      main { max-width: 880px; margin: 0 auto; padding: 22px 24px 60px; }
+      .week { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; }
+      .week h2 { margin: 0 0 8px; font-size: 16px; }
+      .week h2 span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
+      .file { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid #f0f1f3; }
+      .file:first-of-type { border-top: 0; }
+      .file .icon { width: 30px; height: 36px; border-radius: 4px; background: #f3ecfa; color: var(--accent); display: grid; place-items: center; font: 700 10px/1 -apple-system, sans-serif; flex: none; }
+      .file .meta { flex: 1; min-width: 0; }
+      .file .meta small { display: block; color: var(--muted); font-size: 13px; }
+      .file a { color: var(--accent); font-weight: 600; text-decoration: none; padding: 6px 12px; border: 1px solid #e2d3f2; border-radius: 8px; }
+      .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); padding: 10px 18px; border-radius: 10px; background: #1d232b; color: #fff; display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>PHYS 212 · Mechanics and Waves</strong>
+      <span class="demo">Demo · course and files are made up</span>
+    </header>
+    <main id="weeks"></main>
+    <div class="toast" id="toast" role="status"></div>
+    <script>
+      // Week 3 has two handouts with nearly the same name: "download the week 3
+      // handout" doesn't say which, so AVO should ask.
+      const WEEKS = [
+        ["Week 1", "Kinematics", [["Lecture 1 handout — Motion in one dimension", "PDF · 1.2 MB · posted Sep 1", "w1-handout"], ["Problem set 1", "PDF · 240 KB · due Sep 8", "w1-ps"]]],
+        ["Week 2", "Newton's laws", [["Lecture 2 handout — Forces and free-body diagrams", "PDF · 1.6 MB · posted Sep 8", "w2-handout"], ["Problem set 2", "PDF · 310 KB · due Sep 15", "w2-ps"]]],
+        ["Week 3", "Oscillations", [
+          ["Lecture 3 handout — Simple harmonic motion", "PDF · 1.4 MB · posted Sep 15", "w3-handout"],
+          ["Lecture 3 handout — Simple harmonic motion (corrected)", "PDF · 1.4 MB · posted Sep 17 · fixes the pendulum example", "w3-handout-corrected"],
+          ["Problem set 3", "PDF · 280 KB · due Sep 22", "w3-ps"],
+        ]],
+        ["Week 4", "Waves", [["Lecture 4 handout — Waves on a string", "PDF · 1.9 MB · posted Sep 22", "w4-handout"], ["Lab 2 instructions", "PDF · 520 KB", "w4-lab"]]],
+      ];
+      const downloads = [];
+      const $ = (id) => document.getElementById(id);
+      $("weeks").innerHTML = WEEKS.map(([w, topic, files]) => `<section class="week"><h2>${w}<span>${topic}</span></h2>${files
+        .map(([name, meta, id]) => `<div class="file"><span class="icon">PDF</span><div class="meta">${name}<small>${meta}</small></div>
+          <a href="#" data-id="${id}" data-name="${name}" aria-label="Download ${name}">Download</a></div>`).join("")}</section>`).join("");
+      document.querySelectorAll(".file a").forEach((a) => {
+        a.onclick = (e) => {
+          e.preventDefault(); // no real file: the demo only records what was downloaded
+          downloads.push(a.dataset.id);
+          $("toast").textContent = `Downloaded “${a.dataset.name}.pdf”`;
+          $("toast").style.display = "block";
+          setTimeout(() => ($("toast").style.display = "none"), 4000);
+          report({ downloads });
+        };
+      });
+
+      // For scripted runs (scripts/run_demo.py): the page's result, sent to the
+      // harness when it serves the page; nothing is sent when opened as a file.
+      function report(state) {
+        document.body.dataset.state = JSON.stringify(state);
+        if (location.protocol.startsWith("http")) fetch("/report", { method: "POST", body: JSON.stringify(state) }).catch(() => {});
+      }
+    </script>
+  </body>
+</html>

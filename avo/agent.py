@@ -278,6 +278,8 @@ def run(
     tools: bool = True,
     plan: str = "auto",
     voice: bool = False,
+    overlay: Overlay | None = None,
+    confirm_mode: str = "all",
 ) -> str:
     """Run the computer-tool loop.
 
@@ -314,6 +316,12 @@ def run(
         first turn, its question asked, and the plan shown to the model each turn.
     voice: the task was spoken (the overlay's voice input). The human guard then
         counts only clicks, not pointer moves, scrolls or keys (avo/human.py).
+    overlay: who sees AVO and answers it; default the Electron overlay. Scripted
+        runs pass a ScriptedUser (avo/scripted.py).
+    confirm_mode: "all" (avo/confirm.py), "irreversible" (no countdown, only the
+        yes before irreversible steps and unusual checks) or "off" (nothing
+        asked). The last two exist for the E3 comparison on demo pages, where a
+        script plays the user.
     """
     if plan not in ("auto", "always", "never"):
         raise ValueError(f"plan must be 'auto', 'always' or 'never', not {plan!r}")
@@ -323,7 +331,9 @@ def run(
         raise ValueError(f"human_resume must be 'manual' or 'auto', not {human_resume!r}")
     meter = Meter()  # every API call of the run, for summary.json
     client = meter.wrap(make_client())
-    overlay = Overlay()
+    if confirm_mode not in ("all", "irreversible", "off"):
+        raise ValueError(f"confirm_mode must be 'all', 'irreversible' or 'off', not {confirm_mode!r}")
+    overlay = overlay or Overlay()
     guard = HumanGuard(overlay, enabled=human_guard, voice=voice)
 
     def interrupted() -> str | None:
@@ -338,7 +348,8 @@ def run(
         {
             "model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls,
             "human_guard": human_guard, "human_resume": human_resume, "freshness": freshness, "tools": tools,
-            "plan": plan, "voice": voice,
+            "plan": plan, "voice": voice, "confirm_mode": confirm_mode,
+            "answerer": getattr(overlay, "answerer", "overlay" if overlay.active else "terminal"),
         },
     )
     tool_list = [{"type": "computer"}] + (FUNCTION_TOOLS if tools else [])
@@ -602,7 +613,7 @@ def run(
                 with guard.acting(), guard.asking(), timed("you"):
                     ok = confirm.before(
                         step, actions, checks, overlay, driver.to_screen,
-                        review=a.review if a else None, answered=answered, draft=draft,
+                        review=a.review if a else None, answered=answered, draft=draft, mode=confirm_mode,
                     )
                     if ok.method in ("yes", "terminal") or ok.choice != "go":
                         refocus()  # answering on the island brings the overlay to the front
@@ -795,6 +806,9 @@ def run(
                 "asked": asked, "corrected": corrected, "no_effect": no_effect, "stuck": stuck, "snapped": snaps,
                 "skipped_screen_changed": skipped, "interruptions": len(guard.interruptions), "replans": replans,
                 "confirmations": len(confirmations), "declined": sum(1 for c in confirmations if c.get("declined")),
+                # What the user had to say: the task, each answer, each spoken yes / no.
+                "utterances": 1 + asked + sum(1 for c in confirmations if c["method"] in ("yes", "terminal")
+                                              or (c["method"] == "countdown" and c.get("declined"))),
             },
             "confirmations": confirmations,
             "settings": {k: v for k, v in log.settings.items() if k not in ("interruptions", "regions")},

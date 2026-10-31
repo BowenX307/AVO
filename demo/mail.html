@@ -195,10 +195,16 @@
           c.remove();
           toast(`Reply sent to ${m.from}`);
           document.title = `Campus Mail — Sent to ${m.from}`;
-          // For the scripted runs: what was sent, readable from the page.
-          document.body.dataset.sent = JSON.stringify(sent.map(({ to, subject, body }) => ({ to, subject, body })));
+          report({ sent: sent.map(({ to, subject, body }) => ({ to, subject, body })) });
           renderList();
         };
+      }
+
+      // For scripted runs (scripts/run_demo.py): the page's result, sent to the
+      // harness when it serves the page; nothing is sent when opened as a file.
+      function report(state) {
+        document.body.dataset.state = JSON.stringify(state);
+        if (location.protocol.startsWith("http")) fetch("/report", { method: "POST", body: JSON.stringify(state) }).catch(() => {});
       }
 
       function toast(text) {

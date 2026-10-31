@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" /> <!-- no Chrome Translate bubble over the demo -->
+    <title>Library Study Rooms</title>
+    <style>
+      :root { --bg: #f6f7f9; --line: #dde1e6; --ink: #1d232b; --muted: #66707c; --accent: #0f7a5a; --taken: #eceef1; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; }
+      header { display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: #fff; border-bottom: 1px solid var(--line); }
+      header strong { font-size: 18px; }
+      header .demo { color: var(--muted); font-size: 13px; }
+      header .today { margin-left: auto; color: var(--muted); font-size: 14px; }
+      main { max-width: 1040px; margin: 0 auto; padding: 22px 24px; }
+      h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 0 0 10px; }
+      .days { display: flex; gap: 6px; margin-bottom: 24px; }
+      .day {
+        flex: 1; min-width: 0; padding: 8px 0; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+        font: inherit; text-align: center; cursor: pointer; line-height: 1.25;
+      }
+      .day small { display: block; color: var(--muted); font-size: 12px; }
+      .day b { display: block; font-size: 19px; }
+      .day.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: #eef8f4; }
+      .day.today small:first-child::after { content: " · today"; }
+      table { width: 100%; border-collapse: separate; border-spacing: 6px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
+      th { font-size: 13px; color: var(--muted); font-weight: 600; text-align: left; padding: 4px 6px; }
+      td.room { font-weight: 600; white-space: nowrap; padding-right: 10px; }
+      td.room small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+      .slot { width: 100%; padding: 8px 0; border: 1px solid #bfe3d4; border-radius: 8px; background: #f2fbf7; color: var(--accent); font: 600 14px/1 -apple-system, sans-serif; cursor: pointer; }
+      .slot[disabled] { background: var(--taken); border-color: var(--taken); color: #a3a9b1; cursor: default; }
+      .slot.on { background: var(--accent); color: #fff; }
+      .sheet { margin-top: 22px; padding: 18px 20px; background: #fff; border: 1px solid var(--line); border-radius: 12px; display: none; }
+      .sheet.open { display: block; }
+      .sheet p { margin: 0 0 12px; }
+      .btn { padding: 9px 20px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font: inherit; cursor: pointer; }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+      .done { margin-top: 22px; padding: 14px 18px; border-radius: 12px; background: #e7f6ef; color: #0b5c43; font-weight: 600; display: none; }
+      .empty { color: var(--muted); padding: 20px 6px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Library Study Rooms</strong>
+      <span class="demo">Demo · bookings and rooms are made up</span>
+      <span class="today" id="today"></span>
+    </header>
+    <main>
+      <h2>Pick a day</h2>
+      <div class="days" id="days"></div>
+      <h2 id="grid-title">Rooms</h2>
+      <div id="grid"></div>
+      <div class="sheet" id="sheet">
+        <p id="summary"></p>
+        <button class="btn primary" id="book">Book room</button>
+        <button class="btn" id="cancel">Cancel</button>
+      </div>
+      <div class="done" id="done" role="status"></div>
+    </main>
+    <script>
+      // "Today" is fixed so every run sees the same week: Saturday, Oct 31.
+      // Two Fridays are on the strip, Nov 6 and Nov 13; "this Friday" said on a
+      // Saturday is read both ways, so AVO should ask.
+      const TODAY = new Date(2026, 9, 31);
+      const DAYS = Array.from({ length: 14 }, (_, i) => new Date(2026, 9, 31 + i));
+      const TIMES = ["10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM"];
+      const ROOMS = [["Room 204", "4 seats"], ["Room 310", "6 seats, whiteboard"]];
+      // Taken slots, by day index: some, so the grid isn't all green.
+      const TAKEN = { 6: [["Room 310", "2:00 PM"], ["Room 204", "10:00 AM"]], 13: [["Room 204", "4:00 PM"]] };
+      const fmt = (d, o) => d.toLocaleDateString("en-US", o);
+      const $ = (id) => document.getElementById(id);
+      let day = null, pick = null;
+      const bookings = [];
+
+      $("today").textContent = "Today: " + fmt(TODAY, { weekday: "long", month: "short", day: "numeric" });
+
+      DAYS.forEach((d, i) => {
+        const b = document.createElement("button");
+        b.className = "day" + (i === 0 ? " today" : "");
+        b.innerHTML = `<small>${fmt(d, { weekday: "short" })}</small><b>${d.getDate()}</b><small>${fmt(d, { month: "short" })}</small>`;
+        b.setAttribute("aria-label", fmt(d, { weekday: "long", month: "long", day: "numeric" }));
+        b.onclick = () => selectDay(i);
+        $("days").appendChild(b);
+      });
+
+      function selectDay(i) {
+        day = i;
+        pick = null;
+        $("sheet").classList.remove("open");
+        document.querySelectorAll(".day").forEach((b, j) => b.classList.toggle("on", j === i));
+        $("grid-title").textContent = "Rooms on " + fmt(DAYS[i], { weekday: "long", month: "long", day: "numeric" });
+        const taken = TAKEN[i] || [];
+        let html = `<table><tr><th></th>${TIMES.map((t) => `<th>${t}</th>`).join("")}</tr>`;
+        for (const [room, seats] of ROOMS) {
+          html += `<tr><td class="room">${room}<small>${seats}</small></td>`;
+          for (const t of TIMES) {
+            const busy = taken.some(([r, tt]) => r === room && tt === t);
+            html += `<td><button class="slot" data-room="${room}" data-time="${t}" ${busy ? "disabled" : ""}
+              aria-label="${room}, ${t}${busy ? ", taken" : ""}">${busy ? "Taken" : t}</button></td>`;
+          }
+          html += "</tr>";
+        }
+        $("grid").innerHTML = html + "</table>";
+        document.querySelectorAll(".slot:not([disabled])").forEach((b) => (b.onclick = () => choose(b)));
+      }
+
+      function choose(b) {
+        document.querySelectorAll(".slot").forEach((x) => x.classList.toggle("on", x === b));
+        pick = { room: b.dataset.room, time: b.dataset.time };
+        $("summary").textContent = `${pick.room}, ${fmt(DAYS[day], { weekday: "long", month: "long", day: "numeric" })}, ${pick.time} – one hour.`;
+        $("sheet").classList.add("open");
+      }
+
+      $("cancel").onclick = () => $("sheet").classList.remove("open");
+      $("book").onclick = () => {
+        const d = DAYS[day];
+        const booking = { room: pick.room, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, time: pick.time };
+        bookings.push(booking);
+        $("sheet").classList.remove("open");
+        $("done").style.display = "block";
+        $("done").textContent = `Booked: ${$("summary").textContent}`;
+        document.title = "Library Study Rooms — booked";
+        report({ bookings });
+      };
+
+      // For scripted runs (scripts/run_demo.py): the page's result, sent to the
+      // harness when it serves the page; nothing is sent when opened as a file.
+      function report(state) {
+        document.body.dataset.state = JSON.stringify(state);
+        if (location.protocol.startsWith("http")) fetch("/report", { method: "POST", body: JSON.stringify(state) }).catch(() => {});
+      }
+    </script>
+  </body>
+</html>

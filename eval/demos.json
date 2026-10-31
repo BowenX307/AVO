@@ -1,0 +1,51 @@
+[
+  {
+    "id": "mail-smith",
+    "page": "demo/mail.html",
+    "kind": "mock",
+    "task": "Reply to Professor Smith, say I'll be ten minutes late.",
+    "means": [
+      "Physics",
+      "David"
+    ],
+    "note": "Two Professor Smiths wrote about 2:00 today; the user means the Physics lab (David Smith).",
+    "check": {
+      "sent_to": "david.smith@physics.example.edu",
+      "body_any": [
+        "late"
+      ]
+    }
+  },
+  {
+    "id": "room-friday",
+    "page": "demo/room.html",
+    "kind": "mock",
+    "task": "Book a study room this Friday at 2 pm.",
+    "means": [
+      "6",
+      "November 6",
+      "Nov 6"
+    ],
+    "note": "Said on Saturday Oct 31, \"this Friday\" can be Nov 6 or Nov 13; the user means Nov 6.",
+    "check": {
+      "booked_date": "2026-11-06",
+      "booked_time": "2:00 PM"
+    }
+  },
+  {
+    "id": "course-week3",
+    "page": "demo/course.html",
+    "kind": "mock",
+    "task": "Download the week 3 handout.",
+    "means": [
+      "corrected"
+    ],
+    "note": "Week 3 has the handout and a corrected one; the user means the corrected one.",
+    "check": {
+      "downloaded": "w3-handout-corrected",
+      "not_downloaded": [
+        "w3-handout"
+      ]
+    }
+  }
+]

@@ -49,7 +49,7 @@ PREVIEW_CHARS = 400
 @dataclass
 class Confirmation:
     codes: list[str] = field(default_factory=list)
-    method: str = "none"  # "countdown", "yes" (asked; said yes), "answered" (the gate's question), "terminal", "none"
+    method: str = "none"  # "countdown", "yes" (asked; said yes), "answered" (the gate's question), "terminal", "none", "off" (E3 modes)
     declined: bool = False
     how: str | None = None  # how the user answered: "voice", "click", "key", or None (the countdown ran out)
     irreversible: str | None = None  # what made it irreversible, e.g. "Send"
@@ -129,14 +129,27 @@ def before(
     review: dict | None = None,
     answered: bool = False,
     draft: str = "",
+    mode: str = "all",
 ) -> Confirmation:
-    """Decide and, if needed, ask. The result's choice: "go", "no" (skip this batch), "stop", "pause"."""
+    """Decide and, if needed, ask. The result's choice: "go", "no" (skip this batch), "stop", "pause".
+
+    mode: "all"; "irreversible" (no countdown: only irreversible steps and
+    unusual checks are asked); "off" (nothing asked). The last two are for the
+    E3 comparison on demo pages, run by scripts/run_demo.py with a script
+    playing the user.
+    """
     codes = [c.get("code") or "?" for c in checks]
     other = [c for c in checks if c.get("code") not in ROUTINE_CHECKS]
     target, point = target_of(actions, to_screen)
     final = irreversible(actions, target, review)
     c = Confirmation(codes=codes, irreversible=final)
+    if mode == "off":
+        c.method = "off" if checks or final else "none"
+        return c
     if not checks and not final:
+        return c
+    if mode == "irreversible" and not other and not final:
+        c.method = "off"
         return c
     if answered and not other:
         c.method = "answered"
