@@ -12,7 +12,7 @@
 
       The board demo stands in for the desktop; the real overlay pages
       (index.html, island.html) run on top of it with a stand-in for main.js.
-      Scenes: launch idle select planning step thinking ask ask-ok safety picked paused stuck done error.
+      Scenes: launch idle select planning step thinking ask ask-ok safety clarify picked paused stuck done error.
       Differences from the real thing: no native blur behind the island, and
       the island moves with a CSS transition instead of the macOS animation.
     -->
@@ -156,6 +156,15 @@
             type: "confirm", id: "p3", kind: "safety",
             intent: "Submitting the expense form.",
             reason: "The page asks to send payment details to an unknown site.",
+          });
+        },
+        async clarify() {
+          both({ type: "status", text: "Planning…", busy: true, phase: "planning" });
+          await wait(900);
+          to("island", {
+            type: "confirm", id: "p4", kind: "clarify",
+            question: "How should I send the report to Alex?",
+            options: ["Email the expense report to Alex", "Message it to Alex in chat", "Submit the form and forward the confirmation"],
           });
         },
         async picked() {

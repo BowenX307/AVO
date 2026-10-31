@@ -478,11 +478,13 @@ function route(msg) {
       island.webContents.send("avo", msg);
       break;
     case "confirm": {
-      if (msg.kind === "safety") {
-        // A safety check Meta raised: a card on the island only, no target to
-        // ring or correct, so the screen stays click-through.
+      if (msg.kind === "safety" || msg.kind === "clarify") {
+        // A safety check Meta raised, or the planner's question before the task
+        // starts: a card on the island only, nothing on screen to ring or
+        // correct, so the screen stays click-through. Number keys pick an answer.
         pendingAsk = { id: msg.id, rect: null };
         island.webContents.send("avo", msg);
+        if (msg.options) bindDigits(msg.options.length);
         return;
       }
       // The card keeps clear of the target, or of all the candidates.

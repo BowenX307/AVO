@@ -333,6 +333,7 @@
       function showCard(m) {
         body.classList.remove("correcting");
         if (m.kind === "safety") return showSafety(m);
+        if (m.kind === "clarify") return showClarify(m);
         $(".row .yes").textContent = "Yes";
         const picking = !!m.candidates;
         $(".choices").replaceChildren(
@@ -352,6 +353,25 @@
         if (m.loupe) $(".loupe").src = m.loupe;
         else $(".loupe").removeAttribute("src");
         setState("ask", "", { cls: picking ? "picking" : "" });
+      }
+
+      // The planner's question before anything is done: a few answers, picked
+      // by click or number key; Stop ends the task.
+      function showClarify(m) {
+        $(".choices").replaceChildren(
+          ...(m.options || []).map((label, i) => {
+            const b = document.createElement("button");
+            b.innerHTML = `<kbd>${i + 1}</kbd><span>${esc(label)}</span>`;
+            b.addEventListener("click", () => window.avo.send("bubble-choice", { choice: "pick", index: i }));
+            return b;
+          }),
+        );
+        $(".q").textContent = m.question || "Which did you mean?";
+        $(".intent").textContent = "Before AVO starts:";
+        $(".under").textContent = $(".reason").textContent = "";
+        $(".note").textContent = "";
+        $(".loupe").removeAttribute("src");
+        setState("ask", "", { cls: "picking" });
       }
 
       // A safety check Meta raised on the next step (not the routine one, which

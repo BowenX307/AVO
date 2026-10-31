@@ -66,10 +66,16 @@ class FakeDriver:
         return x, y
 
 
-class LoopTest(unittest.TestCase):
-    def run_with(self, replies, **kw):
+class LoopBase(unittest.TestCase):
+    def run_with(self, replies, plan="never", **kw):
         script = iter(replies)
-        client = SimpleNamespace(responses=SimpleNamespace(create=lambda **_: next(script)))
+        inputs = []
+
+        def create(**kw):
+            inputs.append(kw)
+            return next(script)
+
+        client = SimpleNamespace(responses=SimpleNamespace(create=create))
         with tempfile.TemporaryDirectory() as d, mock.patch.multiple(
             agent,
             RUNS_DIR=Path(d),
@@ -79,10 +85,16 @@ class LoopTest(unittest.TestCase):
             frontmost_app=lambda: "com.google.Chrome",
             focus=lambda bundle: None,
         ), mock.patch("avo.agent.Overlay", lambda: Overlay(url=None)):
-            result = agent.run("Open Meta careers", gate=False, snap_to_controls=False, human_guard=False, **kw)
-            summary = json.loads(next(Path(d).glob("*/summary.json")).read_text())
+            result = agent.run(
+                "Open Meta careers", gate=False, snap_to_controls=False, human_guard=False, plan=plan, **kw
+            )
+            run_dir = next(Path(d).glob("2*"))
+            summary = json.loads((run_dir / "summary.json").read_text())
+            self.inputs = inputs
         return result, summary, FakeDriver.last
 
+
+class LoopTest(LoopBase):
     def test_open_url_then_done(self):
         result, summary, driver = self.run_with([
             reply(fn("open_url", url="https://www.metacareers.com/jobs"), text="Opening Meta Careers."),
@@ -105,6 +117,50 @@ class LoopTest(unittest.TestCase):
         result, _, driver = self.run_with([reply(fn("run_shell", cmd="ls")), reply(text="ok")])
         self.assertEqual(result, "ok")
         self.assertEqual(driver.ran, [[]])
+
+
+def plan_reply(**over):
+    raw = {
+        "start_kind": "url", "start_target": "https://www.metacareers.com/jobs",
+        "steps": ["Search for Software Engineer Intern", "Open the listing"],
+        "done_when": "The SWE intern listing is open.", "question": "", "options": [],
+    }
+    return reply(text=json.dumps(raw | over))
+
+
+class PlanLoopTest(LoopBase):
+    def test_plan_opens_the_start_then_guides_each_turn(self):
+        result, summary, driver = self.run_with(
+            [plan_reply(), reply(computer({"type": "click", "x": 5, "y": 5})), reply(text="Found it.")], plan="auto"
+        )
+        self.assertEqual(result, "Found it.")
+        self.assertEqual(driver.ran[0], [{"type": "open_url", "url": "https://www.metacareers.com/jobs"}])
+        self.assertEqual(summary["api"]["by_purpose"]["plan"]["calls"], 1)
+        first_turn = self.inputs[1]["input"][0]["content"][0]["text"]
+        self.assertIn("Done when: The SWE intern listing is open.", first_turn)
+        self.assertIn("0. (AVO, before your first turn) open_url(https://www.metacareers.com/jobs)", first_turn)
+        self.assertNotIn("Begin at", first_turn)  # already opened
+        self.assertIn("AVO's plan", self.inputs[2]["input"][0]["content"][0]["text"])  # and on later turns
+
+    def test_here_opens_nothing(self):
+        _, _, driver = self.run_with([plan_reply(start_kind="here", start_target=""), reply(text="Done.")], plan="auto")
+        self.assertEqual(driver.ran, [])
+
+    def test_question_without_the_overlay_goes_on(self):
+        result, summary, _ = self.run_with(
+            [plan_reply(question="Which Alex?", options=["Alex Chen", "Alex Rivera"]), reply(text="Done.")], plan="auto"
+        )
+        self.assertEqual(result, "Done.")
+        self.assertEqual(summary["counts"]["asked"], 0)
+
+    def test_a_failing_planner_doesnt_stop_the_task(self):
+        result, _, driver = self.run_with([reply(text="not json"), reply(text="Done.")], plan="auto")
+        self.assertEqual(result, "Done.")
+        self.assertEqual(driver.ran, [])
+
+    def test_never(self):
+        result, summary, _ = self.run_with([reply(text="Done.")], plan="never")
+        self.assertNotIn("plan", summary["api"]["by_purpose"])
 
 
 if __name__ == "__main__":

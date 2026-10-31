@@ -22,6 +22,7 @@ from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.meter import Meter
 from avo.overlay import Overlay
+from avo.planner import Plan, make_plan
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
 from avo.snap import snap, warm_up
@@ -171,9 +172,9 @@ class RunLog:
             json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
-    def report(self, record: dict) -> None:
-        """summary.json: what the run cost, where its time went, how often it asked."""
-        (self.dir / "summary.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    def save(self, name: str, record: dict) -> None:
+        """A JSON file in the run dir: summary.json (cost, time, asks), plan.json."""
+        (self.dir / name).write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def computer_calls(response) -> list[dict]:
@@ -249,6 +250,11 @@ CHANGED_NOTE = (
 )
 
 STILL_STEPS = 5  # this many batches in a row without a click or typing: nudge to finish
+MAX_REPLANS = 2  # fresh plans after getting stuck, per run
+
+
+class StopTask(Exception):
+    """The user stopped the task before it began (Stop on the planner's question)."""
 
 LOOKING_KINDS = ("scroll", "keypress", "wait", "screenshot", "move")
 
@@ -260,13 +266,13 @@ def only_looking(done: list[list[dict]]) -> bool:
 
 
 def fresh_input(
-    task: str, history: list[str], png: bytes, nudge: bool = False, regions: list[Region] = ()
+    task: str, history: list[str], png: bytes, nudge: bool = False, regions: list[Region] = (), brief: str = ""
 ) -> list[dict]:
-    """A self-contained turn: the task, what was done so far as text, and the current screen.
+    """A self-contained turn: the task, the plan (brief), what was done so far as text, and the current screen.
 
     Boxes the user selected are drawn on the first turn's screenshot and described in text.
     """
-    text = task
+    text = task + (f"\n\n{brief}" if brief else "")
     if regions:
         text += "\n\n" + describe_regions(regions, first=not history)
         if not history:
@@ -306,6 +312,7 @@ def run(
     freshness: float | None = FRESH_THRESHOLD,
     app: str | None = None,
     tools: bool = True,
+    plan: str = "auto",
 ) -> str:
     """Run the computer-tool loop.
 
@@ -333,7 +340,12 @@ def run(
         Default: the front app, unless that is the overlay.
     tools: offer the model open_url and open_app (FUNCTION_TOOLS) next to the
         computer tool.
+    plan: "auto" plans first (avo/planner.py) unless the user boxed what the
+        task is about; "always"; "never". The plan's start is opened before the
+        first turn, its question asked, and the plan shown to the model each turn.
     """
+    if plan not in ("auto", "always", "never"):
+        raise ValueError(f"plan must be 'auto', 'always' or 'never', not {plan!r}")
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
     if human_resume not in ("manual", "auto"):
@@ -355,6 +367,7 @@ def run(
         {
             "model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls,
             "human_guard": human_guard, "human_resume": human_resume, "freshness": freshness, "tools": tools,
+            "plan": plan,
         },
     )
     tool_list = [{"type": "computer"}] + (FUNCTION_TOOLS if tools else [])
@@ -410,11 +423,27 @@ def run(
         finally:
             spent[key] += time.time() - t0
 
+    def make(screen: bytes, past: list[str] = ()) -> Plan | None:
+        """A plan from this screen, or None if the planner fails (a plan helps; it isn't needed)."""
+        overlay.send("status", text="Planning…", busy=True, phase="planning")
+        try:
+            with timed("planning"):
+                p = make_plan(client, task, screen, past, effort=effort)
+        except Exception as e:
+            print(f"planner: {type(e).__name__}: {e}")
+            return None
+        print(f"plan ({p.seconds:.1f}s): start {p.start_kind} {p.start_target}".rstrip())
+        for i, s in enumerate(p.steps, 1):
+            print(f"   {i}. {s}")
+        print(f"   done when: {p.done_when}" + (f"\n   question: {p.question} {p.options}" if p.question else ""))
+        return p
+
     result = "stopped: step budget reached"
     step = 0
     past: list[str] = []  # text history, used when history == "text"
     done: list[list[dict]] = []  # executed batches, for repeat detection
-    asked = corrected = skipped = stuck = no_effect = snaps = 0
+    asked = corrected = skipped = stuck = no_effect = snaps = replans = 0
+    the_plan: Plan | None = None
     effect = EffectWatch()
     try:
         ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
@@ -433,8 +462,51 @@ def run(
         if selected:
             log.settings["regions"] = {r.label: r.shot for r in selected}
             highlight(client, overlay, png, selected, log.dir)  # SAM, alongside the first model call
+        if plan == "always" or (plan == "auto" and not selected):
+            the_plan = make(png)
+        if the_plan and the_plan.question:
+            if not overlay.active:
+                print("   (no overlay to ask on: going with the most likely reading)")
+            else:
+                asked += 1
+                overlay.send("status", text="AVO has a question — see the card", busy=False)
+                with guard.acting(), guard.asking(), timed("you"):
+                    answer = overlay.ask(kind="clarify", question=the_plan.question, options=the_plan.options)
+                    refocus()
+                choice = (answer or {}).get("choice")
+                print(f"user: {choice}" + (f" {the_plan.options[answer['index']]}" if choice == "pick" else ""))
+                if choice == "pick":
+                    the_plan.answer = the_plan.options[answer["index"]]
+                elif choice == "pause":
+                    with timed("paused"):
+                        if not hold("pause"):
+                            choice = "stop"
+                if choice in ("stop", None):
+                    result = "stopped: user stopped the task"
+                    raise StopTask
+        start = the_plan.start_action() if the_plan and not selected else None
+        if start:  # open the plan's start ourselves: no turn spent on the address bar or the Dock
+            print(f"[0] opening the start: {describe([start])}")
+            overlay.send("status", text=f"Plan · {len(the_plan.steps)} steps", busy=True)
+            with guard.acting(), timed("actions"):
+                driver.work_app = work_app
+                driver.execute([start])
+            if driver.failures:
+                print("[0] failed: " + "; ".join(driver.failures))
+            the_plan.opened = not driver.failures
+            past.append(f"0. (AVO, before your first turn) {describe([start])}"
+                        + (f"\n   Note: {'; '.join(driver.failures)}" if driver.failures else ""))
+            done.append([start])
+            png = driver.settled_screenshot()
+            spent["settle"] += driver.settle_s
+            log.screenshot(0, png)
+            if (front := frontmost_app()) and front not in ours:
+                work_app = front
+        if the_plan:
+            log.save("plan.json", the_plan.to_log())
         response, seconds = ask_model(
-            client, overlay, "1", effort, tool_list, instructions=instructions, input=fresh_input(task, [], png, regions=selected)
+            client, overlay, "1", effort, tool_list, instructions=instructions,
+            input=fresh_input(task, past, png, regions=selected, brief=the_plan.brief() if the_plan else ""),
         )
 
         for step in range(1, max_steps + 1):
@@ -609,6 +681,11 @@ def run(
                     notes.append(STUCK_NOTE.format(n=STUCK_AFTER))
                     png = driver.screenshot()
                     log.screenshot(step, png)
+                    if the_plan and replans < MAX_REPLANS and (fresh := make(png, past)):
+                        replans += 1
+                        fresh.question, fresh.answer = the_plan.question, the_plan.answer  # asked once is enough
+                        the_plan = fresh
+                        log.save("plan.json", the_plan.to_log() | {"replans": replans})
 
             line = f"{step}. {note + ' | ' if note else ''}{describe(executed) or '(nothing executed)'}"
             past.append("\n".join([line] + [f"   Note: {n}" for n in notes]))
@@ -647,11 +724,16 @@ def run(
                     effort,
                     tool_list,
                     instructions=instructions,
-                    input=fresh_input(task, past, png, nudge=only_looking(done), regions=selected),
+                    input=fresh_input(
+                        task, past, png, nudge=only_looking(done), regions=selected,
+                        brief=the_plan.brief() if the_plan else "",
+                    ),
                 )
         else:
             log.response(max_steps + 1, response)  # the reply we never acted on
 
+    except StopTask:
+        pass
     except BaseException as e:  # incl. Ctrl+C and the mouse-in-a-corner emergency stop
         result = f"crashed: {type(e).__name__}: {e}"
         raise
@@ -670,13 +752,13 @@ def run(
         api = meter.summary()
         spent["model"] = (api["by_purpose"].get("act") or {}).get("seconds_total", 0.0)
         spent["other"] = max(0.0, elapsed - sum(v for k, v in spent.items() if k != "other"))
-        log.report({
+        log.save("summary.json", {
             "task": task, "result": result, "ok": ok, "steps": step, "elapsed_s": round(elapsed, 1),
             "time_s": {k: round(v, 1) for k, v in sorted(spent.items(), key=lambda kv: -kv[1])},
             "api": api,
             "counts": {
                 "asked": asked, "corrected": corrected, "no_effect": no_effect, "stuck": stuck, "snapped": snaps,
-                "skipped_screen_changed": skipped, "interruptions": len(guard.interruptions), "replans": 0,
+                "skipped_screen_changed": skipped, "interruptions": len(guard.interruptions), "replans": replans,
             },
             "settings": {k: v for k, v in log.settings.items() if k not in ("interruptions", "regions")},
         })

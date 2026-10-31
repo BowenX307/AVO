@@ -80,6 +80,12 @@ def main() -> None:
         action="store_true",
         help="don't offer the model open_url / open_app; it opens pages and apps with the keyboard and mouse",
     )
+    parser.add_argument(
+        "--plan",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="plan first (start, steps, what done looks like): auto = unless you boxed what the task is about",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Move it to pause; fling it into a screen corner to abort.")
     run(
@@ -96,6 +102,7 @@ def main() -> None:
         freshness=None if args.no_freshness else args.fresh_threshold,
         app=args.app,
         tools=not args.no_tools,
+        plan=args.plan,
     )
 
 
