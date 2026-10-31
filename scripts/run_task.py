@@ -86,6 +86,12 @@ def main() -> None:
         default="auto",
         help="plan first (start, steps, what done looks like): auto = unless you boxed what the task is about",
     )
+    parser.add_argument(
+        "--voice",
+        action="store_true",
+        help="the task was spoken (the overlay passes this): only clicks count as you taking over, "
+        "not mouse moves, scrolls or keys",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Move it to pause; fling it into a screen corner to abort.")
     run(
@@ -103,6 +109,7 @@ def main() -> None:
         app=args.app,
         tools=not args.no_tools,
         plan=args.plan,
+        voice=args.voice,
     )
 
 

@@ -71,6 +71,19 @@ class RulesTest(unittest.TestCase):
         self.assertEqual(r.judge(Input("scroll", 100, 100), 0.0), "mouse")
         self.assertEqual(r.judge(Input("key", keycode=0), 0.0), "keyboard")
 
+    def test_voice_mode_ignores_moves_scrolls_and_keys(self):
+        # A tremor can sweep the pointer far; in voice mode only a click counts.
+        r = Rules(voice=True)
+        self.assertIsNone(r.judge(move(300, 40), 0.0))
+        self.assertIsNone(r.judge(move(-250), 0.1))
+        self.assertIsNone(r.judge(Input("scroll", 100, 100), 0.2))
+        self.assertIsNone(r.judge(Input("key", keycode=0), 0.3))
+        self.assertEqual(r.judge(Input("click", 100, 100), 0.4), "mouse")
+
+    def test_voice_mode_clicks_on_a_question_still_answer_it(self):
+        r = Rules(voice=True, asking=True)
+        self.assertIsNone(r.judge(Input("click", 100, 100), 0.0))
+
     def test_clicks_answer_a_question(self):
         r = Rules(asking=True)
         self.assertIsNone(r.judge(Input("click", 300, 300), 0.0))

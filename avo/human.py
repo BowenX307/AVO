@@ -10,6 +10,11 @@ Two signals:
   - the front app: if another app comes to the front while AVO isn't acting,
     the user switched to it.
 
+Voice mode (Rules.voice) is for people who may move or nudge the mouse without
+meaning to, e.g. with a tremor: there only a click counts. Pointer moves,
+scrolls and keys are ignored; "stop" said aloud and the summon key reach the
+overlay, which stops the task itself.
+
 On the first such event the guard trips: it tells the overlay right away
 ("You moved — paused.", within a few ms), and the driver, which polls
 tripped between and during actions, stops the batch it is running. The agent
@@ -125,6 +130,7 @@ class Rules:
     on_overlay: Callable[[float, float], bool] = lambda x, y: False  # is (x, y) on the island or question card?
     asking: bool = False  # a question is up: clicking answers it
     quiet_until: float = 0.0  # moves before this don't count (just answered or resumed)
+    voice: bool = False  # the task was spoken: only clicks count as the user taking over
     # Event-clock spans when a question was up. An event is judged by when it
     # happened, not when the tap got to it: a click that answered a question
     # can reach the tap after the question has closed.
@@ -144,7 +150,7 @@ class Rules:
             # automation) carry no deltas, and AVO's own moves reset the start point.
             step = math.dist((e.x, e.y), self._last_pos) if self._last_pos else math.hypot(e.dx, e.dy)
             self._last_pos = (e.x, e.y)
-            if e.from_avo or self.answering(e):
+            if e.from_avo or self.answering(e) or self.voice:
                 return None
             if now - self._last_move > MOVE_WINDOW_S:
                 self._travel = 0.0
@@ -156,6 +162,8 @@ class Rules:
         if e.from_avo or self.answering(e):
             return None
         if e.kind == "flags":  # a modifier alone, e.g. the Option of Option-Space; wait for the key
+            return None
+        if self.voice and e.kind != "click":
             return None
         if e.kind == "key":
             return None if is_summon(e) else "keyboard"
@@ -191,11 +199,11 @@ class Interruption:
 class HumanGuard:
     """Watches for the user taking over while a task runs. start() it, stop() it after."""
 
-    def __init__(self, overlay: Overlay, use_tap: bool = True, enabled: bool = True):
-        """enabled=False gives a guard that never trips (--no-human-guard)."""
+    def __init__(self, overlay: Overlay, use_tap: bool = True, enabled: bool = True, voice: bool = False):
+        """enabled=False gives a guard that never trips (--no-human-guard); voice: only clicks count."""
         self.overlay = overlay
         self.enabled = enabled
-        self.rules = Rules(on_overlay=self._on_overlay)
+        self.rules = Rules(on_overlay=self._on_overlay, voice=voice)
         self.tripped = threading.Event()
         self.interruptions: list[Interruption] = []
         self.last_human = 0.0  # last time the user did anything (for auto-resume)

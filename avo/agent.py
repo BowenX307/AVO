@@ -313,6 +313,7 @@ def run(
     app: str | None = None,
     tools: bool = True,
     plan: str = "auto",
+    voice: bool = False,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -343,6 +344,8 @@ def run(
     plan: "auto" plans first (avo/planner.py) unless the user boxed what the
         task is about; "always"; "never". The plan's start is opened before the
         first turn, its question asked, and the plan shown to the model each turn.
+    voice: the task was spoken (the overlay's voice input). The human guard then
+        counts only clicks, not pointer moves, scrolls or keys (avo/human.py).
     """
     if plan not in ("auto", "always", "never"):
         raise ValueError(f"plan must be 'auto', 'always' or 'never', not {plan!r}")
@@ -353,7 +356,7 @@ def run(
     meter = Meter()  # every API call of the run, for summary.json
     client = meter.wrap(make_client())
     overlay = Overlay()
-    guard = HumanGuard(overlay, enabled=human_guard)
+    guard = HumanGuard(overlay, enabled=human_guard, voice=voice)
 
     def interrupted() -> str | None:
         if guard.tripped.is_set():
@@ -367,7 +370,7 @@ def run(
         {
             "model": MODEL, "effort": effort, "history": history, "gate": gate, "snap": snap_to_controls,
             "human_guard": human_guard, "human_resume": human_resume, "freshness": freshness, "tools": tools,
-            "plan": plan,
+            "plan": plan, "voice": voice,
         },
     )
     tool_list = [{"type": "computer"}] + (FUNCTION_TOOLS if tools else [])
