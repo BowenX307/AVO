@@ -1,6 +1,6 @@
 # AVO
 
-**Website:** https://bowenx307.github.io/AVO/ *(goes live when the repo is public)* · **Demo video (3 min):** *coming soon*
+**Website:** https://bowenx307.github.io/AVO/ · **Demo video (3 min):** *coming soon*
 
 Agents ask for permission. AVO asks for understanding.
 
