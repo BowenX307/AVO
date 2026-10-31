@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" /> <!-- no Chrome Translate bubble over the demo -->
+    <title>Campus Mail — Inbox</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --line: #dde1e6;
+        --ink: #1d232b;
+        --muted: #66707c;
+        --accent: #1f5fd6;
+        --unread: #e9f0fd;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 22px;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+      }
+      header strong { font-size: 18px; }
+      header .demo { color: var(--muted); font-size: 13px; }
+      header .me { margin-left: auto; color: var(--muted); font-size: 14px; }
+      main { flex: 1; display: grid; grid-template-columns: 170px 400px 1fr; min-height: 0; }
+      nav { padding: 14px 10px; border-right: 1px solid var(--line); }
+      nav button {
+        display: flex; justify-content: space-between; width: 100%;
+        padding: 8px 12px; margin-bottom: 2px;
+        border: 0; border-radius: 8px; background: none;
+        font: inherit; color: inherit; text-align: left; cursor: pointer;
+      }
+      nav button.on { background: #e3e8ef; font-weight: 600; }
+      .list { border-right: 1px solid var(--line); overflow: auto; background: #fff; }
+      .row {
+        display: block; width: 100%;
+        padding: 12px 16px;
+        border: 0; border-bottom: 1px solid var(--line);
+        background: #fff; text-align: left; font: inherit; color: inherit; cursor: pointer;
+      }
+      .row.unread { background: var(--unread); }
+      .row.open { box-shadow: inset 3px 0 0 var(--accent); background: #f0f4fb; }
+      .row .from { font-weight: 600; display: flex; justify-content: space-between; }
+      .row .from span { font-weight: 400; color: var(--muted); font-size: 13px; }
+      .row .subject { display: block; }
+      .row .preview { display: block; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .reader { padding: 26px 32px; overflow: auto; }
+      .reader h1 { font-size: 21px; margin: 0 0 6px; }
+      .reader .meta { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+      .reader .body { white-space: pre-wrap; max-width: 640px; }
+      .empty { color: var(--muted); margin-top: 40px; }
+      .actions { margin: 18px 0; display: flex; gap: 8px; }
+      .btn {
+        padding: 8px 18px; border-radius: 8px; border: 1px solid var(--line);
+        background: #fff; font: inherit; cursor: pointer;
+      }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+      .compose { margin-top: 20px; border: 1px solid var(--line); border-radius: 10px; background: #fff; max-width: 640px; }
+      .compose label { display: flex; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); color: var(--muted); }
+      .compose input { flex: 1; border: 0; font: inherit; color: var(--ink); outline: none; }
+      .compose textarea {
+        display: block; width: 100%; min-height: 150px;
+        padding: 12px 14px; border: 0; resize: vertical; font: inherit; outline: none;
+      }
+      .compose .actions { margin: 0; padding: 10px 14px; border-top: 1px solid var(--line); }
+      .toast {
+        position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+        padding: 10px 18px; border-radius: 10px; background: #1d232b; color: #fff;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Campus Mail</strong>
+      <span class="demo">Demo · all names and messages are made up</span>
+      <span class="me">Jamie Lee · jamie.lee@student.example.edu</span>
+    </header>
+    <main>
+      <nav>
+        <button class="on" data-box="inbox">Inbox <span id="unread"></span></button>
+        <button data-box="sent">Sent <span id="sent-count"></span></button>
+      </nav>
+      <section class="list" id="list" aria-label="Messages"></section>
+      <section class="reader" id="reader"><p class="empty">Select a message to read it.</p></section>
+    </main>
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      // Two professors named Smith both wrote about today: "reply to Professor
+      // Smith" doesn't say which one, so AVO should ask.
+      const inbox = [
+        {
+          id: 1, from: "Prof. Anna Smith", dept: "Math 241", email: "anna.smith@math.example.edu", time: "9:12 AM",
+          subject: "Our 2:00 meeting today", unread: true,
+          body: "Hi Jamie,\n\nJust confirming our meeting at 2:00 today in my office (Altgeld 214) to go over your project draft.\n\nBest,\nAnna Smith",
+        },
+        {
+          id: 2, from: "Library Services", dept: "", email: "library@example.edu", time: "8:47 AM",
+          subject: "Your hold is ready", unread: true,
+          body: "The book you placed on hold, \"Linear Algebra Done Right\", is ready for pickup at the main desk until Friday.",
+        },
+        {
+          id: 3, from: "Prof. David Smith", dept: "Physics 212", email: "david.smith@physics.example.edu", time: "8:05 AM",
+          subject: "Lab section this afternoon", unread: true,
+          body: "Hello everyone,\n\nReminder: lab section meets at 2:00 today in Loomis 141. We start the pendulum experiment right away, so please let me know if you can't be on time.\n\nDavid Smith",
+        },
+        {
+          id: 4, from: "Jordan Park", dept: "", email: "jordan.park@student.example.edu", time: "Yesterday",
+          subject: "Study group Thursday?", unread: false,
+          body: "Hey! Are you still up for the study group on Thursday at 6? I booked a room in the library.",
+        },
+        {
+          id: 5, from: "Career Center", dept: "", email: "careers@example.edu", time: "Yesterday",
+          subject: "Resume review drop-in hours", unread: false,
+          body: "Drop-in resume reviews are open this week, Monday to Thursday, 1–4 pm.",
+        },
+      ];
+      const sent = [];
+      let box = "inbox";
+      let openId = null;
+      const $ = (id) => document.getElementById(id);
+
+      function name(m) {
+        return m.dept ? `${m.from} (${m.dept})` : m.from;
+      }
+
+      function renderList() {
+        const items = box === "inbox" ? inbox : sent;
+        $("list").innerHTML = "";
+        for (const m of items) {
+          const row = document.createElement("button");
+          row.className = "row" + (m.unread ? " unread" : "") + (m.id === openId ? " open" : "");
+          row.innerHTML = `<span class="from">${box === "inbox" ? name(m) : "To: " + m.to}<span>${m.time}</span></span>
+            <span class="subject">${m.subject}</span><span class="preview">${m.body.replace(/\n+/g, " ")}</span>`;
+          row.onclick = () => openMessage(m.id);
+          $("list").appendChild(row);
+        }
+        const n = inbox.filter((m) => m.unread).length;
+        $("unread").textContent = n ? n : "";
+        $("sent-count").textContent = sent.length ? sent.length : "";
+      }
+
+      function openMessage(id) {
+        const items = box === "inbox" ? inbox : sent;
+        const m = items.find((x) => x.id === id);
+        openId = id;
+        m.unread = false;
+        renderList();
+        const meta = box === "inbox" ? `From ${name(m)} &lt;${m.email}&gt; · ${m.time}` : `To ${m.to} · ${m.time}`;
+        $("reader").innerHTML = `<h1>${m.subject}</h1><div class="meta">${meta}</div><div class="body"></div>`;
+        $("reader").querySelector(".body").textContent = m.body;
+        if (box === "inbox") {
+          const actions = document.createElement("div");
+          actions.className = "actions";
+          actions.innerHTML = `<button class="btn" id="reply">Reply</button>`;
+          $("reader").appendChild(actions);
+          $("reply").onclick = () => compose(m);
+        }
+        document.title = `Campus Mail — ${m.subject}`;
+      }
+
+      function compose(m) {
+        if (document.querySelector(".compose")) return document.querySelector(".compose textarea").focus();
+        const c = document.createElement("form");
+        c.className = "compose";
+        c.innerHTML = `<label>To <input name="to" value="${m.email}" aria-label="To" /></label>
+          <label>Subject <input name="subject" value="Re: ${m.subject}" aria-label="Subject" /></label>
+          <textarea name="body" aria-label="Message" placeholder="Write your reply"></textarea>
+          <div class="actions"><button class="btn primary" type="submit">Send</button>
+          <button class="btn" type="button" id="discard">Discard</button></div>`;
+        $("reader").appendChild(c);
+        c.querySelector("textarea").focus();
+        c.querySelector("#discard").onclick = () => c.remove();
+        c.onsubmit = (e) => {
+          e.preventDefault();
+          const f = new FormData(c);
+          const reply = {
+            id: 100 + sent.length, to: f.get("to"), subject: f.get("subject"), body: f.get("body"),
+            time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), replyTo: m.id,
+          };
+          sent.unshift(reply);
+          c.remove();
+          toast(`Reply sent to ${m.from}`);
+          document.title = `Campus Mail — Sent to ${m.from}`;
+          // For the scripted runs: what was sent, readable from the page.
+          document.body.dataset.sent = JSON.stringify(sent.map(({ to, subject, body }) => ({ to, subject, body })));
+          renderList();
+        };
+      }
+
+      function toast(text) {
+        $("toast").textContent = text;
+        $("toast").style.display = "block";
+        setTimeout(() => ($("toast").style.display = "none"), 4000);
+      }
+
+      document.querySelectorAll("nav button").forEach((b) => {
+        b.onclick = () => {
+          document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
+          box = b.dataset.box;
+          openId = null;
+          $("reader").innerHTML = `<p class="empty">Select a message to read it.</p>`;
+          renderList();
+        };
+      });
+      renderList();
+    </script>
+  </body>
+</html>

@@ -45,7 +45,9 @@ when the task is in a desktop app. "here" (target empty) when the screen already
 - done_when: what will be on screen when the task is complete, concretely.
 - question: empty, unless the task can be read in clearly different ways that lead to different \
 results and the screen doesn't settle it. Then one short question for the user. Don't ask about \
-anything the agent can find out by looking, or where a sensible default exists.
+anything the agent can find out by looking, or where a sensible default exists. Don't ask which of \
+several things on screen the task means (two people with the same name, two similar files): AVO \
+points at those on screen and asks when the agent gets there.
 - options: 2 to 4 short answers to the question; empty when there is no question.
 Write in English."""
 
