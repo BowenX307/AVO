@@ -181,6 +181,33 @@ h3 { font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; }
 .three .mono { font-size: 12px; color: var(--avo-gray-2); }
 .three p { margin-top: 14px; font-size: 16.5px; line-height: 1.55; }
 
+/* Who it's for, the Voice Control comparison, results */
+.who-eg { color: var(--avo-gray-2); font-size: 15px !important; margin-top: 10px !important; }
+.aside-note { margin-top: 32px; max-width: 760px; font-size: 15px; line-height: 1.55; color: var(--avo-gray-2); }
+.aside-note a { color: var(--avo-ink); }
+.notfor { margin-top: 40px; padding: 22px 24px; border-radius: var(--avo-radius-card); box-shadow: inset 0 0 0 1px var(--avo-gray-4); max-width: 760px; }
+.notfor b { display: block; font: 500 12px var(--avo-font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.notfor p { margin-top: 10px; font-size: 16px; line-height: 1.55; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.compare > div { border-top: 1px solid var(--avo-ink); padding-top: 22px; }
+.compare .mono { font-size: 12px; color: var(--avo-gray-2); }
+.compare ol { margin: 18px 0 0; padding: 0; list-style: none; counter-reset: c; display: grid; gap: 12px; }
+.compare li { counter-increment: c; position: relative; padding-left: 28px; font-size: 18px; line-height: 1.4; }
+.compare li::before { content: counter(c); position: absolute; left: 0; top: 0; font: 500 12px/2.1 var(--avo-font-mono); color: var(--avo-gray-3); }
+.compare li i { font-style: normal; color: var(--avo-gray-2); }
+.asks { margin: 0 0 64px; }
+.models.four { grid-template-columns: repeat(4, 1fr); }
+.chart { margin: 0; }
+.chart img { display: block; width: 100%; height: auto; border-radius: var(--avo-radius-card); }
+.chart figcaption { margin-top: 12px; font-size: 14px; line-height: 1.5; color: var(--avo-gray-2); }
+.chart code { font-size: 13px; }
+#results .stat b { font-size: clamp(30px, 3.4vw, 40px); color: var(--avo-ink); white-space: nowrap; }
+.pending { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 48px; }
+.pending .ph { aspect-ratio: auto; min-height: 180px; }
+.limits { margin-top: 48px; max-width: 760px; }
+.limits b { font: 500 12px var(--avo-font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.limits ul { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--avo-gray-1); }
+
 /* Footer */
 footer { border-top: 1px solid var(--avo-gray-4); padding: 40px 0 56px; font-size: 14px; color: var(--avo-gray-2); }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px; }
@@ -316,8 +343,8 @@ td:first-child { white-space: nowrap; }
 @media (max-width: 860px) {
   section { padding: 80px 0; }
   section.hero { padding: 48px 0 72px; }
-  .split, .pair, .evidence-grid { grid-template-columns: 1fr; gap: 40px; }
-  .three, .models { grid-template-columns: 1fr; gap: 0; }
+  .split, .pair, .evidence-grid, .compare, .pending { grid-template-columns: 1fr; gap: 40px; }
+  .three, .models, .models.four { grid-template-columns: 1fr; gap: 0; }
   .three div { padding-bottom: 22px; }
   .models div { padding: 18px 0; border-bottom: 1px solid var(--avo-gray-4); }
   .diagram .h { display: none; }

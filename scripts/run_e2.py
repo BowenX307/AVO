@@ -2,7 +2,7 @@
 
     node scripts/e2_capture.mjs           # once: eval/e2/targets.png + targets.json
     uv run scripts/run_e2.py              # SAM calls (~600, about $1.50), then the table
-    uv run scripts/run_e2.py --plot-only  # redraw docs/images/e2-tremor.svg from results.json
+    uv run scripts/run_e2.py --plot-only  # redraw docs/images/e2-tremor(-light).svg from results.json
 
 Tremor is simulated: every point the hand aims at lands off by a Gaussian
 offset, standard deviation SIGMA px on each axis (0 = a steady hand).
@@ -192,7 +192,8 @@ def main() -> None:
 
         CHART.parent.mkdir(parents=True, exist_ok=True)
         CHART.write_text(draw(rows, res))
-        print(f"wrote {CHART}")
+        CHART.with_name(CHART.stem + "-light.svg").write_text(draw(rows, res, dark=False))  # the website is light only
+        print(f"wrote {CHART} and its light-only copy")
     except ImportError:
         pass
 

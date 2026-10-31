@@ -19,7 +19,8 @@ RAMP_LIGHT = {0: "#A0A09C", 4: "#707070", 8: "#404040", 12: "#0A0A0A"}
 RAMP_DARK = {0: "#5E5E5C", 4: "#8E8E8B", 8: "#BEBEBA", 12: "#F5F5F2"}
 
 
-def draw(rows: list[dict], res: dict) -> str:
+def draw(rows: list[dict], res: dict, dark: bool = True) -> str:
+    """dark: follow the system's dark mode (docs, GitHub); False for the always-light website."""
     sizes = res["settings"]["sizes"]
     sigmas = res["settings"]["sigmas"]
     n = res["settings"]["trials"]
@@ -40,8 +41,8 @@ def draw(rows: list[dict], res: dict) -> str:
         "<style>",
         ".bg{fill:#F5F5F2}.ink{fill:#0A0A0A}.muted{fill:#6B6B68}.grid{stroke:#D9D9D6;stroke-width:1}",
         "".join(f".s{s}{{stroke:{c}}}.f{s}{{fill:{c}}}" for s, c in RAMP_LIGHT.items()),
-        "@media (prefers-color-scheme: dark){.bg{fill:#0A0A0A}.ink{fill:#F5F5F2}.muted{fill:#A6A6A3}.grid{stroke:#2E2E2C}"
-        + "".join(f".s{s}{{stroke:{c}}}.f{s}{{fill:{c}}}" for s, c in RAMP_DARK.items()) + "}",
+        ("@media (prefers-color-scheme: dark){.bg{fill:#0A0A0A}.ink{fill:#F5F5F2}.muted{fill:#A6A6A3}.grid{stroke:#2E2E2C}"
+         + "".join(f".s{s}{{stroke:{c}}}.f{s}{{fill:{c}}}" for s, c in RAMP_DARK.items()) + "}") if dark else "",
         "text{font-size:12px}.title{font-size:17px;font-weight:600}.panel{font-size:13px;font-weight:600}",
         "</style>",
         f'<rect class="bg" width="{W}" height="{H}" rx="14"/>',
