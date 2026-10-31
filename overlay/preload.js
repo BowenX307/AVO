@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 const TO_MAIN = new Set([
   "island-size", "island-open", "island-cancel", "island-submit", "island-control",
-  "bubble-choice", "answer", "select-box",
+  "bubble-choice", "answer", "select-box", "ring-shown", "voice-audio", "voice-level",
 ]);
 
 contextBridge.exposeInMainWorld("avo", {

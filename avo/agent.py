@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
-import termios
 import time
 from collections import defaultdict
 from contextlib import contextmanager
@@ -14,6 +12,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
+from avo import confirm
 from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.effect import NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, EffectWatch, plain
@@ -80,60 +79,6 @@ TOOLS_PROMPT = (
     "\n- To open a web address, call open_url; to switch to or start an app, call open_app. They are "
     "faster and more reliable than the keyboard or the Dock. Use the computer tool for everything else."
 )
-
-
-# The generic check Meta attaches to every action. With auto_ack on (the user's
-# standing approval), it is acknowledged without asking; any other code, e.g.
-# malicious_instructions, still needs a human.
-ROUTINE_CHECKS = {"computer_action_requires_confirmation"}
-
-
-def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool, overlay: Overlay, note: str = "") -> str:
-    """Acknowledge routine checks if auto_ack; ask the human about everything else.
-
-    Asks on the overlay's island when it runs (a task started from the island
-    has no terminal to answer in), else in the terminal. Returns "yes",
-    "no", or "pause" (the user paused instead of answering).
-    """
-    unusual = [c for c in checks if not (auto_ack and c.get("code") in ROUTINE_CHECKS)]
-    if not unusual:
-        print(f"[{step}] auto-acknowledged: {', '.join(c.get('code') for c in checks)}")
-        return "yes"
-
-    print("\n!! The model raised safety checks before this action:")
-    for c in unusual:
-        print(f"   [{c.get('code')}] {c.get('message')}  (id={str(c.get('id'))[:16]}...)")
-    if overlay.active:
-        overlay.send("status", text="AVO needs your OK — see the card", busy=False)
-        answer = overlay.ask(
-            kind="safety",
-            intent=note,
-            reason=" ".join(c.get("message") or c.get("code") or "" for c in unusual),
-            codes=[c.get("code") for c in unusual],
-        )
-        choice = (answer or {}).get("choice")  # None: the overlay went away, so nobody approved
-        print(f"[{step}] user: {choice}")
-        return choice if choice in ("yes", "pause") else "no"
-    # Answering in the terminal focuses it; hand focus back afterwards so the
-    # agent's keystrokes don't land in the terminal.
-    front = frontmost_app()
-    if sys.stdin.isatty():
-        # Drop keys pressed while waiting for the model (e.g. a stray Enter),
-        # so they can't answer this prompt.
-        termios.tcflush(sys.stdin, termios.TCIFLUSH)
-    try:
-        while True:
-            try:
-                answer = input("Acknowledge and continue? [y/n]: ").strip().lower()
-            except EOFError:  # no interactive terminal: treat as declined
-                print("(no input available; declining)")
-                return "no"
-            if answer in ("y", "n"):
-                return "yes" if answer == "y" else "no"
-    finally:
-        if front:
-            subprocess.run(["open", "-b", front])
-            time.sleep(0.5)
 
 
 class RunLog:
@@ -301,7 +246,6 @@ def fresh_input(
 def run(
     task: str,
     max_steps: int = 20,
-    auto_ack: bool = True,
     effort: str | None = "minimal",
     history: str = "text",
     gate: bool = True,
@@ -316,6 +260,10 @@ def run(
     voice: bool = False,
 ) -> str:
     """Run the computer-tool loop.
+
+    Before each batch runs, avo/confirm.py decides whether it needs the user's
+    OK: a 1 s countdown on the ringed target for an ordinary step, a spoken or
+    clicked yes for an irreversible one or for any unusual safety check.
 
     effort: reasoning effort ("minimal" ... "max"); None uses the model default.
     history: "full" chains turns with previous_response_id, so the model sees every
@@ -448,6 +396,8 @@ def run(
     asked = corrected = skipped = stuck = no_effect = snaps = replans = 0
     the_plan: Plan | None = None
     effect = EffectWatch()
+    confirmations: list[dict] = []  # every confirmation asked or counted down, for summary.json
+    draft = ""  # the last longer text typed: shown before a send
     try:
         ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
         work_app = app or frontmost_app()
@@ -552,17 +502,6 @@ def run(
                     overlay.send("status", text=note, busy=False, step=step)  # the island shows "Step N · note"
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
-            held = None  # "pause" if the user paused instead of answering a safety check
-            if checks:
-                with guard.acting(), guard.asking(), timed("you"):
-                    verdict = approve_safety_checks(step, checks, auto_ack, overlay, note)
-                    refocus()  # answering on the island brings the overlay to the front
-                if verdict == "no":
-                    result = "stopped: safety check declined by user"
-                    break
-                if verdict == "pause":
-                    held = "pause"
-
             if snap_to_controls:
                 actions = snap_clicks(driver, actions)
                 snapped = [a["_snap"] | {"to": [a["x"], a["y"]]} for a in actions if "_snap" in a]
@@ -571,8 +510,9 @@ def run(
                     print(f"[{step}] snapped: " + ", ".join(f"{s['from']}->{s['to']} {s['label'] or s['role']}" for s in snapped))
                     log.annotate(step, snapped=snapped)
 
-            stop = held or interrupted()
+            stop = interrupted()
             a = None  # this step's gate assessment
+            answered = False  # the user answered a question about this batch
             if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
@@ -593,6 +533,7 @@ def run(
                                 focus(front)
                         print(f"[{step}] user: {choice}" + (f" -> {describe(actions)}" if choice == "no" else ""))
                         entry["user"] = {"choice": choice, "answer": answer, "actions": actions}
+                        answered = choice in ("yes", "pick", "no")
                         if choice == "stop":
                             log.annotate(step, gate=entry)
                             result = "stopped: user stopped the task"
@@ -609,9 +550,37 @@ def run(
                             note = (note + " " if note else "") + "(the user confirmed this step)"
                     log.annotate(step, gate=entry)
 
+            skip = False  # the user said no to this batch
+            if not stop and actions:
+                if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:
+                    focus(work_app)  # so the countdown rings the field the keys will go to
+                with guard.acting(), guard.asking(), timed("you"):
+                    ok = confirm.before(
+                        step, actions, checks, overlay, driver.to_screen,
+                        review=a.review if a else None, answered=answered, draft=draft,
+                    )
+                    if ok.method in ("yes", "terminal") or ok.choice != "go":
+                        refocus()  # answering on the island brings the overlay to the front
+                if ok.method != "none":
+                    confirmations.append({"step": step, **ok.to_log()})
+                    log.annotate(step, confirmation=ok.to_log())
+                    print(f"[{step}] confirmation: {ok.method} -> {ok.choice}"
+                          + (f" ({ok.irreversible})" if ok.irreversible else "") + (f" said “{ok.said}”" if ok.said else ""))
+                if ok.choice == "stop":
+                    result = "stopped: user stopped the task"
+                    break
+                if ok.choice == "pause":
+                    stop = "pause"
+                elif ok.choice == "no":
+                    skip = True
+                    notes.append(
+                        f"The user said no to this: {describe(actions)}. It was NOT executed; don't repeat it."
+                        + (f" They said: “{ok.said}”" if ok.said else "")
+                    )
+
             executed: list[dict] = []
             changed: ScreenChanged | None = None
-            if not stop:
+            if not stop and not skip:
                 print(f"[{step}] executing {len(actions)} action(s)", flush=True)
                 try:
                     with guard.acting(), timed("actions"):
@@ -671,8 +640,8 @@ def run(
             # Did the batch do anything? Nothing changing on screen, again and
             # again, means the agent is stuck: say so to the model the first
             # time, and after STUCK_AFTER in a row stop and ask the user.
-            if stop or changed:
-                effect.reset()  # the user or the page moved things: count afresh
+            if stop or changed or skip:
+                effect.reset()  # the user or the page moved things, or nothing ran: count afresh
             else:
                 verdict = effect.record(executed, seen, png, driver.settle_area)
                 log.annotate(step, changed_px=effect.last_px)
@@ -706,6 +675,7 @@ def run(
                         the_plan = fresh
                         log.save("plan.json", the_plan.to_log() | {"replans": replans})
 
+            draft = next((a["text"] for a in reversed(executed) if a["type"] == "type" and len(a.get("text") or "") >= 15), draft)
             line = f"{step}. {note + ' | ' if note else ''}{describe(executed) or '(nothing executed)'}"
             past.append("\n".join([line] + [f"   Note: {n}" for n in notes]))
             done.append(executed)
@@ -778,7 +748,9 @@ def run(
             "counts": {
                 "asked": asked, "corrected": corrected, "no_effect": no_effect, "stuck": stuck, "snapped": snaps,
                 "skipped_screen_changed": skipped, "interruptions": len(guard.interruptions), "replans": replans,
+                "confirmations": len(confirmations), "declined": sum(1 for c in confirmations if c.get("declined")),
             },
+            "confirmations": confirmations,
             "settings": {k: v for k, v in log.settings.items() if k not in ("interruptions", "regions")},
         })
         parts = ", ".join(f"{k} {v:.0f}s" for k, v in sorted(spent.items(), key=lambda kv: -kv[1]) if v >= 0.5)

@@ -430,6 +430,22 @@
         moveTo(m.x, m.y, 450);
       }
 
+      // Before an ordinary step: ring what AVO is about to act on, without
+      // dimming or taking the mouse, for the countdown on the island. The main
+      // process starts counting only once the ring is up ("ring-shown").
+      function countdown(m) {
+        asking = false;
+        clearRings();
+        const pad = 6;
+        const [l, t, r, b] = m.box;
+        const box = [l - pad, t - pad, r + pad, b + pad];
+        const ring = makeRing(box);
+        drawRing(ring.querySelector("svg"), box[2] - box[0], box[3] - box[1], 0);
+        rings = [ring];
+        moveTo(m.x, m.y, 300);
+        requestAnimationFrame(() => window.avo.send("ring-shown", { id: m.id }));
+      }
+
       // Answer once; the rings stay until the overlay confirms ("answered").
       function reply(a) {
         if (!asking) return;
@@ -446,7 +462,7 @@
       function endAsk(a = {}) {
         asking = false;
         document.body.classList.remove("asking", "correcting", "picking");
-        const chosen = a.choice === "pick" ? rings[a.index] : a.choice === "yes" ? rings[0] : null;
+        const chosen = a.choice === "pick" ? rings[a.index] : a.choice === "yes" || a.choice === "go" ? rings[0] : null;
         for (const r of rings) r.classList.add(r === chosen ? "chosen" : "gone");
         const old = rings;
         rings = [];
@@ -549,7 +565,8 @@
         switch (m.type) {
           case "confirm":
             cursor.classList.remove("thinking");
-            ask(m);
+            if (m.kind === "countdown") countdown(m);
+            else ask(m);
             break;
           case "select-start":
             clearRegions();

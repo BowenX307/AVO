@@ -14,11 +14,6 @@ def main() -> None:
     parser.add_argument("task", help="what the agent should do")
     parser.add_argument("--max-steps", type=int, default=20)
     parser.add_argument(
-        "--confirm",
-        action="store_true",
-        help="ask before every action, including routine safety checks",
-    )
-    parser.add_argument(
         "--effort",
         default="minimal",
         help="reasoning effort: minimal, low, medium, high, max, or 'default' for the model's own",
@@ -97,7 +92,6 @@ def main() -> None:
     run(
         args.task,
         max_steps=args.max_steps,
-        auto_ack=not args.confirm,
         effort=None if args.effort == "default" else args.effort,
         history=args.history,
         gate=not args.no_gate,

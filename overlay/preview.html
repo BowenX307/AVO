@@ -158,6 +158,29 @@
             reason: "The page asks to send payment details to an unknown site.",
           });
         },
+        async countdown() {
+          step(2, 0, "Opening the owner menu");
+          const box = owner();
+          const [x, y] = center(box);
+          both({ type: "confirm", id: "p5", kind: "countdown", box, x, y, text: "Clicking “Unassigned”", seconds: 6 });
+        },
+        async confirm() {
+          step(6, 0, "Sending the reply to Professor Smith");
+          to("island", {
+            type: "confirm", id: "p6", kind: "confirm", title: "Send — OK?", intent: "Clicking “Send”",
+            detail: "Dear Professor Smith,\n\nI'm running about ten minutes late for lab this afternoon. Sorry for the trouble — I'll be there as soon as I can.\n\nBest,\nJamie Lee",
+          });
+        },
+        async "ask-long"() {
+          step(2, 0, "Opening the Smith email");
+          await wait(300);
+          const c = openOwnerMenu();
+          c[0].label = "Software Engineer Intern, Systems and Infrastructure (PhD)";
+          c[1].label = "Software Engineer Intern, Machine Learning (PhD)";
+          c[1].guess = true;
+          asking = { l: c[0].box[0], t: c[0].box[1], r: c[1].box[2] + 40, b: c[1].box[3] };
+          both({ type: "confirm", id: "p7", x: c[1].x, y: c[1].y, candidates: c, intent: "Both listings match “software engineer intern”.", reason: "" });
+        },
         async clarify() {
           both({ type: "status", text: "Planning…", busy: true, phase: "planning" });
           await wait(900);

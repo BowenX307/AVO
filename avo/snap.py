@@ -115,6 +115,17 @@ def on_blank(x: float, y: float) -> bool:
     return _attr(el, "AXRole") in BLANK and not _text(el)
 
 
+def focused() -> Target | None:
+    """The element with keyboard focus: where the next keys or typed text go."""
+    el = _attr(_system, "AXFocusedUIElement")
+    if el is None:
+        return None
+    frame = _frame(el)
+    if not frame or frame[2] * frame[3] == 0:
+        return None
+    return Target(_attr(el, "AXRole") or "", _text(el)[:40], frame)
+
+
 def location(x: float, y: float) -> str | None:
     """What the accessibility tree says about a click point, for the gate (avo/gate.py).
 

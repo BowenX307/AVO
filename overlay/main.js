@@ -124,7 +124,7 @@ function createIsland() {
 // ---- island ----
 
 let islandState = "idle";
-const CLICKABLE = new Set(["idle", "input", "paused", "ask", "error"]);
+const CLICKABLE = new Set(["idle", "input", "paused", "ask", "error", "countdown"]);
 
 // The window's own opacity, eased: the glass is native, so CSS can't fade it.
 let fadeTimer = null;
@@ -201,6 +201,7 @@ function togglePause() {
 
 ipcMain.on("island-control", (_e, { cmd }) => {
   if (cmd === "retry") return retry();
+  if (cmd === "cancel") return answer({ choice: "no", how: "click" }); // during a countdown
   if (cmd === "dismiss") return island.webContents.send("avo", { type: "idle" });
   if (!paused) return;
   if (cmd === "resume") togglePause();
@@ -409,6 +410,7 @@ function unbindDigits() {
 function answer(fields) {
   if (!pendingAsk) return;
   const msg = { type: "answer", id: pendingAsk.id, ...fields };
+  clearTimeout(pendingAsk.timer);
   pendingAsk = null;
   unbindDigits();
   pointer.setIgnoreMouseEvents(true);
@@ -419,8 +421,29 @@ function answer(fields) {
 
 ipcMain.on("bubble-choice", (_e, { choice, index }) => {
   if (choice === "no") pointer.webContents.send("avo", { type: "correct" });
-  else answer(choice === "pick" ? { choice, index } : { choice });
+  else if (choice === "decline") answer({ choice: "no", how: "click" }); // No on a card with nothing to correct
+  else answer(choice === "pick" ? { choice, index, how: "click" } : { choice, how: "click" });
 });
+
+// ---- the countdown before an ordinary step ----
+// The routine safety check stands confirmed only if the target was really on
+// screen (avo/confirm.py): count from the moment the pointer window has drawn
+// its ring; if it never says so, answer shown: false and the agent asks for a yes.
+
+const RING_TIMEOUT_MS = 800;
+
+ipcMain.on("ring-shown", (_e, { id }) => {
+  if (pendingAsk?.kind !== "countdown" || pendingAsk.id !== id) return;
+  clearTimeout(pendingAsk.timer);
+  pendingAsk.timer = setTimeout(() => answer({ choice: "go", shown: true }), pendingAsk.seconds * 1000);
+});
+
+function startCountdown(msg) {
+  const [l, t, r, b] = msg.box;
+  pendingAsk = { id: msg.id, kind: "countdown", rect: { l, t, r, b }, seconds: msg.seconds || 1 };
+  pendingAsk.timer = setTimeout(() => answer({ choice: "go", shown: false }), RING_TIMEOUT_MS);
+  island.webContents.send("avo", msg);
+}
 
 // From the pointer window: a corrected point (converted back to screen points)
 // or a candidate ring the user clicked.
@@ -478,6 +501,21 @@ function route(msg) {
       island.webContents.send("avo", msg);
       break;
     case "confirm": {
+      if (msg.kind === "countdown") {
+        // A ring on the target, the countdown on the island; the screen stays
+        // click-through (the agent is about to click).
+        startCountdown(msg);
+        break;
+      }
+      if (msg.kind === "confirm") {
+        // "Send — OK?": the target ringed, a preview on the card, nothing to
+        // correct on screen, so the screen stays click-through.
+        const [l, t, r, b] = msg.box || [0, 0, 0, 0];
+        pendingAsk = { id: msg.id, kind: "confirm", rect: msg.box ? { l, t, r, b } : null };
+        island.webContents.send("avo", msg);
+        if (!msg.box) return;
+        break;
+      }
       if (msg.kind === "safety" || msg.kind === "clarify") {
         // A safety check Meta raised, or the planner's question before the task
         // starts: a card on the island only, nothing on screen to ring or

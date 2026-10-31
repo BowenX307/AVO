@@ -127,8 +127,15 @@
       #progress.open i { width: 30%; animation: sweep 2.2s var(--avo-ease) infinite; } /* no plan: no total */
       @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 
+      /* Before an ordinary step: what AVO is about to do, a line that runs out
+         in COUNTDOWN seconds, and Cancel (or say "no"). */
+      body.countdown .ctl.countdown { display: flex; }
+      body.countdown #progress { display: block; }
+      body.countdown #progress i { width: 100%; transform-origin: left; animation: runout var(--secs, 1s) linear forwards; }
+      @keyframes runout { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
       /* ---- the question card ---- */
-      #card { display: none; width: 340px; box-sizing: border-box; padding: 16px 16px 14px; }
+      #card { display: none; width: 400px; box-sizing: border-box; padding: 16px 16px 14px; }
       body.ask #card { display: block; }
       .head { display: flex; align-items: center; gap: 10px; }
       .head .mark { flex: none; }
@@ -148,7 +155,21 @@
         font: 700 10px/15px var(--avo-font-mono);
         text-align: center;
       }
-      .intent:empty, .under:empty, .reason:empty, .note:empty { display: none; }
+      /* What an irreversible step will send, e.g. the drafted reply. */
+      .preview {
+        margin-top: 10px;
+        max-height: 150px;
+        overflow: auto;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.07);
+        font-weight: 400;
+        font-size: 13.5px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        user-select: text;
+      }
+      .intent:empty, .under:empty, .reason:empty, .note:empty, .preview:empty { display: none; }
       .loupe {
         display: block;
         width: 308px;
@@ -165,8 +186,10 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        height: 40px;
-        padding: 0 12px 0 10px;
+        min-height: 40px;
+        height: auto;
+        padding: 8px 12px 8px 10px;
+        line-height: 1.3;
         border-radius: 10px;
         background: rgba(255, 255, 255, 0.06);
         color: var(--avo-paper);
@@ -187,7 +210,7 @@
       }
       .choices .guess kbd { background: var(--avo-paper); color: var(--avo-ink); box-shadow: none; }
       #card .choices button:hover kbd { box-shadow: inset 0 0 0 1px rgba(10, 10, 10, 0.35); }
-      .choices i { margin-left: auto; font: 500 10.5px var(--avo-font-mono); font-style: normal; opacity: 0.6; }
+      .choices i { flex: none; margin-left: auto; padding-left: 8px; white-space: nowrap; font: 500 10.5px var(--avo-font-mono); font-style: normal; opacity: 0.6; }
       .note { margin-top: 12px; font-weight: 400; font-size: 11.5px; line-height: 1.4; color: var(--soft); }
       .row { display: flex; gap: 6px; margin-top: 12px; }
       .row .stop { margin-right: auto; background: transparent; color: var(--soft); padding: 0 4px; }
@@ -196,6 +219,7 @@
       body.picking .row .no, body.picking .row .yes, body.correcting .row .no, body.correcting .row .yes { display: none; }
       body.safety .row .no { display: none; }
       body.safety .row .yes { min-width: 84px; }
+      body.confirming .row .yes { min-width: 84px; }
 
       /* Reduce motion: nothing sweeps, breathes or draws; states fade. */
       @media (prefers-reduced-motion: reduce) {
@@ -216,6 +240,7 @@
         <span class="hint key">⌥Space</span>
         <span class="ctl pause"><button class="ghost" data-cmd="stop">Stop</button><button class="solid" data-cmd="resume">Resume</button></span>
         <span class="ctl error"><button class="ghost" data-cmd="dismiss">Stop</button><button class="solid" data-cmd="retry">Retry</button></span>
+        <span class="ctl countdown"><button class="ghost" data-cmd="cancel">Cancel</button></span>
         <span id="progress"><i></i></span>
       </div>
       <div id="card">
@@ -223,6 +248,7 @@
         <div class="intent"></div>
         <div class="under"></div>
         <div class="reason"></div>
+        <div class="preview"></div>
         <img class="loupe" alt="" />
         <div class="choices"></div>
         <div class="note"></div>
@@ -240,7 +266,7 @@
       const icon = $("#icon"), text = $("#text"), ask = $("#ask"), pill = $("#pill"), card = $("#card"), shell = $("#shell");
       const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
-      const H = 36, IDLE_W = 72, MAX_W = 560, INPUT_W = 520, INPUT_H = 46, CARD_W = 340;
+      const H = 36, IDLE_W = 72, MAX_W = 560, INPUT_W = 520, INPUT_H = 46, CARD_W = 400;
       const MARK = AVOLogo.markup({ className: "mark", strokeWidth: 15 });
       const CHECK = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 9.5 L7.5 13 L14 5.5" fill="none" stroke="#F5F5F2" stroke-width="2" stroke-linecap="square" /></svg>`;
       const PAUSE = `<svg class="badge" viewBox="0 0 18 18" aria-hidden="true"><rect x="5.5" y="4.5" width="2.2" height="9" fill="#F5F5F2" /><rect x="10.3" y="4.5" width="2.2" height="9" fill="#F5F5F2" /></svg>`;
@@ -326,12 +352,18 @@
       // ---- the card: "OK to click here?" / "Which Alex did you mean?" ----
       function whichQuestion(labels) {
         const first = labels.map((l) => String(l).trim().split(/\s+/)[0]);
-        const same = first.every((w) => w.toLowerCase() === first[0].toLowerCase()) && /^[A-Za-z][\w'-]*$/.test(first[0]);
+        // "Which Alex": short names that share a first word. Long labels ("Software
+        // Engineer Intern, …") would give "Which Software", so they get "Which one".
+        const short = labels.every((l) => String(l).trim().split(/\s+/).length <= 3);
+        const same = short && first.every((w) => w.toLowerCase() === first[0].toLowerCase()) && /^[A-Za-z][\w'-]*$/.test(first[0]);
         return same && labels.length > 1 ? `Which ${first[0]} did you mean?` : "Which one did you mean?";
       }
 
       function showCard(m) {
         body.classList.remove("correcting");
+        $(".preview").textContent = "";
+        if (m.kind === "countdown") return showCountdown(m);
+        if (m.kind === "confirm") return showConfirm(m);
         if (m.kind === "safety") return showSafety(m);
         if (m.kind === "clarify") return showClarify(m);
         $(".row .yes").textContent = "Yes";
@@ -388,6 +420,31 @@
         setState("ask", "", { cls: "safety" });
       }
 
+      // Before an ordinary step: "Clicking “Reply”", the line running out.
+      function showCountdown(m) {
+        document.documentElement.style.setProperty("--secs", `${m.seconds || 1}s`);
+        setState("countdown", esc(m.text || "Next step") + `<span class="dot">·</span><span class="detail">say “no” to stop</span>`);
+        const bar = $("#progress i");
+        bar.style.animation = "none";
+        void bar.offsetWidth; // restart the run-out line
+        bar.style.animation = "";
+      }
+
+      // An irreversible step or an unusual safety check: what will happen, a
+      // preview (the drafted reply), and nothing until the user says yes.
+      function showConfirm(m) {
+        $(".choices").replaceChildren();
+        $(".q").textContent = m.title || "OK to do this?";
+        $(".intent").textContent = m.intent || "";
+        $(".under").textContent = "";
+        $(".reason").textContent = m.reason || "";
+        $(".preview").textContent = m.detail || "";
+        $(".note").textContent = "Say “yes” to go ahead, or “no”.";
+        $(".loupe").removeAttribute("src");
+        $(".row .yes").textContent = "Yes";
+        setState("ask", "", { cls: "confirming" });
+      }
+
       window.avo.onEvent((m) => {
         switch (m.type) {
           case "status":
@@ -417,7 +474,7 @@
             break;
           case "answered":
           case "cancel":
-            if (body.classList.contains("ask")) back();
+            if (body.classList.contains("ask") || body.classList.contains("countdown")) back();
             break;
         }
       });
@@ -431,6 +488,7 @@
       $(".row .yes").addEventListener("click", () => window.avo.send("bubble-choice", { choice: "yes" }));
       $(".row .stop").addEventListener("click", () => window.avo.send("bubble-choice", { choice: "stop" }));
       $(".row .no").addEventListener("click", () => {
+        if (body.classList.contains("confirming")) return window.avo.send("bubble-choice", { choice: "decline" });
         body.classList.add("correcting");
         $(".q").textContent = "Click the right spot";
         $(".intent").textContent = "AVO will click where you click.";
