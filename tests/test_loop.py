@@ -84,6 +84,7 @@ class LoopBase(unittest.TestCase):
             overlay_windows=lambda: [],
             frontmost_app=lambda: "com.google.Chrome",
             focus=lambda bundle: None,
+            screen_text=lambda app: "",
         ), mock.patch("avo.agent.Overlay", lambda: Overlay(url=None)):
             result = agent.run(
                 "Open Meta careers", gate=False, snap_to_controls=False, human_guard=False, plan=plan, **kw
@@ -176,6 +177,16 @@ class PlanLoopTest(LoopBase):
         first_turn = self.inputs[1]["input"][0]["content"][0]["text"]
         self.assertIn("Begin at: https://www.metacareers.com/jobs", first_turn)  # the model opens it instead
         self.assertIn("paused before opening the start", first_turn)
+
+
+class OnScreenTest(unittest.TestCase):
+    def test_a_question_about_options_on_screen_is_left_to_the_gate(self):
+        page = "Campus Mail Prof. Anna Smith (Math 241) Our 2:00 meeting Prof. David Smith (Physics 212) Lab section"
+        with mock.patch.object(agent, "screen_text", lambda app: page):
+            self.assertTrue(agent.options_on_screen(["Prof. Anna Smith (Math 241)", "Prof. David Smith (Physics 212)"], "x"))
+            self.assertFalse(agent.options_on_screen(["Email Alex", "Message Alex in chat"], "x"))
+        with mock.patch.object(agent, "screen_text", lambda app: ""):  # no accessibility text: ask as usual
+            self.assertFalse(agent.options_on_screen(["Prof. Anna Smith (Math 241)"], "x"))
 
 
 class ReplanTest(unittest.TestCase):

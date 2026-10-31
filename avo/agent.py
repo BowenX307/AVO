@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import time
 from collections import defaultdict
@@ -17,6 +18,7 @@ from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.effect import NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, EffectWatch, plain
 from avo.gate import ask_user, assess
+from avo.helper import screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.meter import Meter
@@ -158,6 +160,24 @@ def snap_clicks(driver: MacDriver, actions: list[dict]) -> list[dict]:
                 a = {**a, "x": sx, "y": sy, "_snap": {"from": [a["x"], a["y"]], "role": target.role, "label": target.label}}
         out.append(a)
     return out
+
+
+def options_on_screen(options: list[str], app: str | None) -> bool:
+    """True if every option's words are on the app's window (accessibility text)."""
+    if not options or not app:
+        return False
+    try:
+        on_screen = set(re.findall(r"\w+", screen_text(app).lower()))
+    except Exception as e:
+        print(f"screen text: {type(e).__name__}: {e}")
+        return False
+    if not on_screen:
+        return False
+    for option in options:
+        need = {w for w in re.findall(r"\w+", option.lower()) if len(w) > 2 or w.isdigit()}
+        if not need or not need <= on_screen:
+            return False
+    return True
 
 
 def focus(bundle: str) -> None:
@@ -374,6 +394,13 @@ def run(
         finally:
             spent[key] += time.time() - t0
 
+    def checked_task() -> str:
+        """The task as the gate's review sees it: with the user's answer to the plan's question,
+        so it doesn't ask "which Smith?" again (10/31: it did)."""
+        if the_plan and the_plan.answer:
+            return f"{task}\n(AVO asked “{the_plan.question}” and the user answered: {the_plan.answer})"
+        return task
+
     def make(screen: bytes, past: list[str] = ()) -> Plan | None:
         """A plan from this screen, or None if the planner fails (a plan helps; it isn't needed)."""
         overlay.send("status", text="Planning…", busy=True, phase="planning")
@@ -417,6 +444,11 @@ def run(
             highlight(client, overlay, png, selected, log.dir)  # SAM, alongside the first model call
         if plan == "always" or (plan == "auto" and not selected):
             the_plan = make(png)
+        if the_plan and the_plan.question and options_on_screen(the_plan.options, work_app):
+            # "Which Professor Smith?" with both on screen: don't ask in words now;
+            # the gate rings the two on screen and asks when the agent gets there.
+            print("   (the options are on screen: AVO asks when it gets there, pointing at them)")
+            the_plan.deferred, the_plan.question, the_plan.options = the_plan.question, "", []
         if the_plan and the_plan.question:
             if not overlay.active:
                 print("   (no overlay to ask on: going with the most likely reading)")
@@ -428,6 +460,10 @@ def run(
                     refocus()
                 choice = (answer or {}).get("choice")
                 print(f"user: {choice}" + (f" {the_plan.options[answer['index']]}" if choice == "pick" else ""))
+                if guard.tripped.is_set() and choice == "pick":
+                    # The user clicked or typed while AVO planned, then answered: they're here, go on.
+                    guard.resume()
+                    overlay.send("resumed")
                 if choice == "pick":
                     the_plan.answer = the_plan.options[answer["index"]]
                 elif choice == "pause":
@@ -442,6 +478,7 @@ def run(
             print(f"[0] opening the start: {describe([start])}")
             overlay.send("status", text=f"Plan · {len(the_plan.steps)} steps", busy=True)
             opened = False
+            guard.arm()
             try:
                 with guard.acting(), timed("actions"):
                     driver.work_app = work_app
@@ -517,7 +554,7 @@ def run(
             if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
-                    a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size,
+                    a = assess(client, checked_task(), past, done, png, actions, note, driver.geometry.shot_size,
                                where=(lambda x, y: location(*driver.to_screen(x, y))) if snap_to_controls else None)
                 stop = interrupted()  # the user may have taken over during the check
                 if a and not stop:
@@ -590,6 +627,7 @@ def run(
             changed: ScreenChanged | None = None
             if not stop and not skip:
                 print(f"[{step}] executing {len(actions)} action(s)", flush=True)
+                guard.arm()
                 try:
                     with guard.acting(), timed("actions"):
                         if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:

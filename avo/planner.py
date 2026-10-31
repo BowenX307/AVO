@@ -75,6 +75,7 @@ class Plan:
     question: str = ""
     options: list[str] = field(default_factory=list)
     answer: str = ""  # the user's answer to the question, if one was asked
+    deferred: str = ""  # a question about options on screen, left for the gate to ask by pointing
     opened: bool = False  # the agent has opened the start itself
     seconds: float = 0.0
 

@@ -173,7 +173,12 @@ class Rules:
 
     def reset(self, now: float) -> None:
         self._travel = 0.0
-        self.quiet_until = now + SETTLE_S
+        self.quiet_until = max(self.quiet_until, now + SETTLE_S)
+
+    def arm(self, now: float) -> None:
+        """AVO is about to act for the first time: pointer moves count from now on."""
+        if self.quiet_until == math.inf:
+            self.quiet_until = now
 
 
 @dataclass
@@ -223,6 +228,10 @@ class HumanGuard:
         if not self.enabled:
             return
         self._running = True
+        # Until AVO first acts (arm()), moving the mouse doesn't count: right
+        # after typing the task the hand leaves the island, and while AVO plans
+        # nothing on screen is AVO's yet (10/31: that move paused the run).
+        self.rules.quiet_until = math.inf
         self._overlay_apps = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
         self._expected_app = None
         self._note_front()
@@ -252,6 +261,9 @@ class HumanGuard:
             self.rules.asked.append((start, event_clock()))
             self.rules.asking = False
             self.rules.reset(time.time())
+
+    def arm(self) -> None:
+        self.rules.arm(time.time())
 
     @contextmanager
     def acting(self):

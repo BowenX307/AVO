@@ -8,6 +8,7 @@ straight into the rules; the driver runs against fake screenshots.
 
 import io
 import time
+import math
 import unittest
 from unittest import mock
 
@@ -83,6 +84,17 @@ class RulesTest(unittest.TestCase):
     def test_voice_mode_clicks_on_a_question_still_answer_it(self):
         r = Rules(voice=True, asking=True)
         self.assertIsNone(r.judge(Input("click", 100, 100), 0.0))
+
+    def test_moves_dont_count_until_avo_first_acts(self):
+        # 10/31: the hand leaving the island right after typing the task paused the run.
+        r = Rules(quiet_until=math.inf)
+        self.assertIsNone(r.judge(move(300), 0.0))
+        r.reset(1.0)  # answering the planner's question doesn't arm it
+        self.assertIsNone(r.judge(move(300), 5.0))
+        self.assertEqual(r.judge(Input("click", 100, 100), 5.1), "mouse")  # a click still counts
+        r.arm(6.0)
+        r.judge(move(15), 6.1)
+        self.assertEqual(r.judge(move(15), 6.2), "mouse")
 
     def test_clicks_answer_a_question(self):
         r = Rules(asking=True)

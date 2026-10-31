@@ -184,6 +184,7 @@ ipcMain.on("island-size", (_e, { state, width, height }) => {
 // when the user touches the mouse or keyboard ("interrupt" below).
 
 let paused = false;
+let pauseText = "Paused"; // what the island says while paused, to show again after a question
 
 function tellAgents(msg) {
   const data = JSON.stringify(msg);
@@ -199,6 +200,7 @@ function togglePause() {
     return;
   }
   paused = !paused;
+  pauseText = "Paused";
   tellAgents({ type: paused ? "pause" : "resume" });
   island.webContents.send("avo", paused ? { type: "paused" } : { type: "status", text: "Resuming…", busy: true });
 }
@@ -427,6 +429,9 @@ function answer(fields) {
   pointer.setIgnoreMouseEvents(true);
   pointer.webContents.send("avo", { type: "answered", choice: fields.choice, index: fields.index });
   island.webContents.send("avo", { type: "answered" });
+  // Still paused (the user moved before the question came up): say so, with
+  // Resume, rather than "Working" (10/31: a paused run looked busy for 84 s).
+  if (paused && fields.choice !== "pause") island.webContents.send("avo", { type: "paused", text: pauseText });
   tellAgents(msg);
 }
 
@@ -502,6 +507,7 @@ function route(msg) {
       // paused.", or a countdown with auto-resume). Resume / Stop / Option-Space
       // work as for any pause.
       paused = true;
+      pauseText = msg.text || "Paused";
       island.webContents.send("avo", { type: "paused", text: msg.text });
       return;
     case "resumed": // auto-resumed by the agent

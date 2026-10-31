@@ -30,7 +30,7 @@ import Quartz
 from AppKit import NSRunningApplication
 
 from avo.events import is_avo
-from avo.snap import _attr
+from avo.snap import _attr, _frame, clickable_at
 
 RIGHT_OPTION = 61  # kVK_RightOption
 TAP_S = 0.45  # a press and release within this, with nothing in between, is a tap
@@ -119,35 +119,49 @@ def watch_keys() -> None:
 
 # ---- words on screen ----
 
-def keywords(bundle: str | None) -> list[str]:
-    """Names on the app's front window: control labels first, then proper names in its text."""
+def texts(bundle: str | None):
+    """(role, text) for the words on the app's front window, breadth first, within BUDGET_S."""
     apps = NSRunningApplication.runningApplicationsWithBundleIdentifier_(bundle) if bundle else []
     if not apps:
-        return []
+        return
     app = AX.AXUIElementCreateApplication(apps[0].processIdentifier())
     AX.AXUIElementSetAttributeValue(app, "AXManualAccessibility", True)  # Chrome, Electron: build the web tree
     window = _attr(app, "AXFocusedWindow") or next(iter(_attr(app, "AXWindows") or []), None)
     if window is None:
-        return []
-    labels: list[str] = []
-    names: list[str] = []
+        return
+    if frame := _frame(window):
+        # Chrome puts a page into the tree only once something asks about a point
+        # on it; the first read after that is still partial, later ones are full.
+        l, t, w, h = frame
+        clickable_at(l + w / 2, t + h / 2)
     queue = deque([window])
     seen, t0 = 0, time.monotonic()
     while queue and seen < MAX_NODES and time.monotonic() - t0 < BUDGET_S:
         el = queue.popleft()
         seen += 1
         role = _attr(el, "AXRole") or ""
-        texts = [_attr(el, n) for n in ("AXTitle", "AXDescription")]
+        found = [_attr(el, n) for n in ("AXTitle", "AXDescription")]
         if role in TEXT_ROLES or role in ("AXLink", "AXButton"):
-            texts.append(_attr(el, "AXValue"))
-        for t in texts:
-            if not isinstance(t, str) or not t.strip():
-                continue
-            t = " ".join(t.split())
-            if role in NAMED_ROLES and 2 <= len(t) <= 40:
-                labels.append(t)
-            names += [m.strip() for m in PROPER.findall(t) if m.strip() not in COMMON]
+            found.append(_attr(el, "AXValue"))
+        for t in found:
+            if isinstance(t, str) and t.strip():
+                yield role, " ".join(t.split())
         queue.extend(_attr(el, "AXChildren") or [])
+
+
+def screen_text(bundle: str | None) -> str:
+    """All the words on the app's front window, for "is this on screen?" checks."""
+    return " ".join(t for _, t in texts(bundle))
+
+
+def keywords(bundle: str | None) -> list[str]:
+    """Names on the app's front window: control labels first, then proper names in its text."""
+    labels: list[str] = []
+    names: list[str] = []
+    for role, t in texts(bundle):
+        if role in NAMED_ROLES and 2 <= len(t) <= 40:
+            labels.append(t)
+        names += [m.strip() for m in PROPER.findall(t) if m.strip() not in COMMON]
     out, keys = [], set()
     for t in labels + names:
         k = t.lower()
