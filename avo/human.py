@@ -76,8 +76,12 @@ OWN_PID = os.getpid()
 
 
 def event_clock() -> int:
-    """Now, on the clock CGEventGetTimestamp uses."""
-    return Quartz.CGEventGetTimestamp(Quartz.CGEventCreate(None))
+    """Now, on the clock input events are stamped with: CLOCK_UPTIME_RAW nanoseconds.
+
+    Not CGEventGetTimestamp(CGEventCreate(None)): that is always 0, so until
+    10/31 every "was a question up when this happened" check failed.
+    """
+    return time.clock_gettime_ns(time.CLOCK_UPTIME_RAW)
 
 
 def from_cg(kind_code: int, event) -> Input | None:
@@ -130,7 +134,8 @@ class Rules:
     _last_pos: tuple[float, float] | None = None  # where the pointer was after the last move, anyone's
 
     def answering(self, e: Input) -> bool:
-        return self.asking or any(start <= e.ts <= end for start, end in self.asked[-3:])
+        ts = e.ts or event_clock()  # some posted events carry no timestamp: take it as now
+        return self.asking or any(start <= ts <= end for start, end in self.asked[-3:])
 
     def judge(self, e: Input, now: float) -> str | None:
         """'mouse' or 'keyboard' if this event is the user taking over, else None."""

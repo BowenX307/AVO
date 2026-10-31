@@ -7,6 +7,7 @@ straight into the rules; the driver runs against fake screenshots.
 """
 
 import io
+import time
 import unittest
 from unittest import mock
 
@@ -14,7 +15,7 @@ import Quartz
 from PIL import Image, ImageDraw
 
 from avo.driver import Interrupted, MacDriver, ScreenChanged, region_diff
-from avo.human import JITTER_PT, MOVE_WINDOW_S, SETTLE_S, HumanGuard, Input, Rules
+from avo.human import JITTER_PT, MOVE_WINDOW_S, SETTLE_S, HumanGuard, Input, Rules, event_clock
 
 OPTION = Quartz.kCGEventFlagMaskAlternate
 COMMAND = Quartz.kCGEventFlagMaskCommand
@@ -79,6 +80,20 @@ class RulesTest(unittest.TestCase):
         r = Rules(asked=[(1_000, 2_000)])  # a question was up from t=1000 to t=2000 (event clock)
         self.assertIsNone(r.judge(Input("click", 300, 300, ts=1_500), 0.0))
         self.assertEqual(r.judge(Input("click", 300, 300, ts=2_500), 0.0), "mouse")
+
+    def test_a_real_question_span_catches_a_late_answer(self):
+        # Until 10/31 the span was read off a clock that always said 0, so this was "mouse".
+        guard = HumanGuard(FakeOverlay(), use_tap=False)
+        with guard.asking():
+            clicked = event_clock()
+        self.assertIsNone(guard.rules.judge(Input("click", 300, 300, ts=clicked), 0.0))
+        self.assertEqual(guard.rules.judge(Input("click", 300, 300, ts=event_clock()), 0.0), "mouse")
+
+    def test_event_clock_runs_on_uptime_nanoseconds(self):
+        a = event_clock()
+        time.sleep(0.02)
+        self.assertAlmostEqual((event_clock() - a) / 1e9, 0.02, delta=0.015)
+        self.assertGreater(a, 0)
 
     def test_events_posted_by_avo_count_as_avo_even_unmarked(self):
         from avo.human import OWN_PID
