@@ -247,8 +247,8 @@ html.intro .nav .brand svg { visibility: hidden; } /* the drawn logo flies here 
   transition: opacity var(--avo-dur-fast) var(--avo-ease), width var(--avo-dur) var(--avo-ease), height var(--avo-dur) var(--avo-ease), margin var(--avo-dur) var(--avo-ease);
 }
 .cursor2.off { opacity: 0; }
-.trace { position: absolute; inset: -7px; width: calc(100% + 14px); height: calc(100% + 14px); overflow: visible; pointer-events: none; mix-blend-mode: difference; }
-.trace path { fill: none; stroke: #fff; stroke-width: 1; }
+.trace { position: absolute; inset: -7px; width: calc(100% + 14px); height: calc(100% + 14px); overflow: visible; pointer-events: none; }
+.trace path { fill: none; stroke: var(--avo-ink); stroke-width: 1; } /* buttons all sit on paper */
 
 /* ---- docs ---- */
 .docs { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 72px; padding: 72px 0 120px; }

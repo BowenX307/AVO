@@ -23,16 +23,15 @@
   const CURSOR = `<svg width="1" height="1" aria-hidden="true"><g transform="rotate(-30)" fill="none" stroke-linejoin="miter" stroke-linecap="square">
     <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#0A0A0A" stroke-width="8"/><path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#F5F5F2" stroke-width="5"/></g></svg>`;
 
-  // A rounded rectangle path w x h drawn from "half past ten", clockwise, with a
-  // small overshoot past the start: the same stroke as the overlay's rings.
+  // A rounded rectangle path w x h drawn from "half past ten", clockwise, once
+  // around and no further.
   function ringPath(w, h, r) {
     const k = r * (1 - Math.SQRT1_2);
-    const over = Math.min(0.04 * 2 * (w + h), w - r);
     const f = (n) => n.toFixed(1);
     return (
       `M${f(k)} ${f(k)} A${r} ${r} 0 0 1 ${f(r)} 0 H${f(w - r)} A${r} ${r} 0 0 1 ${f(w)} ${f(r)} ` +
       `V${f(h - r)} A${r} ${r} 0 0 1 ${f(w - r)} ${f(h)} H${f(r)} A${r} ${r} 0 0 1 0 ${f(h - r)} ` +
-      `V${f(r)} A${r} ${r} 0 0 1 ${f(k)} ${f(k)} A${r} ${r} 0 0 1 ${f(r)} 0 H${f(Math.min(r + over * 0.7, w - r))}`
+      `V${f(r)} A${r} ${r} 0 0 1 ${f(k)} ${f(k)}`
     );
   }
 
@@ -130,7 +129,7 @@
 
   // ---- the second cursor (desktop with a mouse, motion allowed) ----
   // A thin ring that trails the pointer by ~120 ms; over a button it leaves the
-  // pointer and draws a ring around the button instead, in one stroke.
+  // pointer and draws a ring around the button instead: one stroke, once around.
   function secondCursor() {
     if (reduced || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
     const ring = document.createElement("div");
@@ -165,6 +164,7 @@
       el.addEventListener("pointerenter", () => {
         hovered = el;
         ring.classList.add("off");
+        el.querySelectorAll(".trace").forEach((t) => t.remove()); // one ring per hover, never two stacked
         const box = el.getBoundingClientRect();
         const w = box.width + 14, h = box.height + 14;
         const trace = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -175,12 +175,8 @@
         el.append(trace);
         const p = trace.firstChild;
         const total = p.getTotalLength();
-        const closed = 2 * (w + h) - (8 - 2 * Math.PI) * r; // the ring without its overshoot
         p.style.strokeDasharray = `${total} ${total + 2}`;
-        p.animate(
-          [{ strokeDashoffset: total + 1, easing: EASE_DRAW }, { strokeDashoffset: 0, offset: 0.86, easing: EASE }, { strokeDashoffset: total - closed }],
-          { duration: 560, fill: "forwards" },
-        );
+        p.animate([{ strokeDashoffset: total + 1 }, { strokeDashoffset: 0 }], { duration: 850, easing: EASE_DRAW, fill: "forwards" });
       });
       el.addEventListener("pointerleave", () => {
         hovered = null;
