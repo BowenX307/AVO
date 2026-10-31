@@ -4,8 +4,8 @@
 //   AVOLogo.drawLogo(svgEl, { onDone })          ~2.3 s: Λ, then V, then O
 //
 // Λ starts bottom left, up to the apex, down to the right. V mirrors it. O
-// starts at half past ten and goes clockwise, about 4% past closed, then
-// settles back like a hand-drawn ring; a faint glow and halo mark the end.
+// starts at half past ten and goes clockwise, about 4% past closed (over its
+// own start), then settles back; a faint glow and halo mark the end.
 // With "reduce motion" on, the full logo shows at once. A classic script
 // (not a module) so it also loads from file:// in the Electron overlay.
 
@@ -17,7 +17,6 @@
   const EASE = "cubic-bezier(0.2, 0.8, 0.2, 1)"; // --avo-ease
   const O = { cx: 290, cy: 50, r: 41 };
   const OVERSHOOT = 0.04; // of the circle
-  const DRIFT = 2.5; // how far the overshoot strays outwards, so it reads as a hand
   // [start, duration] in ms; 60 ms rests between letters.
   const TIMES = { a: [150, 520], v: [730, 520], o: [1310, 650], pulse: [1960, 300] };
   const TOTAL = 2260;
@@ -35,15 +34,14 @@
     return `M${f(sx)} ${f(sy)} A${O.r} ${O.r} 0 1 1 ${f(ex)} ${f(ey)} A${O.r} ${O.r} 0 1 1 ${f(sx)} ${f(sy)} Z`;
   }
 
-  // The ring plus its overshoot: a short arc past the start, drifting outwards.
+  // The ring plus its overshoot: a short arc on past the start, on the ring itself.
   function drawnRingPath() {
     const [sx, sy] = onCircle(-45);
     const [ex, ey] = onCircle(135);
-    const [px, py] = onCircle(-45 + 360 * OVERSHOOT, O.r + DRIFT);
-    const big = O.r + DRIFT / 2;
+    const [px, py] = onCircle(-45 + 360 * OVERSHOOT);
     return (
       `M${f(sx)} ${f(sy)} A${O.r} ${O.r} 0 1 1 ${f(ex)} ${f(ey)} A${O.r} ${O.r} 0 1 1 ${f(sx)} ${f(sy)} ` +
-      `A${f(big)} ${f(big)} 0 0 1 ${f(px)} ${f(py)}`
+      `A${O.r} ${O.r} 0 0 1 ${f(px)} ${f(py)}`
     );
   }
 

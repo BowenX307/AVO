@@ -29,8 +29,8 @@
   --avo-radius-card: 14px;
   --avo-ease: cubic-bezier(0.2, 0.8, 0.2, 1);       /* ordinary transitions */
   --avo-ease-draw: cubic-bezier(0.65, 0, 0.35, 1);  /* drawing a stroke */
-  --avo-dur-fast: 150ms;
-  --avo-dur: 240ms;
+  --avo-dur-fast: 200ms;
+  --avo-dur: 320ms;
   --avo-font-sans: "Geist", "Inter", -apple-system, sans-serif;
   --avo-font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
 }

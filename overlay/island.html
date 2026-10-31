@@ -271,8 +271,8 @@
           pill.style.width = text.style.flex = "";
         }
         window.avo.send("island-size", { state, width, height });
-        if (!reduced.matches) shell.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 160, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
-        if (state === "done" && !reduced.matches) draw(icon.querySelector("path"), 240);
+        if (!reduced.matches) shell.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+        if (state === "done" && !reduced.matches) draw(icon.querySelector("path"), 420);
       }
 
       // Draw one stroke (the done check) like the logo draws its letters.
@@ -413,9 +413,9 @@
       // On launch: the logo draws itself, then the island settles to its idle mark.
       setState("launch", `AVO is ready`);
       AVOLogo.drawLogo(icon.querySelector("svg"), {
-        speed: 1.7,
+        speed: 0.9,
         onDone: () => {
-          timer = setTimeout(() => body.classList.contains("launch") && setState("idle"), 900);
+          timer = setTimeout(() => body.classList.contains("launch") && setState("idle"), 1400);
         },
       });
     </script>

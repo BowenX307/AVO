@@ -189,7 +189,7 @@ footer a { text-decoration: none; }
 footer a:hover { color: var(--avo-ink); }
 
 /* Scroll reveal: headings fade in and rise 8px, once. Only when JS runs. */
-.js [data-reveal] { opacity: 0; transform: translateY(8px); transition: opacity 420ms var(--avo-ease), transform 420ms var(--avo-ease); }
+.js [data-reveal] { opacity: 0; transform: translateY(8px); transition: opacity 700ms var(--avo-ease), transform 700ms var(--avo-ease); }
 .js [data-reveal].in { opacity: 1; transform: none; }
 
 /* ---- the opening: the logo draws, the cursor clicks O, O opens into the page ---- */
@@ -215,7 +215,8 @@ html.intro #intro-logo {
   transform: translate(-50%, -50%);
   color: var(--avo-paper);
 }
-html.intro #intro-logo svg { width: 100%; height: auto; overflow: visible; }
+html.intro #intro-logo svg { width: 100%; height: auto; overflow: visible; opacity: 0; }
+html.intro #intro-logo svg.drawing { opacity: 1; }
 html.intro .intro-cursor { display: block; position: fixed; z-index: 102; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
 .intro-cursor svg { overflow: visible; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
 .intro-ripple {

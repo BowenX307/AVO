@@ -159,11 +159,11 @@ ipcMain.on("island-size", (_e, { state, width, height }) => {
   const far = Math.hypot(to.x + to.width / 2 - (from.x + from.width / 2), to.y - from.y) > 120;
   const id = ++morph;
   if (far && island.isVisible()) {
-    fade(0, 70, () => {
+    fade(0, 110, () => {
       if (id !== morph) return;
       island.setBounds({ ...to, y: to.y + 6 });
       island.setBounds(to, true);
-      fade(1, 140);
+      fade(1, 240);
     });
   } else {
     island.setBounds(to, true);

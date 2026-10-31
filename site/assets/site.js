@@ -32,7 +32,7 @@
     return (
       `M${f(k)} ${f(k)} A${r} ${r} 0 0 1 ${f(r)} 0 H${f(w - r)} A${r} ${r} 0 0 1 ${f(w)} ${f(r)} ` +
       `V${f(h - r)} A${r} ${r} 0 0 1 ${f(w - r)} ${f(h)} H${f(r)} A${r} ${r} 0 0 1 0 ${f(h - r)} ` +
-      `V${f(r)} A${r} ${r} 0 0 1 ${f(k)} ${f(k)} Q${f(r * 0.6)} -1 ${f(Math.min(r + over * 0.7, w - r))} -2`
+      `V${f(r)} A${r} ${r} 0 0 1 ${f(k)} ${f(k)} A${r} ${r} 0 0 1 ${f(r)} 0 H${f(Math.min(r + over * 0.7, w - r))}`
     );
   }
 
@@ -74,7 +74,8 @@
     for (const t of ["keydown", "pointerdown", "wheel", "touchstart"]) addEventListener(t, end, { capture: true, passive: true });
     clearTimeout(window.__avoIntroFailsafe); // set in <head>; this script took over
 
-    drawing = AVOLogo.drawLogo(svg, { speed: 1.5, onDone: () => !ended && clickTheO() });
+    drawing = AVOLogo.drawLogo(svg, { speed: 0.9, onDone: () => !ended && clickTheO() });
+    svg.classList.add("drawing"); // hidden until now, so the finished logo never flashes first
 
     function clickTheO() {
       const box = svg.getBoundingClientRect();
@@ -87,7 +88,7 @@
       extras.push(cursor);
       const glide = cursor.animate(
         [{ transform: `translate(${innerWidth + 30}px, ${innerHeight + 30}px)` }, { transform: `translate(${ox}px, ${oy}px)` }],
-        { duration: 320, easing: SPRING, fill: "forwards" },
+        { duration: 520, easing: SPRING, fill: "forwards" },
       );
       running.push(glide);
       glide.finished.then(() => {
@@ -98,8 +99,8 @@
         Object.assign(ripple.style, { left: `${ox}px`, top: `${oy}px` });
         document.body.append(ripple);
         extras.push(ripple);
-        running.push(press, ripple.animate([{ transform: "scale(0.3)", opacity: 1 }, { transform: "scale(1.6)", opacity: 0 }], { duration: 200, easing: EASE, fill: "forwards" }));
-        setTimeout(() => !ended && open(ox, oy, cursor), 80);
+        running.push(press, ripple.animate([{ transform: "scale(0.3)", opacity: 1 }, { transform: "scale(1.6)", opacity: 0 }], { duration: 320, easing: EASE, fill: "forwards" }));
+        setTimeout(() => !ended && open(ox, oy, cursor), 140);
       }, () => {});
     }
 
@@ -114,14 +115,14 @@
       big.style.transform = "none";
       big.style.left = `${from.left}px`;
       big.style.top = `${from.top}px`;
-      const reveal = veil.animate({ "--hole": ["0px", `${far + 2}px`] }, { duration: 520, easing: EASE_DRAW, fill: "forwards" });
+      const reveal = veil.animate({ "--hole": ["0px", `${far + 2}px`] }, { duration: 900, easing: EASE_DRAW, fill: "forwards" });
       running.push(
         reveal,
         big.animate(
           [{ transform: "none", color: "#F5F5F2" }, { transform: `translate(${dx}px, ${dy}px) scale(${s})`, color: "#0A0A0A" }],
-          { duration: 520, easing: EASE_DRAW, fill: "forwards" },
+          { duration: 900, easing: EASE_DRAW, fill: "forwards" },
         ),
-        cursor.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: EASE, fill: "forwards" }),
+        cursor.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, easing: EASE, fill: "forwards" }),
       );
       reveal.finished.then(end, () => {});
     }
@@ -178,7 +179,7 @@
         p.style.strokeDasharray = `${total} ${total + 2}`;
         p.animate(
           [{ strokeDashoffset: total + 1, easing: EASE_DRAW }, { strokeDashoffset: 0, offset: 0.86, easing: EASE }, { strokeDashoffset: total - closed }],
-          { duration: 340, fill: "forwards" },
+          { duration: 560, fill: "forwards" },
         );
       });
       el.addEventListener("pointerleave", () => {
