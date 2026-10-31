@@ -10,8 +10,11 @@ on the task and the first screenshot, returns:
     question   only for a real ambiguity, asked before anything is done
 
 The agent opens the start itself (no turn spent on the address bar) and puts
-the plan in front of the model on every turn. Muse Spark, not Wonder: the plan
-is a few lines, and Wonder costs more and was no better at this.
+the plan in front of the model on every turn. The first plan is Muse Spark's:
+it is a few lines, and Wonder costs more and was no better at it. A re-plan,
+after the agent got stuck, is Muse Wonder's (REPLAN_MODEL): on the stuck "open
+the math folder" run, Spark planned the same Finder search again, while
+Wonder saw the search was scoped to the wrong folder (5.2 s, about $0.02).
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from openai import OpenAI
 from avo.llm import MODEL, data_url
 
 MAX_STEPS = 6
+REPLAN_MODEL = "muse-wonder-1.0"
 
 PLAN_PROMPT = """\
 You plan a computer task for an agent that works a Mac through screenshots. \
@@ -113,7 +117,7 @@ class Plan:
 
 
 def make_plan(
-    client: OpenAI, task: str, png: bytes, past: list[str] = (), effort: str | None = "minimal"
+    client: OpenAI, task: str, png: bytes, past: list[str] = (), effort: str | None = "minimal", model: str = MODEL
 ) -> Plan:
     """Plan the task from the current screen. past: steps already taken, when re-planning."""
     context = ""
@@ -126,14 +130,15 @@ def make_plan(
     kwargs = {"reasoning": {"effort": effort}} if effort else {}
     t0 = time.time()
     response = client.responses.create(
-        model=MODEL,
+        model=model,
         input=[
             {
                 "role": "user",
                 "content": [{"type": "input_text", "text": prompt}, {"type": "input_image", "image_url": data_url(png)}],
             }
         ],
-        text={"format": {"type": "json_schema", "name": "plan", "strict": True, "schema": PLAN_SCHEMA}},
+        # "replan" and "plan" are metered apart (avo/meter.py reads the schema name).
+        text={"format": {"type": "json_schema", "name": "replan" if past else "plan", "strict": True, "schema": PLAN_SCHEMA}},
         **kwargs,
     )
     return Plan.parse(json.loads(response.output_text), time.time() - t0)

@@ -22,7 +22,7 @@ from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.meter import Meter
 from avo.overlay import Overlay
-from avo.planner import Plan, make_plan
+from avo.planner import REPLAN_MODEL, Plan, make_plan
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
 from avo.snap import location, snap, warm_up
@@ -428,11 +428,11 @@ def run(
         overlay.send("status", text="Planning…", busy=True, phase="planning")
         try:
             with timed("planning"):
-                p = make_plan(client, task, screen, past, effort=effort)
+                p = make_plan(client, task, screen, past, effort=effort, model=REPLAN_MODEL if past else MODEL)
         except Exception as e:
             print(f"planner: {type(e).__name__}: {e}")
             return None
-        print(f"plan ({p.seconds:.1f}s): start {p.start_kind} {p.start_target}".rstrip())
+        print(f"{'re-plan, ' + REPLAN_MODEL if past else 'plan'} ({p.seconds:.1f}s): start {p.start_kind} {p.start_target}".rstrip())
         for i, s in enumerate(p.steps, 1):
             print(f"   {i}. {s}")
         print(f"   done when: {p.done_when}" + (f"\n   question: {p.question} {p.options}" if p.question else ""))

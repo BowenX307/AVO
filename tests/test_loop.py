@@ -178,5 +178,18 @@ class PlanLoopTest(LoopBase):
         self.assertIn("paused before opening the start", first_turn)
 
 
+class ReplanTest(unittest.TestCase):
+    def test_a_replan_is_wonders_and_metered_apart(self):
+        from avo.planner import REPLAN_MODEL, make_plan
+
+        sent = []
+        client = SimpleNamespace(responses=SimpleNamespace(create=lambda **kw: sent.append(kw) or plan_reply()))
+        make_plan(client, "Open Meta careers", png(), past=["1. clicked the search field"], model=REPLAN_MODEL)
+        make_plan(client, "Open Meta careers", png())
+        self.assertEqual([k["model"] for k in sent], ["muse-wonder-1.0", "muse-spark-1.3"])
+        self.assertEqual([k["text"]["format"]["name"] for k in sent], ["replan", "plan"])
+        self.assertIn("got stuck", sent[0]["input"][0]["content"][0]["text"])
+
+
 if __name__ == "__main__":
     unittest.main()
