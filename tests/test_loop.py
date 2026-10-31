@@ -67,7 +67,7 @@ class FakeDriver:
 
 
 class LoopBase(unittest.TestCase):
-    def run_with(self, replies, plan="never", **kw):
+    def run_with(self, replies, plan="never", driver=None, **kw):
         script = iter(replies)
         inputs = []
 
@@ -80,7 +80,7 @@ class LoopBase(unittest.TestCase):
             agent,
             RUNS_DIR=Path(d),
             make_client=lambda: client,
-            MacDriver=FakeDriver,
+            MacDriver=driver or FakeDriver,
             overlay_windows=lambda: [],
             frontmost_app=lambda: "com.google.Chrome",
             focus=lambda bundle: None,
@@ -161,6 +161,21 @@ class PlanLoopTest(LoopBase):
     def test_never(self):
         result, summary, _ = self.run_with([reply(text="Done.")], plan="never")
         self.assertNotIn("plan", summary["api"]["by_purpose"])
+
+    def test_moving_while_it_plans_pauses_instead_of_crashing(self):
+        # 10/31: the user moved the mouse during planning; opening the start raised Interrupted.
+        class MovedDuringPlan(FakeDriver):
+            def execute(self, actions, seen=None):
+                if not self.ran:
+                    self.ran.append("interrupted")
+                    raise agent.Interrupted("human", 0)
+                super().execute(actions, seen)
+
+        result, _, _ = self.run_with([plan_reply(), reply(text="Done.")], plan="auto", driver=MovedDuringPlan)
+        self.assertEqual(result, "Done.")
+        first_turn = self.inputs[1]["input"][0]["content"][0]["text"]
+        self.assertIn("Begin at: https://www.metacareers.com/jobs", first_turn)  # the model opens it instead
+        self.assertIn("paused before opening the start", first_turn)
 
 
 if __name__ == "__main__":

@@ -7,10 +7,17 @@ import json
 import os
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, Timeout
 
 MODEL = "muse-spark-1.3"
 BASE_URL = "https://api.meta.ai/v1"
+
+# A turn normally takes 3-17 s; one call once hung for 125 s. Give up on a call
+# after TIMEOUT_S and retry it (the SDK retries timeouts), instead of the SDK's
+# default 10 minutes.
+TIMEOUT_S = 45.0
+CONNECT_TIMEOUT_S = 10.0
+RETRIES = 2
 
 
 def make_client() -> OpenAI:
@@ -18,7 +25,10 @@ def make_client() -> OpenAI:
     key = os.environ.get("MODEL_API_KEY")
     if not key:
         raise SystemExit("MODEL_API_KEY is not set (put it in .env or the environment)")
-    return OpenAI(base_url=BASE_URL, api_key=key)
+    return OpenAI(
+        base_url=BASE_URL, api_key=key,
+        timeout=Timeout(TIMEOUT_S, connect=CONNECT_TIMEOUT_S), max_retries=RETRIES,
+    )
 
 
 def data_url(png: bytes) -> str:

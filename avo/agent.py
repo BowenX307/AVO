@@ -488,15 +488,29 @@ def run(
         if start:  # open the plan's start ourselves: no turn spent on the address bar or the Dock
             print(f"[0] opening the start: {describe([start])}")
             overlay.send("status", text=f"Plan · {len(the_plan.steps)} steps", busy=True)
-            with guard.acting(), timed("actions"):
-                driver.work_app = work_app
-                driver.execute([start])
+            opened = False
+            try:
+                with guard.acting(), timed("actions"):
+                    driver.work_app = work_app
+                    driver.execute([start])
+                opened = True
+            except Interrupted as e:  # the user moved, or paused, while AVO planned
+                print(f"[0] paused before opening the start ({e.reason})")
+                with timed("paused"):
+                    if not hold(e.reason):
+                        result = "stopped: user stopped the task"
+                        raise StopTask
+                refocus()
+                # Not opened: the plan's brief still says "Begin at", so the model opens it.
             if driver.failures:
                 print("[0] failed: " + "; ".join(driver.failures))
-            the_plan.opened = not driver.failures
-            past.append(f"0. (AVO, before your first turn) {describe([start])}"
-                        + (f"\n   Note: {'; '.join(driver.failures)}" if driver.failures else ""))
-            done.append([start])
+            the_plan.opened = opened and not driver.failures
+            if opened:
+                past.append(f"0. (AVO, before your first turn) {describe([start])}"
+                            + (f"\n   Note: {'; '.join(driver.failures)}" if driver.failures else ""))
+                done.append([start])
+            else:
+                past.append(f"0. (AVO, before your first turn) paused before opening the start\n   Note: {RESUME_NOTE}")
             png = driver.settled_screenshot()
             spent["settle"] += driver.settle_s
             log.screenshot(0, png)
