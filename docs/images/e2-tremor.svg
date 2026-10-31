@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="t d" font-family="Geist, Inter, -apple-system, sans-serif">
+<title id="t">Hit rate by button size, with a simulated tremor</title>
+<desc id="d">30 simulated clicks per point. Alone, a 12 px button is hit 23% of the time at 12 px of tremor; with a rough box and the button's name, AVO hits every time.</desc>
+<style>
+.bg{fill:#F5F5F2}.ink{fill:#0A0A0A}.muted{fill:#6B6B68}.grid{stroke:#D9D9D6;stroke-width:1}
+.s0{stroke:#A0A09C}.f0{fill:#A0A09C}.s4{stroke:#707070}.f4{fill:#707070}.s8{stroke:#404040}.f8{fill:#404040}.s12{stroke:#0A0A0A}.f12{fill:#0A0A0A}
+@media (prefers-color-scheme: dark){.bg{fill:#0A0A0A}.ink{fill:#F5F5F2}.muted{fill:#A6A6A3}.grid{stroke:#2E2E2C}.s0{stroke:#5E5E5C}.f0{fill:#5E5E5C}.s4{stroke:#8E8E8B}.f4{fill:#8E8E8B}.s8{stroke:#BEBEBA}.f8{fill:#BEBEBA}.s12{stroke:#F5F5F2}.f12{fill:#F5F5F2}}
+text{font-size:12px}.title{font-size:17px;font-weight:600}.panel{font-size:13px;font-weight:600}
+</style>
+<rect class="bg" width="960" height="400" rx="14"/>
+<text class="ink title" x="24" y="34">How often a shaky click hits the button</text>
+<text class="muted" x="24" y="54">Simulated tremor: each aim lands off by a random offset (standard deviation σ). 30 clicks per point, demo/targets.html.</text>
+<text class="muted" x="24" y="86">Tremor σ</text>
+<line class="s0" x1="88" y1="82" x2="108" y2="82" stroke-width="2" stroke-linecap="round"/><text class="ink" x="114" y="86">0 px</text>
+<line class="s4" x1="168" y1="82" x2="188" y2="82" stroke-width="2" stroke-linecap="round"/><text class="ink" x="194" y="86">4 px</text>
+<line class="s8" x1="248" y1="82" x2="268" y2="82" stroke-width="2" stroke-linecap="round"/><text class="ink" x="274" y="86">8 px</text>
+<line class="s12" x1="328" y1="82" x2="348" y2="82" stroke-width="2" stroke-linecap="round"/><text class="ink" x="354" y="86">12 px</text>
+<text class="ink panel" x="52.0" y="114">Clicking alone</text>
+<line class="grid" x1="52.0" x2="324.0" y1="348.0" y2="348.0"/>
+<text class="muted" x="44.0" y="352.0" text-anchor="end">0%</text>
+<line class="grid" x1="52.0" x2="324.0" y1="294.0" y2="294.0"/>
+<text class="muted" x="44.0" y="298.0" text-anchor="end">25%</text>
+<line class="grid" x1="52.0" x2="324.0" y1="240.0" y2="240.0"/>
+<text class="muted" x="44.0" y="244.0" text-anchor="end">50%</text>
+<line class="grid" x1="52.0" x2="324.0" y1="186.0" y2="186.0"/>
+<text class="muted" x="44.0" y="190.0" text-anchor="end">75%</text>
+<line class="grid" x1="52.0" x2="324.0" y1="132.0" y2="132.0"/>
+<text class="muted" x="44.0" y="136.0" text-anchor="end">100%</text>
+<text class="muted" x="102.0" y="368" text-anchor="middle">12</text>
+<text class="muted" x="154.0" y="368" text-anchor="middle">18</text>
+<text class="muted" x="206.0" y="368" text-anchor="middle">24</text>
+<text class="muted" x="258.0" y="368" text-anchor="middle">32</text>
+<text class="muted" x="310.0" y="368" text-anchor="middle">44</text>
+<text class="muted" x="188.0" y="388" text-anchor="middle">button size (px)</text>
+<path class="s0" d="M102.0 132.0 L154.0 132.0 L206.0 132.0 L258.0 132.0 L310.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f0" cx="102.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="154.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="206.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="258.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="310.0" cy="132.0" r="4" stroke="none"/>
+<path class="s4" d="M102.0 182.4 L154.0 153.6 L206.0 139.2 L258.0 132.0 L310.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f4" cx="102.0" cy="182.4" r="4" stroke="none"/>
+<circle class="f4" cx="154.0" cy="153.6" r="4" stroke="none"/>
+<circle class="f4" cx="206.0" cy="139.2" r="4" stroke="none"/>
+<circle class="f4" cx="258.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="310.0" cy="132.0" r="4" stroke="none"/>
+<path class="s8" d="M102.0 276.0 L154.0 240.0 L206.0 218.4 L258.0 146.4 L310.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f8" cx="102.0" cy="276.0" r="4" stroke="none"/>
+<circle class="f8" cx="154.0" cy="240.0" r="4" stroke="none"/>
+<circle class="f8" cx="206.0" cy="218.4" r="4" stroke="none"/>
+<circle class="f8" cx="258.0" cy="146.4" r="4" stroke="none"/>
+<circle class="f8" cx="310.0" cy="132.0" r="4" stroke="none"/>
+<path class="s12" d="M102.0 297.6 L154.0 268.8 L206.0 225.6 L258.0 225.6 L310.0 146.4" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f12" cx="102.0" cy="297.6" r="4" stroke="none"/>
+<circle class="f12" cx="154.0" cy="268.8" r="4" stroke="none"/>
+<circle class="f12" cx="206.0" cy="225.6" r="4" stroke="none"/>
+<circle class="f12" cx="258.0" cy="225.6" r="4" stroke="none"/>
+<circle class="f12" cx="310.0" cy="146.4" r="4" stroke="none"/>
+<text class="ink" x="93.0" y="136.0" text-anchor="end">100%</text>
+<text class="ink" x="93.0" y="186.4" text-anchor="end">77%</text>
+<text class="ink" x="93.0" y="280.0" text-anchor="end">33%</text>
+<text class="ink" x="93.0" y="301.6" text-anchor="end">23%</text>
+<text class="ink panel" x="360.0" y="114">AVO · rough box, SAM only</text>
+<line class="grid" x1="360.0" x2="632.0" y1="348.0" y2="348.0"/>
+<line class="grid" x1="360.0" x2="632.0" y1="294.0" y2="294.0"/>
+<line class="grid" x1="360.0" x2="632.0" y1="240.0" y2="240.0"/>
+<line class="grid" x1="360.0" x2="632.0" y1="186.0" y2="186.0"/>
+<line class="grid" x1="360.0" x2="632.0" y1="132.0" y2="132.0"/>
+<text class="muted" x="410.0" y="368" text-anchor="middle">12</text>
+<text class="muted" x="462.0" y="368" text-anchor="middle">18</text>
+<text class="muted" x="514.0" y="368" text-anchor="middle">24</text>
+<text class="muted" x="566.0" y="368" text-anchor="middle">32</text>
+<text class="muted" x="618.0" y="368" text-anchor="middle">44</text>
+<text class="muted" x="496.0" y="388" text-anchor="middle">button size (px)</text>
+<path class="s0" d="M410.0 132.0 L462.0 132.0 L514.0 132.0 L566.0 132.0 L618.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f0" cx="410.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="462.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="514.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="566.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="618.0" cy="132.0" r="4" stroke="none"/>
+<path class="s4" d="M410.0 168.0 L462.0 132.0 L514.0 139.2 L566.0 132.0 L618.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f4" cx="410.0" cy="168.0" r="4" stroke="none"/>
+<circle class="f4" cx="462.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="514.0" cy="139.2" r="4" stroke="none"/>
+<circle class="f4" cx="566.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="618.0" cy="132.0" r="4" stroke="none"/>
+<path class="s8" d="M410.0 247.2 L462.0 182.4 L514.0 189.6 L566.0 175.2 L618.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f8" cx="410.0" cy="247.2" r="4" stroke="none"/>
+<circle class="f8" cx="462.0" cy="182.4" r="4" stroke="none"/>
+<circle class="f8" cx="514.0" cy="189.6" r="4" stroke="none"/>
+<circle class="f8" cx="566.0" cy="175.2" r="4" stroke="none"/>
+<circle class="f8" cx="618.0" cy="132.0" r="4" stroke="none"/>
+<path class="s12" d="M410.0 261.6 L462.0 240.0 L514.0 232.8 L566.0 168.0 L618.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f12" cx="410.0" cy="261.6" r="4" stroke="none"/>
+<circle class="f12" cx="462.0" cy="240.0" r="4" stroke="none"/>
+<circle class="f12" cx="514.0" cy="232.8" r="4" stroke="none"/>
+<circle class="f12" cx="566.0" cy="168.0" r="4" stroke="none"/>
+<circle class="f12" cx="618.0" cy="132.0" r="4" stroke="none"/>
+<text class="ink" x="401.0" y="136.0" text-anchor="end">100%</text>
+<text class="ink" x="401.0" y="172.0" text-anchor="end">83%</text>
+<text class="ink" x="401.0" y="251.2" text-anchor="end">47%</text>
+<text class="ink" x="401.0" y="265.6" text-anchor="end">40%</text>
+<text class="ink panel" x="668.0" y="114">AVO · rough box + the name</text>
+<line class="grid" x1="668.0" x2="940.0" y1="348.0" y2="348.0"/>
+<line class="grid" x1="668.0" x2="940.0" y1="294.0" y2="294.0"/>
+<line class="grid" x1="668.0" x2="940.0" y1="240.0" y2="240.0"/>
+<line class="grid" x1="668.0" x2="940.0" y1="186.0" y2="186.0"/>
+<line class="grid" x1="668.0" x2="940.0" y1="132.0" y2="132.0"/>
+<text class="muted" x="718.0" y="368" text-anchor="middle">12</text>
+<text class="muted" x="770.0" y="368" text-anchor="middle">18</text>
+<text class="muted" x="822.0" y="368" text-anchor="middle">24</text>
+<text class="muted" x="874.0" y="368" text-anchor="middle">32</text>
+<text class="muted" x="926.0" y="368" text-anchor="middle">44</text>
+<text class="muted" x="804.0" y="388" text-anchor="middle">button size (px)</text>
+<path class="s0" d="M718.0 132.0 L770.0 132.0 L822.0 132.0 L874.0 132.0 L926.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f0" cx="718.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="770.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="822.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="874.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f0" cx="926.0" cy="132.0" r="4" stroke="none"/>
+<path class="s4" d="M718.0 132.0 L770.0 132.0 L822.0 132.0 L874.0 132.0 L926.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f4" cx="718.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="770.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="822.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="874.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f4" cx="926.0" cy="132.0" r="4" stroke="none"/>
+<path class="s8" d="M718.0 132.0 L770.0 132.0 L822.0 132.0 L874.0 132.0 L926.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f8" cx="718.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f8" cx="770.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f8" cx="822.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f8" cx="874.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f8" cx="926.0" cy="132.0" r="4" stroke="none"/>
+<path class="s12" d="M718.0 132.0 L770.0 132.0 L822.0 132.0 L874.0 132.0 L926.0 132.0" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="f12" cx="718.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f12" cx="770.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f12" cx="822.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f12" cx="874.0" cy="132.0" r="4" stroke="none"/>
+<circle class="f12" cx="926.0" cy="132.0" r="4" stroke="none"/>
+<text class="ink" x="718.0" y="154.0">100% at every σ and size</text>
+</svg>

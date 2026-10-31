@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" />
+    <title>AVO E2 targets</title>
+    <style>
+      /* E2: how often a shaky hand hits a button, by size (scripts/run_e2.py).
+         Five rows, one size each (12 / 18 / 24 / 32 / 44 px squares), eight
+         buttons a row 4 px apart, as in a toolbar: a miss lands on a neighbour
+         or on nothing. Every row has the same eight names, so finding a button
+         by name still needs the user's box to say which row. */
+      body { margin: 0; background: #f6f7f9; color: #1d232b; font: 14px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; }
+      header { padding: 14px 28px; background: #fff; border-bottom: 1px solid #dde1e6; }
+      header span { color: #66707c; font-size: 13px; margin-left: 10px; }
+      main { padding: 36px 60px; }
+      .row { display: flex; align-items: center; gap: 4px; margin-bottom: 64px; }
+      .row b { width: 64px; flex: none; color: #66707c; font-weight: 500; font-size: 13px; }
+      button {
+        flex: none;
+        padding: 0;
+        border: 1px solid #c7ccd3;
+        border-radius: 3px;
+        background: #fff;
+        color: #1d232b;
+        font-weight: 600;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <header>E2 targets<span>Demo · buttons by size, for the simulated-tremor test</span></header>
+    <main id="rows"></main>
+    <script>
+      const SIZES = [12, 18, 24, 32, 44];
+      const NAMES = ["Bold", "Italic", "Underline", "Link", "Image", "Table", "Quote", "Code"];
+      document.getElementById("rows").innerHTML = SIZES.map(
+        (s) => `<div class="row"><b>${s} px</b>${NAMES.map((n) =>
+          `<button aria-label="${n}" title="${n}" data-size="${s}" style="width:${s}px;height:${s}px;font-size:${Math.max(7, Math.round(s * 0.5))}px">${n[0]}</button>`).join("")}</div>`,
+      ).join("");
+      // For scripts/e2_capture.mjs: every button's name, size and box, in page px.
+      window.targets = () => [...document.querySelectorAll("button")].map((b) => {
+        const r = b.getBoundingClientRect();
+        return { label: b.getAttribute("aria-label"), size: +b.dataset.size, rect: [r.left, r.top, r.right, r.bottom] };
+      });
+    </script>
+  </body>
+</html>
