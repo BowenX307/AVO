@@ -227,7 +227,7 @@ function startSelect() {
   if (selecting || task || !AT_REST.has(islandState)) return;
   selecting = true;
   regions = [];
-  returnTo = frontApp();
+  returnTo = userApp;
   pointer.setIgnoreMouseEvents(false);
   pointer.webContents.send("avo", { type: "select-start" });
   island.webContents.send("avo", { type: "guide", text: "Select A" });
@@ -250,9 +250,8 @@ ipcMain.on("select-box", (_e, { label, box }) => {
   openInput(regions.length > 1 ? "Tell AVO what to do with A → B" : "Tell AVO what to do with A");
 });
 
-function frontApp() {
+function bundleOf(asn) {
   try {
-    const asn = execFileSync("lsappinfo", ["front"], { encoding: "utf8" }).trim();
     const info = execFileSync("lsappinfo", ["info", "-only", "bundleid", asn], { encoding: "utf8" });
     return info.includes("=") ? info.split("=")[1].trim().replace(/"/g, "") : null;
   } catch {
@@ -260,12 +259,61 @@ function frontApp() {
   }
 }
 
+function frontApp() {
+  try {
+    return bundleOf(execFileSync("lsappinfo", ["front"], { encoding: "utf8" }).trim());
+  } catch {
+    return null;
+  }
+}
+
+// ---- the app the user is in ----
+// A task runs in the app the user was in before reaching for AVO. Asking what
+// is in front once the island opens is too late: clicking the island has
+// already brought the overlay to the front, and the agent's keys then went
+// nowhere (10/31: cmd+L pressed 19 times). So follow the front app as it
+// changes and remember the last one that isn't the overlay.
+
+let ownBundle = null;
+let userApp = null;
+let frontWatch = null;
+
+function watchFrontApp() {
+  if (!ownBundle) {
+    try {
+      ownBundle = bundleOf(execFileSync("lsappinfo", ["find", `pid=${process.pid}`], { encoding: "utf8" }).trim());
+    } catch {}
+  }
+  const front = frontApp();
+  if (front && front !== ownBundle) userApp = front;
+  frontWatch = spawn("lsappinfo", ["listen", "+becameFrontmost", "forever"]);
+  let pending = "";
+  frontWatch.stdout.on("data", (chunk) => {
+    const lines = (pending + chunk).split("\n");
+    pending = lines.pop();
+    for (const line of lines) {
+      const id = /"CFBundleIdentifier"="([^"]+)"/.exec(line)?.[1];
+      if (id && id !== ownBundle) userApp = id;
+    }
+  });
+  frontWatch.on("exit", () => {
+    frontWatch = null;
+    if (!quitting) setTimeout(watchFrontApp, 1000);
+  });
+}
+
+let quitting = false;
+app.on("will-quit", () => {
+  quitting = true;
+  frontWatch?.kill();
+});
+
 function openInput(placeholder) {
   if (task || clients.size) return;
   if (islandState !== "input") {
     if (!selecting) {
       if (islandState !== "idle") return;
-      returnTo = frontApp();
+      returnTo = userApp;
     }
     island.setFocusable(true);
     app.focus({ steal: true });
@@ -298,11 +346,11 @@ ipcMain.on("island-cancel", cancelInput);
 ipcMain.on("island-submit", (_e, { text }) => {
   if (task) return;
   const chosen = regions;
-  lastRun = { text, regions: chosen, app: returnTo };
+  const run = (lastRun = { text, regions: chosen, app: returnTo });
   if (selecting) endSelect(true); // keep the boxes, faint, while the agent works
   island.webContents.send("avo", { type: "status", text: "Starting…", busy: true });
   closeInput();
-  setTimeout(() => runTask(text, chosen), 400); // let the app below take focus first
+  setTimeout(() => runTask(run), 400); // let the app below take focus first
 });
 
 // Retry after AVO got stuck: the same task and boxes, with the same app in front.
@@ -310,7 +358,7 @@ function retry() {
   if (!lastRun || clients.size) return;
   island.webContents.send("avo", { type: "status", text: "Starting…", busy: true });
   if (lastRun.app) execFile("open", ["-b", lastRun.app]);
-  const go = () => setTimeout(() => runTask(lastRun.text, lastRun.regions), 400);
+  const go = () => setTimeout(() => runTask(lastRun), 400);
   if (task) task.once("exit", go);
   else go();
 }
@@ -324,15 +372,17 @@ function findUv() {
   return "uv";
 }
 
-// Run the agent on a typed task. Its events (status, confirm, done) come back
-// over the WebSocket like any other run; this only watches for a silent crash.
-function runTask(text, chosen = []) {
+// Run the agent on a typed task, in the app the user was in. Its events (status,
+// confirm, done) come back over the WebSocket like any other run; this only
+// watches for a silent crash.
+function runTask({ text, regions: chosen = [], app: workApp }) {
   fs.mkdirSync(path.join(ROOT, "runs"), { recursive: true });
   const log = fs.openSync(path.join(ROOT, "runs", "island.log"), "a");
-  fs.writeSync(log, `\n=== ${new Date().toISOString()} ${text}\n`);
+  fs.writeSync(log, `\n=== ${new Date().toISOString()} ${text}  (in ${workApp || "the front app"})\n`);
   let finished = false;
   const args = ["run", "scripts/run_task.py", text];
   for (const r of chosen) args.push("--region", `${r.label}=${r.box.map(Math.round).join(",")}`);
+  if (workApp) args.push("--app", workApp);
   task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log], env: { ...process.env, PYTHONUNBUFFERED: "1" } });
   task.sawDone = () => (finished = true);
   task.on("exit", (code) => {
@@ -472,6 +522,7 @@ function startServer() {
 
 app.dock?.hide(); // no Dock icon, not in Cmd-Tab
 app.whenReady().then(() => {
+  watchFrontApp();
   createPointer();
   createIsland();
   startServer();

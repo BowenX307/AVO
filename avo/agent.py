@@ -14,6 +14,7 @@ from openai import OpenAI
 
 from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
+from avo.effect import NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, EffectWatch, plain
 from avo.gate import ask_user, assess
 from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
@@ -138,6 +139,15 @@ def snap_clicks(driver: MacDriver, actions: list[dict]) -> list[dict]:
     return out
 
 
+def focus(bundle: str) -> None:
+    """Bring an app to the front, which gives it the keyboard."""
+    subprocess.run(["open", "-b", bundle])
+    time.sleep(0.3)
+
+
+KEY_KINDS = ("keypress", "type")
+
+
 def ask_model(client: OpenAI, overlay: Overlay, label: str, effort: str | None, **kwargs):
     """responses.create with a visible waiting line, so a slow reply doesn't look like a hang.
 
@@ -219,6 +229,7 @@ def run(
     human_guard: bool = True,
     human_resume: str = "manual",
     freshness: float | None = FRESH_THRESHOLD,
+    app: str | None = None,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -240,6 +251,10 @@ def run(
     freshness: before each pointer action, skip the rest of the batch if the
         screen around its target changed by more than this since the model
         looked (0-1, mean grey-level change); None turns the check off.
+    app: bundle id of the app to work in, e.g. com.google.Chrome. The island
+        passes the app the user was in: typing the task into the island brings
+        AVO's own overlay to the front, and keys pressed then go nowhere.
+        Default: the front app, unless that is the overlay.
     """
     if history not in ("full", "text"):
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
@@ -268,7 +283,7 @@ def run(
     print(f"overlay: {'connected' if overlay.active else 'not running (cd overlay && npm start)'}")
 
     def hold(reason: str) -> bool:
-        """Wait out a pause: the user took over ("human") or pressed Option-Space ("pause").
+        """Wait out a pause: the user took over ("human"), pressed Option-Space ("pause") or AVO got stuck ("stuck").
 
         True once resumed, False if the user stopped the task.
         """
@@ -300,15 +315,21 @@ def run(
     step = 0
     past: list[str] = []  # text history, used when history == "text"
     done: list[list[dict]] = []  # executed batches, for repeat detection
-    asked = corrected = skipped = 0
+    asked = corrected = skipped = stuck = 0
+    effect = EffectWatch()
     try:
+        ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}  # the overlay app: never the one to refocus
+        work_app = app or frontmost_app()
+        if work_app in ours:
+            work_app = None
+            print("warning: AVO's overlay is in front and no app to work in was given")
+        if work_app and frontmost_app() != work_app:
+            focus(work_app)
         guard.start()
         png = driver.screenshot()
         log.screenshot(0, png)
         if snap_to_controls:
             warm_up(*driver.to_screen(640, 400))  # Chrome builds its AX tree on first use
-        ours = {w["bundle"] for w in overlay_windows()}  # the overlay app: never the one to refocus
-        work_app = frontmost_app()
         selected = prepare(driver, regions) if regions else []
         if selected:
             log.settings["regions"] = {r.label: r.shot for r in selected}
@@ -365,8 +386,7 @@ def run(
                         with guard.acting(), guard.asking():
                             choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
                             if front:  # answering on the overlay may have focused it
-                                subprocess.run(["open", "-b", front])
-                                time.sleep(0.3)
+                                focus(front)
                         print(f"[{step}] user: {choice}" + (f" -> {describe(actions)}" if choice == "no" else ""))
                         entry["user"] = {"choice": choice, "answer": answer, "actions": actions}
                         if choice == "stop":
@@ -391,6 +411,9 @@ def run(
                 print(f"[{step}] executing {len(actions)} action(s)", flush=True)
                 try:
                     with guard.acting():
+                        if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:
+                            print(f"[{step}] the overlay had the keyboard; giving it back to {work_app}")
+                            focus(work_app)
                         driver.execute(actions, seen=png)
                     executed = actions
                 except Interrupted as e:
@@ -412,8 +435,7 @@ def run(
                     result = "stopped: user stopped the task"
                     break
                 if work_app and guard.overlay_in_front():  # clicking Resume can focus the overlay
-                    subprocess.run(["open", "-b", work_app])
-                    time.sleep(0.3)
+                    focus(work_app)
                 print(f"[{step}] resumed; re-planning")
                 log.annotate(step, paused="resumed", interrupt=stop, executed=len(executed))
                 notes.append(RESUME_NOTE)
@@ -428,12 +450,47 @@ def run(
 
             if (front := frontmost_app()) and front not in ours:
                 work_app = front  # refocus this after a question, not whatever the user clicked meanwhile
+            seen = png
             if changed and not stop:
                 png = changed.png  # the screen as it was when the click was called off
             else:
                 time.sleep(SETTLE_SECONDS)
                 png = driver.screenshot()
             log.screenshot(step, png)
+
+            # Did the batch do anything? Nothing changing on screen, again and
+            # again, means the agent is stuck: say so to the model the first
+            # time, and after STUCK_AFTER in a row stop and ask the user.
+            if stop or changed:
+                effect.reset()  # the user or the page moved things: count afresh
+            else:
+                verdict = effect.record(executed, seen, png)
+                log.annotate(step, changed_px=effect.last_px)
+                if verdict == "none":
+                    print(f"[{step}] nothing changed on screen")
+                    notes.append(NO_EFFECT_NOTE)
+                elif verdict == "stuck":
+                    stuck += 1
+                    what = plain(executed)
+                    print(f"[{step}] stuck: {what} changed nothing, {effect.streak} times in a row")
+                    log.annotate(step, stuck=what)
+                    if not overlay.active:
+                        result = f"stopped: stuck, {what} changed nothing on screen"
+                        break
+                    overlay.send("interrupt", text=f"Stuck — {what} changes nothing")
+                    with guard.asking():  # moving to Resume isn't "you moved"
+                        resumed = hold("stuck")
+                    if not resumed:
+                        result = "stopped: user stopped the task"
+                        break
+                    if work_app and guard.overlay_in_front():
+                        focus(work_app)
+                    print(f"[{step}] resumed after getting stuck; re-planning")
+                    effect.reset()
+                    notes.append(STUCK_NOTE.format(n=STUCK_AFTER))
+                    png = driver.screenshot()
+                    log.screenshot(step, png)
+
             line = f"{step}. {note + ' | ' if note else ''}{describe(executed) or '(nothing executed)'}"
             past.append("\n".join([line] + [f"   Note: {n}" for n in notes]))
             done.append(executed)
@@ -475,7 +532,7 @@ def run(
     finally:
         guard.stop()
         log.settings.update(
-            asked=asked, corrected=corrected, skipped_screen_changed=skipped,
+            asked=asked, corrected=corrected, skipped_screen_changed=skipped, stuck=stuck,
             interruptions=[i.to_log() for i in guard.interruptions],
         )
         log.summary(result, step, time.time() - started)

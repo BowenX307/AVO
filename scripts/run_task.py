@@ -69,6 +69,12 @@ def main() -> None:
         default=FRESH_THRESHOLD,
         help="how much the screen around a target may change (0-1) before a click is called off",
     )
+    parser.add_argument(
+        "--app",
+        metavar="BUNDLE_ID",
+        help="the app to work in, e.g. com.google.Chrome (the overlay passes the one you were in); "
+        "default: the front app",
+    )
     args = parser.parse_args()
     print("Agent is taking over the mouse. Move it to pause; fling it into a screen corner to abort.")
     run(
@@ -83,6 +89,7 @@ def main() -> None:
         human_guard=not args.no_human_guard,
         human_resume=args.human_resume,
         freshness=None if args.no_freshness else args.fresh_threshold,
+        app=args.app,
     )
 
 

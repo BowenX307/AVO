@@ -211,7 +211,8 @@ class HumanGuard:
             return
         self._running = True
         self._overlay_apps = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
-        self._expected_app = frontmost_app()
+        self._expected_app = None
+        self._note_front()
         if self._use_tap:
             if Quartz.CGPreflightListenEventAccess():
                 threading.Thread(target=self._tap_thread, name="avo-tap", daemon=True).start()
