@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AVO — when your agent isn’t sure, it points back</title>
+    <meta name="description" content="Point at anything on your screen. When AVO isn't sure, it points back. A layer between you and your computer-use agent, built for the Meta Global AI Developer Hackathon 2026." />
+    <meta name="theme-color" content="#F5F5F2" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="brand/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+    <script>
+      // Play the opening once per visit, and never with "reduce motion" on.
+      // The failsafe drops it if the scripts below never run.
+      (function () {
+        var seen = null;
+        try { seen = sessionStorage.getItem("avo-intro"); } catch (e) {}
+        var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!seen && !reduce) {
+          document.documentElement.classList.add("intro");
+          window.__avoIntroFailsafe = setTimeout(function () { document.documentElement.classList.remove("intro"); }, 6000);
+        }
+      })();
+    </script>
+    <script src="brand/logo-animated.js" defer></script>
+    <script src="assets/site.js" defer></script>
+  </head>
+  <body>
+    <div id="intro" aria-hidden="true"></div>
+    <div id="intro-logo" aria-hidden="true">
+      <svg viewBox="0 0 340 100" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="miter" stroke-linecap="square"><path class="avo-a" d="M10 90 L50 10 L90 90" /><path class="avo-v" d="M126 10 L166 90 L206 10" /><path class="avo-o" d="M261.01 21.01 A41 41 0 1 1 318.99 78.99 A41 41 0 1 1 261.01 21.01 Z" /></svg>
+    </div>
+
+    <header class="nav">
+      <div class="wrap">
+        <a class="brand" href="./" aria-label="AVO home">
+          <svg viewBox="0 0 340 100" fill="none" stroke="currentColor" stroke-width="13" stroke-linejoin="miter" stroke-linecap="square" aria-hidden="true"><path d="M10 90 L50 10 L90 90" /><path d="M126 10 L166 90 L206 10" /><path d="M261.01 21.01 A41 41 0 1 1 318.99 78.99 A41 41 0 1 1 261.01 21.01 Z" /></svg>
+          <span>AVO</span>
+        </a>
+        <nav>
+          <a class="wide" href="#how">How it works</a>
+          <a href="docs.html">Docs</a>
+          <a href="https://github.com/BowenX307/AVO">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- ① Hero -->
+      <section class="hero">
+        <div class="wrap">
+          <h1><span class="dim">Agents ask for permission.</span> AVO asks for understanding.</h1>
+          <div class="row">
+            <p class="lede">Point at anything on your screen. When AVO isn’t sure, it points back.</p>
+            <div class="ctas">
+              <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
+              <a class="btn line" href="docs.html#install">Download for macOS</a>
+              <a class="btn line" href="https://github.com/BowenX307/AVO">GitHub</a>
+            </div>
+          </div>
+          <!-- When the clip is in, replace the placeholder with:
+               <video autoplay muted loop playsinline preload="metadata" poster="media/ask.jpg">
+                 <source src="media/ask.webm" type="video/webm"><source src="media/ask.mp4" type="video/mp4"></video> -->
+          <figure class="media" id="demo" style="margin: 64px 0 0">
+            <i class="corners"></i>
+            <div class="ph dark" role="img" aria-label="Placeholder for a screen recording">
+              <b>Clip needed · 5–10 s loop</b>
+              <span>Recorded in capture mode: AVO rings Alex Chen and Alex Rivera and asks “Which Alex did you mean?”</span>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ② The problem -->
+      <section>
+        <div class="wrap split">
+          <figure class="media" style="margin: 0">
+            <i class="corners"></i>
+            <div class="ph" role="img" aria-label="Placeholder for a screen recording">
+              <b>Clip needed · 5–10 s loop</b>
+              <span>A plain agent (AVO off) assigns the card to the wrong Alex, then reports Done ✓</span>
+            </div>
+          </figure>
+          <div>
+            <div class="done-tag">Agent: <s>Done ✓</s></div>
+            <p class="quote" data-reveal>No permission prompt fired. Assigning a card isn’t “sensitive.” It was just wrong.</p>
+            <p>Most agent mistakes aren’t dangerous — they’re misunderstandings.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ③ Two moments -->
+      <section>
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Two moments</span>
+            <h2 data-reveal>You point. It points back.</h2>
+          </div>
+          <div class="pair">
+            <div class="moment">
+              <figure class="media" style="margin: 0">
+                <i class="corners"></i>
+                <div class="ph" role="img" aria-label="Placeholder for a screen recording">
+                  <b>Clip needed · 5–10 s loop</b>
+                  <span>Drag A over the meeting note, B over the card, type one line</span>
+                </div>
+              </figure>
+              <h3><span class="mono">01</span>You point.</h3>
+              <p>Box what the task is about — A, and B if something goes somewhere — and say it in one line. No describing where things are.</p>
+            </div>
+            <div class="moment">
+              <figure class="media" style="margin: 0">
+                <i class="corners"></i>
+                <div class="ph" role="img" aria-label="Placeholder for a screen recording">
+                  <b>Clip needed · 5–10 s loop</b>
+                  <span>The two Alexes ringed on screen; you pick one; AVO carries on</span>
+                </div>
+              </figure>
+              <h3><span class="mono">02</span>It points back.</h3>
+              <p>When AVO isn’t sure, it rings the candidates on your screen and asks. One click, and it carries on.</p>
+            </div>
+          </div>
+          <p class="thesis" data-reveal><span class="dim">People at a shared screen don’t describe things — they point.</span> AVO lets you and your agent point both ways.</p>
+        </div>
+      </section>
+
+      <!-- ④ How it works -->
+      <section id="how">
+        <div class="wrap">
+          <div class="head">
+            <span class="label">How it works</span>
+            <h2 data-reveal>A confidence check before every click.</h2>
+            <p class="lede">Computer-use models don’t say how sure they are. AVO checks each click before it happens, and only asks you when it should.</p>
+          </div>
+          <figure class="diagram" style="margin-left: 0; margin-right: 0" aria-label="You point; Muse Wonder plans; Muse Spark proposes each action; a confidence check (model review, SAM 3.1 target clarity, repeat check) decides: if sure, AVO acts; if unsure, it points back and your click goes back in.">
+            <svg class="h" viewBox="0 0 1160 310" role="img" aria-hidden="true">
+              <defs><marker id="tip" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
+              <rect class="box" x="0.5" y="78" width="180" height="84" rx="10" />
+              <text class="t" x="18" y="112">You point</text><text class="s" x="18" y="136">box A and B, one line</text>
+              <path class="wire" d="M181 120 H233" marker-end="url(#tip)" />
+              <rect class="box" x="235" y="78" width="180" height="84" rx="10" />
+              <text class="t" x="253" y="112">Muse Wonder</text><text class="s" x="253" y="136">plans the steps</text>
+              <path class="wire" d="M415 120 H468" marker-end="url(#tip)" />
+              <rect class="box" x="470" y="78" width="180" height="84" rx="10" />
+              <text class="t" x="488" y="112">Muse Spark</text><text class="s" x="488" y="136">proposes each action</text>
+              <path class="wire" d="M650 120 H703" marker-end="url(#tip)" />
+              <rect class="box" x="705" y="54" width="210" height="132" rx="10" />
+              <text class="t" x="723" y="86">Confidence check</text>
+              <text class="s" x="723" y="112">model review</text><text class="s" x="723" y="134">SAM 3.1 target clarity</text><text class="s" x="723" y="156">repeat check</text>
+              <path class="wire" d="M915 120 H945 V62 H973 M945 120 V178 H973" />
+              <path class="wire" d="M965 62 H973" marker-end="url(#tip)" /><path class="wire" d="M965 178 H973" marker-end="url(#tip)" />
+              <rect class="box fill" x="975" y="30" width="184.5" height="64" rx="10" />
+              <text class="t inv" x="993" y="58">Sure</text><text class="s inv" x="993" y="80">it acts</text>
+              <rect class="box" x="975" y="146" width="184.5" height="64" rx="32" />
+              <text class="t" x="1001" y="174">Unsure</text><text class="s" x="1001" y="196">it points back</text>
+              <path class="wire dash" d="M1067 210 V266 H560 V164" marker-end="url(#tip)" />
+              <text class="s" x="813" y="292" text-anchor="middle">your click goes back in</text>
+            </svg>
+            <svg class="v" viewBox="0 0 340 600" role="img" aria-hidden="true">
+              <defs><marker id="tipv" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
+              <rect class="box" x="20.5" y="0.5" width="299" height="70" rx="10" />
+              <text class="t" x="38" y="30">You point</text><text class="s" x="38" y="52">box A and B, one line</text>
+              <path class="wire" d="M170 71 V98" marker-end="url(#tipv)" />
+              <rect class="box" x="20.5" y="100" width="299" height="70" rx="10" />
+              <text class="t" x="38" y="130">Muse Wonder</text><text class="s" x="38" y="152">plans the steps</text>
+              <path class="wire" d="M170 170 V198" marker-end="url(#tipv)" />
+              <rect class="box" x="20.5" y="200" width="299" height="70" rx="10" />
+              <text class="t" x="38" y="230">Muse Spark</text><text class="s" x="38" y="252">proposes each action</text>
+              <path class="wire" d="M170 270 V298" marker-end="url(#tipv)" />
+              <rect class="box" x="20.5" y="300" width="299" height="112" rx="10" />
+              <text class="t" x="38" y="330">Confidence check</text>
+              <text class="s" x="38" y="354">model review</text><text class="s" x="38" y="374">SAM 3.1 target clarity</text><text class="s" x="38" y="394">repeat check</text>
+              <path class="wire" d="M170 412 V430 H90 V448 M170 430 H250 V448" />
+              <rect class="box fill" x="10.5" y="450" width="150" height="64" rx="10" />
+              <text class="t inv" x="26" y="478">Sure</text><text class="s inv" x="26" y="500">it acts</text>
+              <rect class="box" x="179.5" y="450" width="150" height="64" rx="32" />
+              <text class="t" x="200" y="478">Unsure</text><text class="s" x="200" y="500">points back</text>
+              <path class="wire dash" d="M255 514 V548 H336 V235 H322" marker-end="url(#tipv)" />
+              <text class="s" x="170" y="580" text-anchor="middle">your click goes back in</text>
+            </svg>
+          </figure>
+          <div class="models">
+            <div><b>Muse Wonder</b><span>plans the task</span></div>
+            <div><b>Muse Spark</b><span>acts, and checks each click</span></div>
+            <div><b>SAM 3.1</b><span>finds and rings the target</span></div>
+          </div>
+          <p class="claim" data-reveal>AVO isn’t another agent. It’s the layer between you and any agent.</p>
+        </div>
+      </section>
+
+      <!-- ⑤ Evidence: real measurements only -->
+      <section>
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Evidence</span>
+            <h2 data-reveal>Does pointing back help?</h2>
+            <p class="lede">The same tasks with AVO on and off: how often a person had to step in, against how often the task succeeded.</p>
+          </div>
+          <div class="evidence-grid">
+            <div class="ph" role="img" aria-label="Placeholder for a chart">
+              <b>Results coming soon</b>
+              <span>Chart: human intervention rate vs. task success, AVO on vs. off</span>
+            </div>
+            <div class="stats">
+              <div class="stat"><b>—</b><span>Task success with AVO</span></div>
+              <div class="stat"><b>—</b><span>Task success without AVO</span></div>
+              <div class="stat"><b>—</b><span>Steps where AVO asked</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑥ Privacy and safety -->
+      <section>
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Privacy &amp; safety</span>
+            <h2 data-reveal>Your screen, your call.</h2>
+          </div>
+          <div class="three">
+            <div><span class="mono">01 · Data</span><p>Screenshots go to the Meta Model API. AVO calls Muse in Standard mode, where your content isn’t used to train Meta’s models.</p></div>
+            <div><span class="mono">02 · Safety checks</span><p>Any safety warning from the model waits for your OK. The routine check Meta attaches to every action is acknowledged for you — turn that off with <code>--confirm</code>.</p></div>
+            <div><span class="mono">03 · Control</span><p>Pause or stop any time. Touch the mouse or keyboard and AVO pauses; fling the pointer into a screen corner to stop it at once.</p></div>
+          </div>
+          <p style="margin-top: 36px"><a href="docs.html#privacy" class="muted">More in the docs →</a></p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>Built solo for the Meta Global AI Developer Hackathon 2026 · by Bowen</span>
+        <nav>
+          <a href="https://github.com/BowenX307/AVO">GitHub</a>
+          <a href="https://github.com/BowenX307/AVO/blob/main/LICENSE">License</a>
+          <a href="docs.html">Docs</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

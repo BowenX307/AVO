@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AVO docs — install and use</title>
+    <meta name="description" content="Install AVO on macOS, grant its permissions, and use it: box what the task is about, type one line, answer when AVO points back." />
+    <meta name="theme-color" content="#F5F5F2" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="brand/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+    <script src="brand/logo-animated.js" defer></script>
+    <script src="assets/site.js" defer></script>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap">
+        <a class="brand" href="./" aria-label="AVO home">
+          <svg viewBox="0 0 340 100" fill="none" stroke="currentColor" stroke-width="13" stroke-linejoin="miter" stroke-linecap="square" aria-hidden="true"><path d="M10 90 L50 10 L90 90" /><path d="M126 10 L166 90 L206 10" /><path d="M261.01 21.01 A41 41 0 1 1 318.99 78.99 A41 41 0 1 1 261.01 21.01 Z" /></svg>
+          <span>AVO</span>
+        </a>
+        <nav>
+          <a class="wide" href="./#how">How it works</a>
+          <a href="docs.html" aria-current="page">Docs</a>
+          <a href="https://github.com/BowenX307/AVO">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="wrap docs">
+      <aside class="toc" aria-label="On this page">
+        <b>Docs</b>
+        <a href="#requirements">Requirements</a>
+        <a href="#install">Install</a>
+        <a href="#first-run">First run</a>
+        <a href="#use">How to use</a>
+        <a href="#shortcuts">Keyboard shortcuts</a>
+        <a href="#modes">Modes</a>
+        <a href="#privacy">Privacy &amp; safety</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#cost">Cost</a>
+      </aside>
+
+      <article class="doc">
+        <h1>Using AVO</h1>
+        <p class="lede">Box what the task is about, say it in one line, and answer when AVO points back. This page covers everything from install to the first task.</p>
+
+        <section id="requirements">
+          <h2><span class="mono">01</span>Requirements</h2>
+          <ul>
+            <li><b>macOS 15 (Sequoia)</b> on Apple silicon. That’s what AVO is built and tested on (15.5); older versions are untested.</li>
+            <li><b>A Meta Model API key</b> from <a href="https://dev.meta.ai/">dev.meta.ai</a>.</li>
+            <li><b>Python 3.11+</b> with <a href="https://docs.astral.sh/uv/">uv</a>, and <b>Node.js</b> (tested with 24) for the on-screen overlay.</li>
+            <li>Three macOS permissions, for the app you start AVO from (Terminal, iTerm, VS Code…):
+              <ul>
+                <li><b>Screen Recording</b> — to see the screen.</li>
+                <li><b>Accessibility</b> — to click and type, and to read buttons and fields so a near-miss click can snap onto them.</li>
+                <li><b>Input Monitoring</b> — to notice when you take over the mouse or keyboard, and pause.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section id="install">
+          <h2><span class="mono">02</span>Install</h2>
+          <div class="note"><b>Download for macOS</b>A packaged app (DMG) isn’t available yet — for now, AVO runs from source. When the DMG ships unsigned, the first open needs right-click → Open, then Open again in the dialog.</div>
+          <h3>From source</h3>
+<pre><code>git clone https://github.com/BowenX307/AVO.git
+cd AVO
+uv sync                         <span class="c"># Python side: the agent</span>
+cp .env.example .env            <span class="c"># then put your key after MODEL_API_KEY=</span>
+cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay (Electron)</span></code></pre>
+          <p>The key can also live in the <code>MODEL_API_KEY</code> environment variable. <code>.env</code> is git-ignored; never commit your key.</p>
+        </section>
+
+        <section id="first-run">
+          <h2><span class="mono">03</span>First run</h2>
+          <ol>
+            <li><b>Grant the permissions.</b> System Settings → Privacy &amp; Security → Screen Recording, Accessibility and Input Monitoring: add the terminal app you’ll start AVO from, then quit and reopen it.</li>
+            <li><b>Check the key.</b>
+<pre><code>uv run scripts/smoke_api.py     <span class="c"># expects: AVO smoke test OK</span></code></pre></li>
+            <li><b>Start the overlay.</b> A small black capsule appears at the top of the screen and draws the AVO logo.
+<pre><code>cd overlay &amp;&amp; npm start</code></pre></li>
+            <li><b>Run a test task.</b> Open Chrome, click the capsule at the top of the screen, type <i>In the open Chrome window, go to example.com</i> and press <kbd>Return</kbd>. Or from the terminal:
+<pre><code>uv run scripts/run_task.py "In the open Chrome window, go to example.com"</code></pre></li>
+          </ol>
+          <p>The demo pages in <code>demo/</code> (a project board, an expense form) use made-up data and are safe to practise on.</p>
+        </section>
+
+        <section id="use">
+          <h2><span class="mono">04</span>How to use</h2>
+          <ol class="steps">
+            <li>
+              <div><h3>Summon</h3><p>Press <kbd>⌥</kbd> <kbd>Space</kbd>. The screen dims slightly and the capsule says <i>Select A</i>. (To type a task without boxing anything, click the capsule instead.)</p></div>
+              <div class="ph" role="img" aria-label="Placeholder for a screenshot"><b>Screenshot needed</b><span>The capsule reading “Select A” over a dimmed screen</span></div>
+            </li>
+            <li>
+              <div><h3>Box A</h3><p>Drag over what the task is about — a line of notes, a receipt. Four corners mark it, labelled <code>A</code>.</p></div>
+              <div class="ph" role="img" aria-label="Placeholder for a screen recording"><b>Clip needed · 3–5 s</b><span>Dragging A over the meeting note</span></div>
+            </li>
+            <li>
+              <div><h3>Box B (optional)</h3><p>If something goes somewhere, drag over the destination too. Dragging a third time redoes B.</p></div>
+              <div class="ph" role="img" aria-label="Placeholder for a screen recording"><b>Clip needed · 3–5 s</b><span>Dragging B over the board card</span></div>
+            </li>
+            <li>
+              <div><h3>Say it</h3><p>A field opens under your last box: <i>Tell AVO what to do with A → B</i>. Type one line and press <kbd>Return</kbd>. AVO works on its own; the capsule shows each step.</p></div>
+              <div class="ph" role="img" aria-label="Placeholder for a screenshot"><b>Screenshot needed</b><span>The input under box B, with a typed instruction</span></div>
+            </li>
+            <li>
+              <div><h3>Answer when it points back</h3><p>When AVO isn’t sure, it rings the target — or every candidate — and the capsule opens into a question. Click a ring, press its number, or click the right spot yourself.</p></div>
+              <div class="ph" role="img" aria-label="Placeholder for a screen recording"><b>Clip needed · 5–10 s</b><span>“Which Alex did you mean?” — picking Alex Rivera; then a near-miss on the expense form corrected with one click</span></div>
+            </li>
+          </ol>
+        </section>
+
+        <section id="shortcuts">
+          <h2><span class="mono">05</span>Keyboard shortcuts</h2>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td><kbd>⌥</kbd> <kbd>Space</kbd></td><td>Idle: start boxing A. While AVO works: pause, or resume. While it asks: withdraw the question and pause.</td></tr>
+                <tr><td><kbd>Return</kbd></td><td>Send the task you typed.</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Cancel boxing or typing.</td></tr>
+                <tr><td><kbd>1</kbd> – <kbd>9</kbd></td><td>While AVO asks “Which one did you mean?”: pick that candidate.</td></tr>
+                <tr><td>Any mouse or key</td><td>Touching them mid-task pauses AVO (<i>You moved — paused</i>); then Resume or Stop.</td></tr>
+                <tr><td>Pointer to a corner</td><td>Fling the pointer into any screen corner: emergency stop.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="modes">
+          <h2><span class="mono">06</span>Modes</h2>
+          <table>
+            <thead><tr><th>Mode</th><th>What it means</th></tr></thead>
+            <tbody>
+              <tr><td><b>Flash</b></td><td>Look, act, look again: Muse Spark decides each step from the latest screenshot, and every click goes through the confidence check. This is how AVO runs today.</td></tr>
+              <tr><td><b>Think</b></td><td>Plan first with Muse Wonder, then run the plan step by step, checking each one. <i>In progress — not in this build yet.</i></td></tr>
+              <tr><td><b>Auto</b></td><td>Picks Think for long or sweeping tasks and Flash for the rest. <i>In progress — not in this build yet.</i></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="privacy">
+          <h2><span class="mono">07</span>Privacy &amp; safety</h2>
+          <h3>What leaves your Mac</h3>
+          <ul>
+            <li>Screenshots of your screen (without AVO’s own overlay), your typed task and the boxes you drew go to the Meta Model API (<code>api.meta.ai</code>) — nowhere else.</li>
+            <li>AVO calls <code>muse-spark-1.3</code> in Standard mode. Meta’s docs say Standard-mode content <a href="https://dev.meta.ai/docs/pricing-rate-limits">isn’t used to train Meta models</a>. Targets are found with <code>sam-3.1</code>, which Meta’s docs don’t place in either mode.</li>
+            <li>Turn on Do Not Disturb before a task: a notification that pops up gets into the screenshots.</li>
+          </ul>
+          <h3>What stays on your Mac</h3>
+          <ul>
+            <li>Each run is logged to <code>runs/&lt;time&gt;/</code>: the screenshots, the model’s steps and your answers. Delete the folder any time.</li>
+            <li>Your API key, in <code>.env</code> or the environment.</li>
+          </ul>
+          <h3>Safety checks</h3>
+          <p>The model can attach safety checks to an action. Meta attaches a routine one, <code>computer_action_requires_confirmation</code>, to every action; AVO acknowledges that one for you (run with <code>--confirm</code> to approve each yourself). Any other check — for example <code>malicious_instructions</code> — stops and waits for your answer.</p>
+          <h3>Staying in control</h3>
+          <ul>
+            <li>Before an uncertain click, AVO shows you the target and asks.</li>
+            <li>Touch the mouse or keyboard and AVO pauses within a fraction of a second. It doesn’t click while paused, and after Resume it looks at the screen again before acting.</li>
+            <li>Before each click it compares the target area with what the model saw; if it changed, the click is skipped and the model decides again.</li>
+            <li><kbd>⌥</kbd> <kbd>Space</kbd> pauses, Stop ends the task, and the pointer in a screen corner stops it at once.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshooting">
+          <h2><span class="mono">08</span>Troubleshooting</h2>
+          <h3>A permission doesn’t take effect</h3>
+          <p>macOS grants permissions to the app that starts AVO — your terminal, not Python. Add that app in each of the three lists, then quit and reopen it. Without Input Monitoring AVO still runs, but only notices you switching apps, not touching the mouse.</p>
+          <h3>Clicks land a little off</h3>
+          <p>AVO already snaps a near-miss onto the closest button or field within 36 points, and asks when two are equally close. Keep the page at 100% zoom, don’t move or resize the window mid-task, and when it asks, click the right spot — it uses your point.</p>
+          <h3>API errors</h3>
+          <ul>
+            <li><i>MODEL_API_KEY is not set</i>: put the key in <code>.env</code> or export it in the shell that starts AVO.</li>
+            <li>401 / 403: the key is wrong or revoked — make a new one at dev.meta.ai and run <code>scripts/smoke_api.py</code>.</li>
+            <li>A step that hangs: a model call can occasionally take much longer than usual. Press Stop and run the task again.</li>
+          </ul>
+          <h3>The overlay doesn’t appear</h3>
+          <p>Another program may hold its port (8765). Start the overlay with <code>AVO_OVERLAY_PORT=8766 npm start</code> and set the same variable for the agent.</p>
+        </section>
+
+        <section id="cost">
+          <h2><span class="mono">09</span>Cost</h2>
+          <p>AVO pays per call on your Meta Model API account. Standard-mode prices, from <a href="https://dev.meta.ai/docs/pricing-rate-limits">Meta’s pricing page</a> (checked October 30, 2026):</p>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Model</th><th>Used for</th><th>Price</th></tr></thead>
+              <tbody>
+                <tr><td><code>muse-spark-1.3</code></td><td>acting, checking clicks</td><td>$1.25 / M input tokens · $0.15 cached · $4.25 / M output</td></tr>
+                <tr><td><code>muse-wonder-1.0</code></td><td>planning (Think mode)</td><td>$4.00 / M input tokens · $0.20 cached · $20.00 / M output</td></tr>
+                <tr><td><code>sam-3.1</code></td><td>finding targets</td><td>$2.50 per 1,000 images</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note"><b>Coming soon</b>Measured cost per task, from each run’s <code>summary.json</code> (calls, tokens and time per model).</div>
+        </section>
+      </article>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <span>Built solo for the Meta Global AI Developer Hackathon 2026 · by Bowen</span>
+        <nav>
+          <a href="https://github.com/BowenX307/AVO">GitHub</a>
+          <a href="https://github.com/BowenX307/AVO/blob/main/LICENSE">License</a>
+          <a href="./">Home</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
