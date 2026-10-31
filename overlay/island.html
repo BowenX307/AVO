@@ -194,6 +194,8 @@
       .row .stop:hover { color: var(--avo-paper); }
       .row .no, .row .yes { min-width: 64px; }
       body.picking .row .no, body.picking .row .yes, body.correcting .row .no, body.correcting .row .yes { display: none; }
+      body.safety .row .no { display: none; }
+      body.safety .row .yes { min-width: 84px; }
 
       /* Reduce motion: nothing sweeps, breathes or draws; states fade. */
       @media (prefers-reduced-motion: reduce) {
@@ -330,6 +332,8 @@
 
       function showCard(m) {
         body.classList.remove("correcting");
+        if (m.kind === "safety") return showSafety(m);
+        $(".row .yes").textContent = "Yes";
         const picking = !!m.candidates;
         $(".choices").replaceChildren(
           ...(m.candidates || []).map((c, i) => {
@@ -348,6 +352,20 @@
         if (m.loupe) $(".loupe").src = m.loupe;
         else $(".loupe").removeAttribute("src");
         setState("ask", "", { cls: picking ? "picking" : "" });
+      }
+
+      // A safety check Meta raised on the next step (not the routine one, which
+      // is pre-approved): what AVO is about to do, Meta's message, Continue / Stop.
+      function showSafety(m) {
+        $(".choices").replaceChildren();
+        $(".q").textContent = "Meta flagged this step";
+        $(".intent").textContent = m.intent || "";
+        $(".under").textContent = "";
+        $(".reason").textContent = m.reason || "";
+        $(".note").textContent = "Continue lets AVO go ahead. Stop ends the task.";
+        $(".loupe").removeAttribute("src");
+        $(".row .yes").textContent = "Continue";
+        setState("ask", "", { cls: "safety" });
       }
 
       window.avo.onEvent((m) => {

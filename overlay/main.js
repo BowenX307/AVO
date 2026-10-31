@@ -92,7 +92,7 @@ function islandBounds(state, width, height = ISLAND_H) {
     x = clamp((l + r) / 2 - width / 2, wa.x + 12, wa.x + wa.width - width - 12);
     y = b + ISLAND_GAP;
     if (y + height > wa.y + wa.height - 8) y = Math.max(wa.y + 8, t - ISLAND_GAP - height); // flip above
-  } else if (state === "ask" && pendingAsk) {
+  } else if (state === "ask" && pendingAsk?.rect) {
     // The card opens at the top. If that would cover what it asks about, it
     // slides along the top to clear it, and failing that sits next to the
     // target, as the old bubble did.
@@ -478,6 +478,13 @@ function route(msg) {
       island.webContents.send("avo", msg);
       break;
     case "confirm": {
+      if (msg.kind === "safety") {
+        // A safety check Meta raised: a card on the island only, no target to
+        // ring or correct, so the screen stays click-through.
+        pendingAsk = { id: msg.id, rect: null };
+        island.webContents.send("avo", msg);
+        return;
+      }
       // The card keeps clear of the target, or of all the candidates.
       const boxes = msg.candidates ? msg.candidates.map((c) => c.box) : [msg.box || [msg.x - 28, msg.y - 18, msg.x + 28, msg.y + 18]];
       const [l, t, r, b] = [0, 1, 2, 3].map((i) => (i < 2 ? Math.min : Math.max)(...boxes.map((x) => x[i])));

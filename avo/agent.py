@@ -47,16 +47,32 @@ result is on screen. Don't scroll back and forth to re-check what you have alrea
 ROUTINE_CHECKS = {"computer_action_requires_confirmation"}
 
 
-def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool) -> bool:
-    """Acknowledge routine checks if auto_ack; ask the human about everything else."""
+def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool, overlay: Overlay, note: str = "") -> str:
+    """Acknowledge routine checks if auto_ack; ask the human about everything else.
+
+    Asks on the overlay's island when it runs (a task started from the island
+    has no terminal to answer in), else in the terminal. Returns "yes",
+    "no", or "pause" (the user paused instead of answering).
+    """
     unusual = [c for c in checks if not (auto_ack and c.get("code") in ROUTINE_CHECKS)]
     if not unusual:
         print(f"[{step}] auto-acknowledged: {', '.join(c.get('code') for c in checks)}")
-        return True
+        return "yes"
 
     print("\n!! The model raised safety checks before this action:")
     for c in unusual:
         print(f"   [{c.get('code')}] {c.get('message')}  (id={str(c.get('id'))[:16]}...)")
+    if overlay.active:
+        overlay.send("status", text="AVO needs your OK — see the card", busy=False)
+        answer = overlay.ask(
+            kind="safety",
+            intent=note,
+            reason=" ".join(c.get("message") or c.get("code") or "" for c in unusual),
+            codes=[c.get("code") for c in unusual],
+        )
+        choice = (answer or {}).get("choice")  # None: the overlay went away, so nobody approved
+        print(f"[{step}] user: {choice}")
+        return choice if choice in ("yes", "pause") else "no"
     # Answering in the terminal focuses it; hand focus back afterwards so the
     # agent's keystrokes don't land in the terminal.
     front = frontmost_app()
@@ -70,9 +86,9 @@ def approve_safety_checks(step: int, checks: list[dict], auto_ack: bool) -> bool
                 answer = input("Acknowledge and continue? [y/n]: ").strip().lower()
             except EOFError:  # no interactive terminal: treat as declined
                 print("(no input available; declining)")
-                return False
+                return "no"
             if answer in ("y", "n"):
-                return answer == "y"
+                return "yes" if answer == "y" else "no"
     finally:
         if front:
             subprocess.run(["open", "-b", front])
@@ -311,6 +327,14 @@ def run(
         guard.resume()
         return ok
 
+    ours: set[str] = set()  # the overlay app's bundle id: never the one to work in
+    work_app: str | None = None
+
+    def refocus() -> None:
+        """Clicking the island (Resume, an answer) brings the overlay to the front: hand the keyboard back."""
+        if work_app and frontmost_app() in ours:
+            focus(work_app)
+
     result = "stopped: step budget reached"
     step = 0
     past: list[str] = []  # text history, used when history == "text"
@@ -318,7 +342,7 @@ def run(
     asked = corrected = skipped = stuck = 0
     effect = EffectWatch()
     try:
-        ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}  # the overlay app: never the one to refocus
+        ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
         work_app = app or frontmost_app()
         if work_app in ours:
             work_app = None
@@ -359,9 +383,16 @@ def run(
                     overlay.send("status", text=note, busy=False, step=step)  # the island shows "Step N · note"
             print(f"[{step}] actions: {json.dumps(actions, ensure_ascii=False)}")
 
-            if checks and not approve_safety_checks(step, checks, auto_ack):
-                result = "stopped: safety check declined by user"
-                break
+            held = None  # "pause" if the user paused instead of answering a safety check
+            if checks:
+                with guard.acting(), guard.asking():
+                    verdict = approve_safety_checks(step, checks, auto_ack, overlay, note)
+                    refocus()  # answering on the island brings the overlay to the front
+                if verdict == "no":
+                    result = "stopped: safety check declined by user"
+                    break
+                if verdict == "pause":
+                    held = "pause"
 
             if snap_to_controls:
                 actions = snap_clicks(driver, actions)
@@ -370,7 +401,7 @@ def run(
                     print(f"[{step}] snapped: " + ", ".join(f"{s['from']}->{s['to']} {s['label'] or s['role']}" for s in snapped))
                     log.annotate(step, snapped=snapped)
 
-            stop = interrupted()
+            stop = held or interrupted()
             if gate and not stop:
                 overlay.send("status", text="Checking this step…", busy=True)
                 a = assess(client, task, past, done, png, actions, note, driver.geometry.shot_size)
@@ -434,8 +465,7 @@ def run(
                     log.annotate(step, paused="stopped", executed=len(executed))
                     result = "stopped: user stopped the task"
                     break
-                if work_app and guard.overlay_in_front():  # clicking Resume can focus the overlay
-                    focus(work_app)
+                refocus()
                 print(f"[{step}] resumed; re-planning")
                 log.annotate(step, paused="resumed", interrupt=stop, executed=len(executed))
                 notes.append(RESUME_NOTE)
@@ -483,8 +513,7 @@ def run(
                     if not resumed:
                         result = "stopped: user stopped the task"
                         break
-                    if work_app and guard.overlay_in_front():
-                        focus(work_app)
+                    refocus()
                     print(f"[{step}] resumed after getting stuck; re-planning")
                     effect.reset()
                     notes.append(STUCK_NOTE.format(n=STUCK_AFTER))
