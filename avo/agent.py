@@ -37,6 +37,11 @@ not earlier screenshots. So when the screen shows something the task needs (a ti
 a requirement), write it down in your message right away: that message is your only memory of it.
 - Stop as soon as the task is done. For a search or "find / show me" task, that is when the \
 result is on screen. Don't scroll back and forth to re-check what you have already written down.
+- Put actions you can predict in one turn, since each turn costs seconds: to open a page, press \
+cmd+L, type the address and press Enter together; to fill a form, click and type into every \
+field you can already see in the same turn. End a turn only when the next action depends on \
+something you can't see yet (a page loading, a menu's options). After each turn AVO waits \
+until the screen stops changing, so don't end a turn with wait.
 - Always write in English, even when the task is in another language."""
 
 

@@ -405,10 +405,16 @@ class MacDriver:
         # Paste rather than type keystrokes: keystrokes go through the active
         # input method (e.g. Pinyin swallows "example.com"), and key codes
         # can't type non-ASCII at all. Restores the user's clipboard text after.
+        # A newline is pressed as Enter: pasted into a one-line field such as
+        # the address bar it is dropped, so "example.com\n" never loaded.
         saved = subprocess.run(["pbpaste"], capture_output=True).stdout
-        subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
-        chord(["command", "v"])
-        time.sleep(0.2)  # let the target app read the clipboard before restoring
+        for i, line in enumerate(text.replace("\r\n", "\n").split("\n")):
+            if i:
+                chord(["enter"])
+            if line:
+                subprocess.run(["pbcopy"], input=line.encode("utf-8"), check=True)
+                chord(["command", "v"])
+                time.sleep(0.2)  # let the target app read the clipboard before it changes again
         subprocess.run(["pbcopy"], input=saved, check=True)
 
 
