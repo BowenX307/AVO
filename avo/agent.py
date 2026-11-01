@@ -18,7 +18,7 @@ from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.effect import NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, EffectWatch, plain
 from avo.gate import ask_user, assess
-from avo.helper import screen_text
+from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, data_url, describe, make_client
 from avo.meter import Meter
@@ -47,6 +47,8 @@ cmd+L, type the address and press Enter together; to fill a form, click and type
 field you can already see in the same turn. End a turn only when the next action depends on \
 something you can't see yet (a page loading, a menu's options). After each turn AVO waits \
 until the screen stops changing, so don't end a turn with wait.
+- Don't open or read the user's email, messages, files or other personal things unless the \
+task asks for them. To look something up, use the web.
 - Always write in English, even when the task is in another language."""
 
 # AVO's own tools next to the computer tool: opening a page or an app directly
@@ -160,6 +162,37 @@ def snap_clicks(driver: MacDriver, actions: list[dict]) -> list[dict]:
                 a = {**a, "x": sx, "y": sy, "_snap": {"from": [a["x"], a["y"]], "role": target.role, "label": target.label}}
         out.append(a)
     return out
+
+
+# Words by which a task points at the boxes the user drew. A task that names
+# none of them didn't mean its box: 10/31, a stray box over the mail page sent
+# "find a hotel near UIUC" into the inbox.
+BOX_LETTERS = re.compile(r"(?<![\w'])[AB](?![\w'])")
+BOX_WORDS = re.compile(r"\b(this|these|those|here|it|them|box|boxed|selected|selection|highlighted)\b", re.I)
+MIN_BOX_PT = 12  # a box thinner than this is a click, not a box
+
+
+def boxes_meant(task: str, regions: dict[str, tuple[int, int, int, int]]) -> dict[str, tuple[int, int, int, int]]:
+    """The boxes the task is about: none if it doesn't refer to a box; never a sliver."""
+    if not (BOX_LETTERS.search(task) or BOX_WORDS.search(task)):
+        return {}
+    return {k: b for k, b in regions.items() if b[2] - b[0] >= MIN_BOX_PT and b[3] - b[1] >= MIN_BOX_PT}
+
+
+# Places with the user's own messages. Entering one the task doesn't mention is
+# asked about once.
+PERSONAL_APPS = {
+    "com.apple.mail", "com.microsoft.Outlook", "com.apple.MobileSMS", "com.tinyspeck.slackmacgap",
+    "com.tencent.xinWeChat", "net.whatsapp.WhatsApp", "ru.keepcoder.Telegram", "com.hnc.Discord",
+}
+PERSONAL_TITLE = re.compile(r"\b(mail|inbox|gmail|outlook|messages)\b", re.I)
+MAIL_TASK = re.compile(r"\b(e-?mails?|mail|inbox|messages?|repl(y|ies)|texts?|dms?|chats?)\b", re.I)
+OFF_TRACK_AFTER = 2  # steps in a row the review says don't move the task forward
+
+
+def personal_unasked(task: str, app: str | None, title: str) -> bool:
+    """True if AVO is in the user's mail or messages and the task doesn't mention them."""
+    return (app in PERSONAL_APPS or bool(PERSONAL_TITLE.search(title))) and not MAIL_TASK.search(task)
 
 
 def options_on_screen(options: list[str], app: str | None) -> bool:
@@ -412,15 +445,22 @@ def run(
             return f"{task}\n(AVO asked “{the_plan.question}” and the user answered: {the_plan.answer})"
         return task
 
-    def make(screen: bytes, past: list[str] = ()) -> Plan | None:
-        """A plan from this screen, or None if the planner fails (a plan helps; it isn't needed)."""
+    def make(screen: bytes, past: list[str] = (), boxed: bool = False) -> Plan | None:
+        """A plan from this screen, or None if the planner fails (a plan helps; it isn't needed).
+
+        boxed: the user boxed what the task is about, on this screen. The plan
+        then starts here and asks nothing up front (the gate asks on screen).
+        """
         overlay.send("status", text="Planning…", busy=True, phase="planning")
+        said = task + ("\n(The user drew boxes on the current screen around what this is about.)" if boxed else "")
         try:
             with timed("planning"):
-                p = make_plan(client, task, screen, past, effort=effort, model=REPLAN_MODEL if past else MODEL)
+                p = make_plan(client, said, screen, past, effort=effort, model=REPLAN_MODEL if past else MODEL)
         except Exception as e:
             print(f"planner: {type(e).__name__}: {e}")
             return None
+        if boxed:
+            p.start_kind, p.start_target, p.question, p.options = "here", "", "", []
         print(f"{'re-plan, ' + REPLAN_MODEL if past else 'plan'} ({p.seconds:.1f}s): start {p.start_kind} {p.start_target}".rstrip())
         for i, s in enumerate(p.steps, 1):
             print(f"   {i}. {s}")
@@ -435,6 +475,8 @@ def run(
     the_plan: Plan | None = None
     effect = EffectWatch()
     confirmations: list[dict] = []  # every confirmation asked or counted down, for summary.json
+    not_forward = 0  # click batches in a row the review says don't move the task forward
+    personal_ok = False  # the user said yes to AVO being in their mail or messages
     draft = ""  # the last longer text typed: shown before a send
     try:
         ours = {w["bundle"] for w in overlay_windows() if w.get("bundle")}
@@ -449,12 +491,17 @@ def run(
         log.screenshot(0, png)
         if snap_to_controls:
             warm_up(*driver.to_screen(640, 400))  # Chrome builds its AX tree on first use
-        selected = prepare(driver, regions) if regions else []
+        meant = boxes_meant(task, regions or {})
+        if regions and not meant:
+            print(f"boxes ignored: the task doesn't refer to them ({', '.join(regions)})")
+            log.settings["boxes_ignored"] = {k: list(v) for k, v in regions.items()}
+            overlay.send("select-end", keep=False)  # take the stray box off the screen
+        selected = prepare(driver, meant) if meant else []
         if selected:
             log.settings["regions"] = {r.label: r.shot for r in selected}
             highlight(client, overlay, png, selected, log.dir)  # SAM, alongside the first model call
-        if plan == "always" or (plan == "auto" and not selected):
-            the_plan = make(png)
+        if plan in ("always", "auto"):
+            the_plan = make(png, boxed=bool(selected))
         if the_plan and the_plan.question and options_on_screen(the_plan.options, work_app):
             # "Which Professor Smith?" with both on screen: don't ask in words now;
             # the gate rings the two on screen and asks when the agent gets there.
@@ -606,6 +653,47 @@ def run(
                         else:
                             note = (note + " " if note else "") + "(the user confirmed this step)"
                     log.annotate(step, gate=entry)
+
+            # Off track: in the user's mail or messages though the task doesn't
+            # mention them (asked once a run), or the review saying, step after
+            # step, that this doesn't move the task forward.
+            if a and a.review:
+                not_forward = not_forward + 1 if not a.review.get("moves_task_forward", True) else 0
+            off = None
+            if not stop and not skip and actions and not answered and overlay.active:
+                if not personal_ok and personal_unasked(task, work_app, front_title(work_app)):
+                    off = ("personal", "AVO is in your mail or messages — OK?", "Your task doesn’t mention them.")
+                elif not_forward >= OFF_TRACK_AFTER:
+                    off = ("forward", "Is this still your task?",
+                           f"AVO’s own check says its last {not_forward} steps don’t move your task forward.")
+            if off:
+                kind, title, why = off
+                asked += 1
+                overlay.send("status", text="AVO has a question — see the card", busy=False)
+                with guard.acting(), guard.asking(), timed("you"):
+                    answer = overlay.ask(kind="confirm", title=title, intent=note, reason=why, codes=[])
+                    refocus()
+                choice = (answer or {}).get("choice")
+                print(f"[{step}] off track ({kind}): user {choice}")
+                log.annotate(step, off_track={"kind": kind, "choice": choice, "said": (answer or {}).get("said")})
+                not_forward = 0
+                if choice in ("stop", None):
+                    result = "stopped: user stopped the task"
+                    break
+                if choice == "pause":
+                    stop = "pause"
+                elif choice == "yes":
+                    personal_ok = personal_ok or kind == "personal"
+                else:
+                    corrected += 1
+                    skip = True
+                    said = (answer or {}).get("said") or ""
+                    notes.append(
+                        ("The user doesn't want AVO in their mail or messages for this task: do it another way, e.g. on the web."
+                         if kind == "personal" else
+                         "The user says this isn't helping with the task. Rethink the approach from the current screen.")
+                        + f" Your actions were NOT executed." + (f" They said: “{said}”" if said else "")
+                    )
 
             if not stop and not skip and actions:
                 if work_app and any(a["type"] in KEY_KINDS for a in actions) and frontmost_app() in ours:

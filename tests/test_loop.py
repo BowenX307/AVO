@@ -65,9 +65,12 @@ class FakeDriver:
     def to_screen(self, x, y):
         return x, y
 
+    def to_shot(self, x, y):
+        return x, y
+
 
 class LoopBase(unittest.TestCase):
-    def run_with(self, replies, plan="never", driver=None, **kw):
+    def run_with(self, replies, plan="never", driver=None, task="Open Meta careers", **kw):
         script = iter(replies)
         inputs = []
 
@@ -85,9 +88,10 @@ class LoopBase(unittest.TestCase):
             frontmost_app=lambda: "com.google.Chrome",
             focus=lambda bundle: None,
             screen_text=lambda app: "",
+            highlight=lambda *a, **k: None,
         ), mock.patch("avo.agent.Overlay", lambda: Overlay(url=None)):
             result = agent.run(
-                "Open Meta careers", gate=False, snap_to_controls=False, human_guard=False, plan=plan, **kw
+                task, gate=False, snap_to_controls=False, human_guard=False, plan=plan, **kw
             )
             run_dir = next(Path(d).glob("2*"))
             summary = json.loads((run_dir / "summary.json").read_text())
@@ -177,6 +181,42 @@ class PlanLoopTest(LoopBase):
         first_turn = self.inputs[1]["input"][0]["content"][0]["text"]
         self.assertIn("Begin at: https://www.metacareers.com/jobs", first_turn)  # the model opens it instead
         self.assertIn("paused before opening the start", first_turn)
+
+
+class BoxTest(LoopBase):
+    STRAY = {"A": (606, 159, 641, 351)}  # 10/31: drawn by accident over the mail page
+
+    def test_a_box_the_task_doesnt_mention_is_ignored_and_the_plan_opens_the_start(self):
+        _, summary, driver = self.run_with(
+            [plan_reply(), reply(text="Done.")], plan="auto", regions=self.STRAY,
+            task="Help me to find a hotel near UIUC on 11/10 near 200 dollar",
+        )
+        self.assertIn("boxes_ignored", summary["settings"])
+        self.assertEqual(driver.ran[0], [{"type": "open_url", "url": "https://www.metacareers.com/jobs"}])
+
+    def test_a_box_the_task_points_at_is_kept_and_planned_around(self):
+        _, summary, driver = self.run_with(
+            [plan_reply(question="Which?", options=["x", "y"]), reply(text="Done.")], plan="auto",
+            regions={"A": (100, 100, 300, 160), "B": (400, 100, 600, 300)}, task="Assign B to the person A names.",
+        )
+        self.assertNotIn("boxes_ignored", summary["settings"])
+        self.assertEqual(summary["api"]["by_purpose"]["plan"]["calls"], 1)  # planned, even with boxes
+        self.assertEqual(driver.ran, [])  # but it starts here, and asks nothing up front
+        self.assertIn("drew boxes", self.inputs[0]["input"][0]["content"][0]["text"])
+
+    def test_which_tasks_mean_their_boxes(self):
+        box = {"A": (0, 0, 100, 40)}
+        self.assertEqual(agent.boxes_meant("Move this to the budget card", box), box)
+        self.assertEqual(agent.boxes_meant("Book a study room next Friday", box), {})
+        self.assertEqual(agent.boxes_meant("Copy A into B", {"A": (0, 0, 100, 6)}), {})  # a sliver: a click
+
+
+class PersonalTest(unittest.TestCase):
+    def test_mail_the_task_doesnt_mention(self):
+        self.assertTrue(agent.personal_unasked("find a hotel near UIUC", "com.google.Chrome", "Campus Mail — Inbox - Google Chrome"))
+        self.assertTrue(agent.personal_unasked("find a hotel near UIUC", "com.apple.mail", ""))
+        self.assertFalse(agent.personal_unasked("Reply to Professor Smith", "com.google.Chrome", "Campus Mail — Inbox"))
+        self.assertFalse(agent.personal_unasked("find a hotel near UIUC", "com.google.Chrome", "Hotels near UIUC - Google"))
 
 
 class OnScreenTest(unittest.TestCase):

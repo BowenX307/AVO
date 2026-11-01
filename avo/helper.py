@@ -149,6 +149,16 @@ def texts(bundle: str | None):
         queue.extend(_attr(el, "AXChildren") or [])
 
 
+def front_title(bundle: str | None) -> str:
+    """The title of the app's front window, e.g. "Campus Mail — Inbox - Google Chrome"."""
+    apps = NSRunningApplication.runningApplicationsWithBundleIdentifier_(bundle) if bundle else []
+    if not apps:
+        return ""
+    window = _attr(AX.AXUIElementCreateApplication(apps[0].processIdentifier()), "AXFocusedWindow")
+    title = _attr(window, "AXTitle") if window is not None else None
+    return title if isinstance(title, str) else ""
+
+
 def screen_text(bundle: str | None) -> str:
     """All the words on the app's front window, for "is this on screen?" checks."""
     return " ".join(t for _, t in texts(bundle))
