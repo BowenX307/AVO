@@ -68,9 +68,25 @@ The room run above used the old wording, "this Friday"; it must be re-run with "
 
 *In progress.* There will be about 12 everyday tasks, including 2–3 on real websites, each marked real or mock. For Voice Control: the fewest commands a practised user needs, done by hand and timed. For AVO: 3 runs per task, counting what was said (the task, every answer, every yes/no), success, time and cost.
 
-## E3 · Silent errors
+## E3 · Silent errors: does asking prevent confidently wrong results?
 
-*In progress:* `uv run scripts/run_demo.py --modes full,irreversible,bare --runs 3`. On the tasks with a real ambiguity, this counts how often each setup finishes wrong without having asked:
-- the agent alone;
-- asking only before irreversible steps;
-- AVO as shipped.
+`uv run scripts/run_demo.py --modes full,irreversible,bare --runs 3`, run on 11/01 (results in `runs/demo-20261101-014421/results.json`, not in the repo). It covers the three demo tasks, each with a real ambiguity, 3 runs per setup. A script plays the user and answers what AVO asks the way the task spec says the user means it (`avo/scripted.py`). A **silent error** is a run that ends with the wrong result (sent to the wrong professor, booked the wrong Friday, downloaded the wrong handout) and reports it as done, without having asked the user anything.
+
+| Setup | Mail (two Smiths) | Room (next Friday) | Course (two handouts) | Done right | Wrong without asking | Things said (median) | Cost per run |
+|---|---|---|---|---|---|---|---|
+| AVO as shipped | 3/3 right, 0 silent | 3/3 right, 0 silent | 3/3 right, 0 silent | 9/9 | **0/9** | 2 | $0.041 |
+| asks only before irreversible steps | 0/3 right, 3 silent | 0/3 right, 2 silent | 3/3 right, 0 silent | 3/9 | **5/9** | 2 | $0.025 |
+| the agent alone | 0/3 right, 3 silent | 0/3 right, 2 silent | 1/3 right, 2 silent | 1/9 | **7/9** | 1 | $0.027 |
+
+The three setups:
+- **AVO as shipped:** the gate (which-one questions, location checks) and every confirmation.
+- **Asks only before irreversible steps:** no gate; a yes is needed before send, book and the like, and nothing else.
+- **The agent alone:** no gate and no confirmations.
+
+All three still plan first. The planner sometimes asks its own question up front: that is why the course task comes out right without the gate, and why "the agent alone" got one course run right.
+
+**Read with care:**
+- 9 runs per setup is small: these numbers show a direction, not a precise rate.
+- The tasks were built to contain an ambiguity. On tasks without one, all three setups would do about as well.
+- Asking before irreversible steps did not catch the ambiguities. The yes came after the wrong choice had already been made, and the scripted user, like a hurried person, approves a send that looks fine.
+- Total cost: $0.83.
