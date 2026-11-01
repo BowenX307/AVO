@@ -243,6 +243,8 @@
 
       addEventListener("load", async () => {
         await wait(scene === "launch" ? 0 : 3600); // let the launch animation finish first
+        const scale = Number(new URLSearchParams(location.search).get("scale")) || 1; // ?scale=1.5 / 2: the UI size
+        if (scale !== 1) both({ type: "scale", value: scale });
         await SCENES[scene]?.();
         if (new URLSearchParams(location.search).has("debug")) {
           await wait(1500);

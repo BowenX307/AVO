@@ -304,6 +304,16 @@
       let timer = null;
       let task = { step: 0, total: 0, note: "" }; // what the island knows of the running task
 
+      // UI size, 1 / 1.5 / 2 (main.js owns it): the whole island is CSS-zoomed.
+      // Under zoom, getBoundingClientRect() is zoomed but scrollWidth isn't, so
+      // every size is worked out in plain CSS px (tall() unzooms a rect) and
+      // scaled once, in sendSize().
+      let scale = 1;
+      const tall = (el) => Math.ceil(el.getBoundingClientRect().height / scale);
+      function sendSize(state, width, height) {
+        window.avo.send("island-size", { state, width: Math.round(width * scale), height: Math.round(height * scale) });
+      }
+
       // Swap the content and tell the main process the new size; it morphs the
       // window (native animation) while the new content fades in.
       function setState(state, html = "", extra = {}) {
@@ -318,17 +328,17 @@
         if (state === "input") (width = INPUT_W), (height = INPUT_H);
         else if (state === "listening" || state === "heard") {
           width = LISTEN_W;
-          height = Math.ceil($("#listen").getBoundingClientRect().height);
+          height = tall($("#listen"));
         } else if (state === "ask") {
           width = CARD_W;
-          height = Math.ceil(card.getBoundingClientRect().height);
+          height = tall(card);
         } else if (state !== "idle") {
           pill.style.width = "max-content"; // measure the row at its natural one-line width, then clamp
           text.style.flex = "none";
           width = Math.min(MAX_W, Math.max(120, pill.scrollWidth + 2)); // +2: subpixel text would ellipsize
           pill.style.width = text.style.flex = "";
         }
-        window.avo.send("island-size", { state, width, height });
+        sendSize(state, width, height);
         if (!reduced.matches) shell.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
         if (state === "done" && !reduced.matches) draw(icon.querySelector("path"), 420);
       }
@@ -510,12 +520,22 @@
         $(".ltext").textContent = m.text || "";
         if (body.classList.contains(state)) {
           // Same state, more words: grow in place.
-          window.avo.send("island-size", { state, width: LISTEN_W, height: Math.ceil($("#listen").getBoundingClientRect().height) });
+          sendSize(state, LISTEN_W, tall($("#listen")));
         } else setState(state);
       }
 
       window.avo.onEvent((m) => {
         switch (m.type) {
+          case "scale": {
+            scale = [1, 1.5, 2].includes(m.value) ? m.value : 1;
+            document.documentElement.style.zoom = String(scale);
+            const state = body.className.split(" ")[0] || "idle";
+            if (m.announce && state === "idle") {
+              setState("info", `Size ${scale}×`);
+              timer = setTimeout(() => setState("idle"), 1200);
+            } else setState(state, text.innerHTML, { cls: body.className.split(" ").slice(1).join(" ") }); // re-measure at the new size
+            break;
+          }
           case "listening":
             showListening(m);
             break;
@@ -574,7 +594,7 @@
         $(".intent").textContent = "AVO will click where you click.";
         $(".under").textContent = $(".reason").textContent = $(".note").textContent = "";
         window.avo.send("bubble-choice", { choice: "no" });
-        window.avo.send("island-size", { state: "ask", width: CARD_W, height: Math.ceil(card.getBoundingClientRect().height) });
+        sendSize("ask", CARD_W, tall(card));
       });
       ask.addEventListener("keydown", (e) => {
         if (e.key === "Escape") window.avo.send("island-cancel");

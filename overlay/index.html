@@ -142,17 +142,17 @@
       .ring.gone { opacity: 0; }
       .num {
         position: absolute;
-        left: calc(100% + 10px);
+        left: calc(100% + 10px * var(--s, 1));
         top: 50%;
-        min-width: 22px;
-        height: 22px;
-        padding: 0 6px;
+        min-width: calc(22px * var(--s, 1));
+        height: calc(22px * var(--s, 1));
+        padding: 0 calc(6px * var(--s, 1));
         box-sizing: border-box;
         border-radius: var(--avo-radius-pill);
         transform: translateY(-50%);
         display: grid;
         place-items: center;
-        font: 600 12px/1 var(--avo-font-mono);
+        font: 600 calc(12px * var(--s, 1)) / 1 var(--avo-font-mono);
         background: var(--avo-glass);
         color: var(--avo-paper);
         box-shadow: var(--shadow), inset 0 0 0 1px var(--avo-glass-border);
@@ -563,6 +563,9 @@
 
       window.avo.onEvent((m) => {
         switch (m.type) {
+          case "scale": // UI size: only the number tags grow; rings and the cursor stay on their targets
+            document.documentElement.style.setProperty("--s", String(m.value || 1));
+            break;
           case "confirm":
             cursor.classList.remove("thinking");
             if (m.kind === "countdown") countdown(m);

@@ -37,6 +37,8 @@ const PILL_RADIUS = ISLAND_H / 2;
 const CARD_RADIUS = 14; // --avo-radius-card: the input and the question card
 const CARD_GAP = 14; // px between a target and the card, when the card must sit beside it
 const SUMMON_KEY = "Alt+Space";
+const SCALE_KEY = "Control+Alt+="; // cycle the UI size: 1x -> 1.5x -> 2x -> 1x
+const SCALES = [1, 1.5, 2];
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 let pointer = null;
@@ -80,6 +82,7 @@ function createPointer() {
   float(pointer);
   pointer.setBounds(bounds); // macOS may push a new window below the menu bar
   pointer.loadFile("index.html");
+  pointer.webContents.on("did-finish-load", () => uiScale !== 1 && pointer.webContents.send("avo", { type: "scale", value: uiScale }));
   pointer.showInactive();
 }
 
@@ -87,8 +90,41 @@ let islandAnchor = null; // a selection box [l, t, r, b] to sit under while typi
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
 
+// ---- UI size ----
+// One setting, 1 / 1.5 / 2: the island zooms its whole page and reports sizes
+// already scaled; the pointer window scales only the number tags (rings and the
+// cursor must stay exactly on their targets). Saved between launches;
+// AVO_UI_SCALE overrides it at start.
+
+const SETTINGS = () => path.join(app.getPath("userData"), "settings.json");
+let uiScale = 1;
+
+function loadScale() {
+  let saved = null;
+  try {
+    saved = JSON.parse(fs.readFileSync(SETTINGS(), "utf8")).uiScale;
+  } catch {}
+  const env = Number(process.env.AVO_UI_SCALE);
+  uiScale = SCALES.includes(env) ? env : SCALES.includes(saved) ? saved : 1;
+}
+
+function setScale(value, announce) {
+  uiScale = value;
+  try {
+    fs.mkdirSync(path.dirname(SETTINGS()), { recursive: true });
+    fs.writeFileSync(SETTINGS(), JSON.stringify({ uiScale }));
+  } catch {}
+  for (const w of [island, pointer]) w?.webContents.send("avo", { type: "scale", value: uiScale, announce });
+}
+
+function cycleScale() {
+  setScale(SCALES[(SCALES.indexOf(uiScale) + 1) % SCALES.length], true);
+}
+
 function islandBounds(state, width, height = ISLAND_H) {
   const wa = screen.getPrimaryDisplay().workArea;
+  width = Math.min(width, wa.width - 24); // at 2x a card must still fit the screen
+  height = Math.min(height, wa.height - 16);
   let x = wa.x + (wa.width - width) / 2;
   let y = wa.y + ISLAND_TOP;
   if (state === "input" && islandAnchor) {
@@ -119,8 +155,9 @@ function createIsland() {
   island = new BrowserWindow({ ...common, ...glass, ...islandBounds("idle", 72), show: false });
   float(island, false); // idle: clickable
   island.loadFile("island.html");
+  island.webContents.on("did-finish-load", () => uiScale !== 1 && island.webContents.send("avo", { type: "scale", value: uiScale }));
   island.once("ready-to-show", () => {
-    roundGlass(island, PILL_RADIUS);
+    roundGlass(island, PILL_RADIUS * uiScale);
     island.showInactive();
   });
 }
@@ -159,7 +196,7 @@ ipcMain.on("island-size", (_e, { state, width, height }) => {
   const to = islandBounds(state, width, height);
   const from = island.getBounds();
   const card = state === "input" || state === "ask";
-  if (!card) roundGlass(island, PILL_RADIUS); // rounder before shrinking to a pill...
+  if (!card) roundGlass(island, PILL_RADIUS * uiScale); // rounder before shrinking to a pill...
   const far = Math.hypot(to.x + to.width / 2 - (from.x + from.width / 2), to.y - from.y) > 120;
   const id = ++morph;
   if (far && island.isVisible()) {
@@ -173,7 +210,7 @@ ipcMain.on("island-size", (_e, { state, width, height }) => {
     island.setBounds(to, true);
     if (island.getOpacity() < 1) fade(1, 120);
   }
-  if (card) setTimeout(() => id === morph && roundGlass(island, CARD_RADIUS), far ? 120 : 260); // ...squarer once grown into a card
+  if (card) setTimeout(() => id === morph && roundGlass(island, CARD_RADIUS * uiScale), far ? 120 : 260); // ...squarer once grown into a card
   setTimeout(() => island.invalidateShadow(), 350); // shadow follows the new shape
 });
 
@@ -858,11 +895,13 @@ app.whenReady().then(() => {
   // The island page records the microphone for voice input; nothing else asks.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === "media"));
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === "media");
+  loadScale();
   watchFrontApp();
   createPointer();
   createIsland();
   startServer();
   startHelper();
   if (!globalShortcut.register(SUMMON_KEY, summon)) console.log(`could not register ${SUMMON_KEY}`);
+  if (!globalShortcut.register(SCALE_KEY, cycleScale)) console.log(`could not register ${SCALE_KEY}`);
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());
