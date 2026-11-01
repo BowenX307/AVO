@@ -6,6 +6,7 @@
 import json
 import sys
 import unittest
+from unittest import mock
 import urllib.request
 from pathlib import Path
 
@@ -25,9 +26,19 @@ class ScriptedUserTest(unittest.TestCase):
         self.assertEqual(user.asked[0]["kind"], "which")
 
     def test_a_date_written_any_way(self):
-        user = ScriptedUser(SPECS["room-friday"]["means"])
-        self.assertEqual(user.pick(["Fri 13 Nov", "Fri 6 Nov"]), 1)
-        self.assertEqual(user.pick(["Friday, November 6", "Friday, November 13"]), 0)
+        user = ScriptedUser(SPECS["room-friday"]["means"])  # "next Friday" = Nov 13
+        self.assertEqual(user.pick(["Fri 6 Nov", "Fri 13 Nov"]), 1)
+        self.assertEqual(user.pick(["Friday, November 13", "Friday, November 6"]), 0)
+
+    def test_ok_to_click_points_at_the_nearest_control_when_off_one(self):
+        from avo.snap import Target
+
+        user = ScriptedUser([])
+        button = Target("AXButton", "Book room", (100, 200, 120, 36))
+        with mock.patch("avo.snap.clickable_at", lambda x, y: None), mock.patch("avo.snap.nearby", lambda x, y: [button]):
+            self.assertEqual(user.ask(x=150, y=250), {"choice": "no", "x": 160.0, "y": 218.0, "how": "script"})
+        with mock.patch("avo.snap.clickable_at", lambda x, y: button):
+            self.assertEqual(user.ask(x=150, y=210)["choice"], "yes")
 
     def test_none_of_these(self):
         a = ScriptedUser(["corrected"]).ask(options=["Lecture 1 handout", "Lecture 2 handout"])
@@ -52,9 +63,9 @@ class CheckTest(unittest.TestCase):
 
     def test_room(self):
         spec = SPECS["room-friday"]
-        good = {"bookings": [{"room": "Room 204", "date": "2026-11-06", "time": "2:00 PM"}]}
+        good = {"bookings": [{"room": "Room 204", "date": "2026-11-13", "time": "2:00 PM"}]}
         self.assertTrue(run_demo.check(spec, good)[0])
-        self.assertFalse(run_demo.check(spec, {"bookings": [{"room": "Room 204", "date": "2026-11-13", "time": "2:00 PM"}]})[0])
+        self.assertFalse(run_demo.check(spec, {"bookings": [{"room": "Room 204", "date": "2026-11-06", "time": "2:00 PM"}]})[0])
 
     def test_course(self):
         spec = SPECS["course-week3"]

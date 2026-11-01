@@ -176,6 +176,21 @@ class PlanLoopTest(LoopBase):
         self.assertEqual(result, "Done.")
         self.assertEqual(driver.ran, [])
 
+    def test_the_cost_limit_stops_the_run(self):
+        usage = SimpleNamespace(model_dump=lambda: {"input_tokens": 300_000, "output_tokens": 0,
+                                                     "input_tokens_details": {"cached_tokens": 0}})
+        pricey = SimpleNamespace(id="r", output=[computer({"type": "click", "x": 5, "y": 5})], output_text="", usage=usage)
+        result, _, driver = self.run_with([pricey, pricey, pricey], max_usd=0.5)
+        self.assertTrue(result.startswith("stopped: cost limit reached"))  # $0.375 a turn: stops after two
+        self.assertEqual(len(driver.ran), 1)
+
+    def test_no_key_says_so(self):
+        def no_key():
+            raise agent.NoKey("MODEL_API_KEY is not set")
+
+        with mock.patch.object(agent, "make_client", no_key):
+            self.assertEqual(agent.run("x", overlay=Overlay(url=None)), "stopped: MODEL_API_KEY is not set")
+
     def test_never(self):
         result, summary, _ = self.run_with([reply(text="Done.")], plan="never")
         self.assertNotIn("plan", summary["api"]["by_purpose"])

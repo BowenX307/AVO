@@ -23,7 +23,7 @@ from avo.effect import (
 from avo.gate import ask_user, assess
 from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
-from avo.llm import MODEL, data_url, describe, make_client
+from avo.llm import MODEL, NoKey, data_url, describe, friendly, make_client
 from avo.meter import Meter
 from avo.overlay import Overlay
 from avo.planner import REPLAN_MODEL, Plan, make_plan
@@ -302,6 +302,7 @@ def fresh_input(
 def run(
     task: str,
     max_steps: int = 20,
+    max_usd: float = 0.5,
     effort: str | None = "minimal",
     history: str = "text",
     gate: bool = True,
@@ -318,6 +319,8 @@ def run(
     confirm_mode: str = "all",
 ) -> str:
     """Run the computer-tool loop.
+
+    Stops at max_steps model turns or once the run's API calls cost max_usd.
 
     Before each batch runs, avo/confirm.py decides whether it needs the user's
     OK: a 1 s countdown on the ringed target for an ordinary step, a spoken or
@@ -366,7 +369,14 @@ def run(
     if human_resume not in ("manual", "auto"):
         raise ValueError(f"human_resume must be 'manual' or 'auto', not {human_resume!r}")
     meter = Meter()  # every API call of the run, for summary.json
-    client = meter.wrap(make_client())
+    try:
+        client = meter.wrap(make_client())
+    except NoKey as e:
+        print(f"result: stopped: {e}")
+        if (o := overlay or Overlay()).active:
+            o.send("done", text=friendly(e), ok=False, error=True)
+            o.close()
+        return f"stopped: {e}"
     if confirm_mode not in ("all", "irreversible", "off"):
         raise ValueError(f"confirm_mode must be 'all', 'irreversible' or 'off', not {confirm_mode!r}")
     overlay = overlay or Overlay()
@@ -577,6 +587,9 @@ def run(
         )
 
         for step in range(1, max_steps + 1):
+            if (usd := meter.summary()["usd"]) >= max_usd:
+                result = f"stopped: cost limit reached (${usd:.2f} of ${max_usd:.2f})"
+                break
             calls = computer_calls(response)
             fns = function_calls(response)
             if not calls and not fns:
@@ -718,6 +731,7 @@ def run(
                     ok = confirm.before(
                         step, actions, checks, overlay, driver.to_screen,
                         review=a.review if a else None, answered=answered, draft=draft, mode=confirm_mode,
+                        app=work_app,
                     )
                     if ok.method in ("yes", "terminal") or ok.choice != "go":
                         refocus()  # answering on the island brings the overlay to the front
@@ -909,7 +923,7 @@ def run(
     except StopTask:
         pass
     except BaseException as e:  # incl. Ctrl+C and the mouse-in-a-corner emergency stop
-        result = f"crashed: {type(e).__name__}: {e}"
+        result = f"crashed: {friendly(e)}"
         raise
     finally:
         guard.stop()
@@ -944,7 +958,8 @@ def run(
         parts = ", ".join(f"{k} {v:.0f}s" for k, v in sorted(spent.items(), key=lambda kv: -kv[1]) if v >= 0.5)
         print(f"summary: {step} steps in {elapsed:.0f}s ({parts}); ${api['usd']:.3f} over {api['calls']} API calls")
         # "stopped: user stopped the task" -> "User stopped the task" on screen
-        shown = result.strip() if ok else result.split(": ", 1)[-1].strip().capitalize()
-        overlay.send("done", text=shown, ok=ok)
+        shown = result.strip() if ok else result.split(": ", 1)[-1].strip()
+        shown = shown[:1].upper() + shown[1:]
+        overlay.send("done", text=shown, ok=ok, error=result.startswith("crashed"))
         overlay.close()
     return result

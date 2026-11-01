@@ -192,6 +192,21 @@
           asking = { l: c[0].box[0], t: c[0].box[1], r: c[1].box[2] + 40, b: c[1].box[3] };
           both({ type: "confirm", id: "p7", x: c[1].x, y: c[1].y, candidates: c, intent: "Both listings match “software engineer intern”.", reason: "" });
         },
+        async "ask-five"() {
+          // Checklist 4.6: five candidates of 40 characters each.
+          step(2, 0, "Picking the listing");
+          await wait(300);
+          const rows = [...D().querySelectorAll("aside td:first-child")].slice(0, 4).map(rect).concat([owner()]);
+          const labels = [
+            "Software Engineer Intern, Infrastructure", "Software Engineer Intern, Machine Learnin",
+            "Software Engineer Intern, Product (Menlo)", "Software Engineer Intern, Security (NYC)",
+            "Software Engineer Intern, Reality Labs XR",
+          ];
+          const c = rows.map((box, i) => ({ label: labels[i], x: (box[0] + box[2]) / 2, y: (box[1] + box[3]) / 2, box }));
+          c[2].guess = true;
+          asking = { l: Math.min(...rows.map((b) => b[0])), t: Math.min(...rows.map((b) => b[1])), r: Math.max(...rows.map((b) => b[2])) + 40, b: Math.max(...rows.map((b) => b[3])) };
+          both({ type: "confirm", id: "p8", x: c[2].x, y: c[2].y, candidates: c, intent: "Several listings match “software engineer intern”.", reason: "" });
+        },
         async clarify() {
           both({ type: "status", text: "Planning…", busy: true, phase: "planning" });
           await wait(900);

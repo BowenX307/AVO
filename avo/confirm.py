@@ -130,6 +130,7 @@ def before(
     answered: bool = False,
     draft: str = "",
     mode: str = "all",
+    app: str | None = None,
 ) -> Confirmation:
     """Decide and, if needed, ask. The result's choice: "go", "no" (skip this batch), "stop", "pause".
 
@@ -175,7 +176,7 @@ def before(
             kind="confirm",
             title=title,
             intent=saying(actions, target),
-            detail=draft[:PREVIEW_CHARS] if final else "",
+            detail=preview(draft, app) if final else "",
             reason=" ".join(x.get("message") or x.get("code") or "" for x in other),
             codes=codes,
             box=box,
@@ -190,6 +191,23 @@ def before(
     ok = _ask_terminal(step, checks, final)
     c.choice, c.declined, c.how = ("go" if ok else "stop"), not ok, "key"
     return c
+
+
+HEADER_FIELDS = re.compile(r"^(to|cc|bcc|subject|recipients?)$", re.I)
+
+
+def preview(draft: str, app: str | None) -> str:
+    """What an irreversible step will send: who it goes to and the subject (read off the
+    form), then the text AVO typed."""
+    try:
+        from avo.helper import form_fields
+
+        head = [f"{label}: {value}" for label, value in form_fields(app) if HEADER_FIELDS.match(label)]
+    except Exception as e:
+        print(f"form fields: {type(e).__name__}: {e}")
+        head = []
+    text = "\n".join(head[:4]) + ("\n\n" if head and draft else "") + draft
+    return text[:PREVIEW_CHARS]
 
 
 def _apply(c: Confirmation, answer: dict) -> Confirmation:

@@ -369,7 +369,8 @@
           setState("warn", esc(t));
           timer = setTimeout(() => setState("idle"), m.ms ?? 2500);
         } else if (m.ok === false) {
-          const head = task.step ? `Stuck at step ${task.step}` : "AVO got stuck";
+          // A failure (no key, no connection) isn't AVO being stuck: say "Couldn't finish".
+          const head = m.error ? "Couldn't finish" : task.step ? `Stuck at step ${task.step}` : "AVO got stuck";
           $(".ctl.error [data-cmd=retry]").style.display = m.retry ? "" : "none"; // only a task the island started can be retried
           setState("error", esc(head) + (t ? `<span class="dot">·</span><span class="detail">${esc(t)}</span>` : ""));
         } else {

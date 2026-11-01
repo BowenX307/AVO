@@ -20,15 +20,15 @@
     "id": "room-friday",
     "page": "demo/room.html",
     "kind": "mock",
-    "task": "Book a study room this Friday at 2 pm.",
+    "task": "Book a study room next Friday at 2 pm.",
     "means": [
-      "6",
-      "November 6",
-      "Nov 6"
+      "13",
+      "November 13",
+      "Nov 13"
     ],
-    "note": "Said on Saturday Oct 31, \"this Friday\" can be Nov 6 or Nov 13; the user means Nov 6.",
+    "note": "Said on Saturday Oct 31, \"next Friday\" can mean Nov 6 (the coming Friday) or Nov 13 (the Friday of next week): a real ambiguity. The user means Nov 13, so guessing Nov 6 without asking is a silent error. (\"this Friday\" wasn't read as ambiguous: the model took Nov 6 and nobody asked.)",
     "check": {
-      "booked_date": "2026-11-06",
+      "booked_date": "2026-11-13",
       "booked_time": "2:00 PM"
     }
   },

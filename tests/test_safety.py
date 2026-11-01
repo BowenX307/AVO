@@ -63,12 +63,21 @@ class ConfirmTest(unittest.TestCase):
 
     def test_send_needs_a_yes_with_the_draft(self):
         overlay = FakeOverlay({"choice": "yes", "how": "voice"})
-        c = before(overlay=overlay, under=SEND, draft="Dear Professor Smith, I'll be ten minutes late.")
+        with mock.patch("avo.helper.form_fields", lambda app: []):
+            c = before(overlay=overlay, under=SEND, draft="Dear Professor Smith, I'll be ten minutes late.")
         (q,) = overlay.asked
         self.assertEqual(q["kind"], "confirm")
         self.assertEqual(q["title"], "Send — OK?")
         self.assertIn("ten minutes late", q["detail"])
         self.assertEqual((c.irreversible, c.choice, c.how), ("Send", "go", "voice"))
+
+    def test_the_preview_shows_who_it_goes_to(self):
+        overlay = FakeOverlay({"choice": "yes"})
+        fields = [("To", "david.smith@physics.example.edu"), ("Subject", "Re: Lab section this afternoon"), ("Search", "x")]
+        with mock.patch("avo.helper.form_fields", lambda app: fields):
+            before(overlay=overlay, under=SEND, draft="I'll be ten minutes late.", app="com.google.Chrome")
+        self.assertEqual(overlay.asked[0]["detail"], "To: david.smith@physics.example.edu\n"
+                         "Subject: Re: Lab section this afternoon\n\nI'll be ten minutes late.")
 
     def test_send_needs_a_yes_even_without_a_check(self):
         c = before(checks=(), overlay=FakeOverlay({"choice": "no", "how": "voice"}), under=SEND)

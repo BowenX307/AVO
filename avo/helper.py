@@ -160,6 +160,30 @@ def front_title(bundle: str | None) -> str:
     return title if isinstance(title, str) else ""
 
 
+FIELD_ROLES = {"AXTextField", "AXComboBox"}
+
+
+def form_fields(bundle: str | None) -> list[tuple[str, str]]:
+    """(label, value) of the filled-in one-line fields on the app's front window, e.g. ("To", "a@b.edu")."""
+    apps = NSRunningApplication.runningApplicationsWithBundleIdentifier_(bundle) if bundle else []
+    if not apps:
+        return []
+    window = _attr(AX.AXUIElementCreateApplication(apps[0].processIdentifier()), "AXFocusedWindow")
+    if window is None:
+        return []
+    out, queue, seen, t0 = [], deque([window]), 0, time.monotonic()
+    while queue and seen < MAX_NODES and time.monotonic() - t0 < BUDGET_S:
+        el = queue.popleft()
+        seen += 1
+        if (_attr(el, "AXRole") or "") in FIELD_ROLES:
+            value = _attr(el, "AXValue")
+            label = _attr(el, "AXDescription") or _attr(el, "AXTitle") or _attr(el, "AXPlaceholderValue") or ""
+            if isinstance(value, str) and value.strip() and isinstance(label, str):
+                out.append((label.strip(), " ".join(value.split())))
+        queue.extend(_attr(el, "AXChildren") or [])
+    return out
+
+
 def screen_text(bundle: str | None) -> str:
     """All the words on the app's front window, for "is this on screen?" checks."""
     return " ".join(t for _, t in texts(bundle))

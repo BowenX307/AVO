@@ -7,7 +7,10 @@ and answers AVO's questions from the task's spec:
     has the words the user means (spec "means"), e.g. "Physics" for the
     professor teaching Physics 212. None matches: "none of these" plus those
     words, as a person would say it.
-  - "OK to click here?", "Send — OK?", an unusual safety check: yes.
+  - "OK to click here?": yes if the click is on a control (accessibility says
+    so); if it's off one, a person would point at the right spot, so the
+    script answers with the middle of the nearest control.
+  - "Send — OK?", an unusual safety check: yes.
   - the countdown before an ordinary step: stays silent, so it runs. The run's
     settings say answerer=script, so a log never passes for a person's.
 
@@ -57,12 +60,26 @@ class ScriptedUser(Overlay):
                 {"choice": "pick", "index": i, "how": "script"} if i is not None
                 else {"choice": "none", "how": "script", "said": "none of these, I mean the " + " ".join(self.means[:2])}
             )
-        else:  # "OK to click here?", "Send — OK?", a safety check
+        elif kind is None and fields.get("x") is not None:  # "OK to click here?"
+            answer = self.check_click(fields["x"], fields["y"])
+        else:  # "Send — OK?", a safety check
             answer = {"choice": "yes", "how": "script"}
         if kind != "countdown":
             self.asked.append({"kind": kind or ("which" if labels else "ok"), "labels": labels,
                                "title": fields.get("title") or fields.get("question") or "", "answer": answer})
         return answer
+
+    def check_click(self, x: float, y: float) -> dict:
+        """Yes if (x, y) (screen points) is on a control; else the middle of the nearest one."""
+        from avo.snap import clickable_at, nearby
+
+        if clickable_at(x, y):
+            return {"choice": "yes", "how": "script"}
+        near = nearby(x, y)
+        if not near:
+            return {"choice": "yes", "how": "script"}  # nothing to point at instead
+        cx, cy = near[0].center
+        return {"choice": "no", "x": cx, "y": cy, "how": "script"}
 
     def pause_requested(self) -> bool:
         return False

@@ -13,6 +13,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("task", help="what the agent should do")
     parser.add_argument("--max-steps", type=int, default=20)
+    parser.add_argument("--max-usd", type=float, default=0.5, help="stop once the task's API calls cost this much")
     parser.add_argument(
         "--effort",
         default="minimal",
@@ -92,6 +93,7 @@ def main() -> None:
     run(
         args.task,
         max_steps=args.max_steps,
+        max_usd=args.max_usd,
         effort=None if args.effort == "default" else args.effort,
         history=args.history,
         gate=not args.no_gate,
