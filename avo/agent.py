@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import signal
 import subprocess
+import threading
 import time
 from collections import defaultdict
 from contextlib import contextmanager
@@ -290,6 +292,16 @@ MAX_REPLANS = 2  # fresh plans after getting stuck, per run
 class StopTask(Exception):
     """The user stopped the task before it began (Stop on the planner's question)."""
 
+
+class Terminated(Exception):
+    """SIGTERM: the overlay ends a task that didn't stop within a second of "stop"
+    (it may be waiting on the model). Raised in the main thread, so even a
+    pending API call ends; the run still writes its summary and says so."""
+
+
+def _on_sigterm(_signum, _frame):
+    raise Terminated()
+
 LOOKING_KINDS = ("scroll", "keypress", "wait", "screenshot", "move")
 
 
@@ -407,6 +419,8 @@ def run(
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
     if human_resume not in ("manual", "auto"):
         raise ValueError(f"human_resume must be 'manual' or 'auto', not {human_resume!r}")
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGTERM, _on_sigterm)
     gaps = [g for g in missing_permissions() if g["essential"]]
     if gaps:  # without these AVO is blind (Screen Recording) or its clicks go nowhere (Accessibility)
         print(f"result: stopped: {explain_permissions(gaps)}")
@@ -979,6 +993,8 @@ def run(
 
     except StopTask:
         pass
+    except Terminated:
+        result = "stopped: user stopped the task"
     except BaseException as e:  # incl. Ctrl+C and the mouse-in-a-corner emergency stop
         result = f"crashed: {friendly(e)}"
         raise

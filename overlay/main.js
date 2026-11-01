@@ -557,7 +557,7 @@ function route(msg) {
   }
   switch (msg.type) {
     case "status":
-      if (!paused) island.webContents.send("avo", msg); // keep showing "Paused"
+      if (!paused && !stopRequested) island.webContents.send("avo", msg); // keep showing "Paused" / "Stopping…"
       break; // the pointer shows a thinking ring by the cursor
     case "interrupt":
       // The agent noticed the user taking over and paused itself ("You moved —
@@ -573,6 +573,7 @@ function route(msg) {
       return;
     case "done":
       paused = false;
+      stopRequested = false;
       if (listening?.phase === "task") stopListening();
       task?.sawDone();
       island.webContents.send("avo", { ...msg, retry: !!task }); // Retry only what the island started
@@ -912,6 +913,12 @@ function stopByVoice() {
   }
   if (pendingAsk) answer({ choice: "stop", how: "voice" });
   else tellAgents({ type: "stop" });
+  // The agent checks for "stop" between actions, not while it waits for the
+  // model (11/01: "Planning", then "Thinking", 8 s before it stopped). If it
+  // hasn't stopped within a second, end it; it still writes its summary.
+  stopRequested = true;
+  const stopping = task;
+  setTimeout(() => stopping && task === stopping && stopping.kill("SIGTERM"), 1000);
   paused = false;
   island.webContents.send("avo", { type: "status", text: "Stopping…", busy: true });
 }
