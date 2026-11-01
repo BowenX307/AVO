@@ -845,7 +845,21 @@ function listenDuringTask(labels) {
   const state = (listening = { phase: "task", partial: "", timers: [], labels, fails: 0 });
   mic(true);
   const handlers = {
-    onFinal: (text) => listening === state && text && heardDuringTask(text),
+    // Act on a partial as soon as it settles an open question ("the first", "two",
+    // "no" during a countdown): waiting for the end of the sentence took a second
+    // or more and felt like no reaction (11/01). The final text of the same
+    // sentence is then skipped.
+    onPartial: (text) => {
+      if (listening !== state || !text) return;
+      if (pendingAsk) island.webContents.send("avo", { type: "heard-partial", text });
+      if (!state.acted && heardDuringTask(text, true)) state.acted = text;
+    },
+    onFinal: (text) => {
+      if (listening !== state) return;
+      const acted = state.acted;
+      state.acted = null;
+      if (text && !acted) heardDuringTask(text);
+    },
     onEnded: (error) => {
       // The session ended by itself (its time limit, a dropped connection):
       // keep listening while the task runs, but don't loop on an error
@@ -923,36 +937,40 @@ function stopByVoice() {
   island.webContents.send("avo", { type: "status", text: "Stopping…", busy: true });
 }
 
-function heardDuringTask(text) {
+// What a sentence (or, partial, the start of one) says to AVO. Returns true if it acted.
+function heardDuringTask(text, partial = false) {
   const u = voice.understand(text);
-  vlog(`heard: ${JSON.stringify(text)} -> ${JSON.stringify(u)}`);
-  if (u.stop) return stopByVoice();
+  if (!partial) vlog(`heard: ${JSON.stringify(text)} -> ${JSON.stringify(u)}`);
+  const act = (what) => (partial && vlog(`heard (partial): ${JSON.stringify(text)} -> ${what}`), true);
+  if (u.stop) return stopByVoice(), act("stop");
   const ask = pendingAsk;
   if (ask) {
     const said = { how: "voice", said: text };
     if (ask.kind === "which" || ask.kind === "clarify") {
       const byName = voice.labelIndex(text, ask.labels);
       const index = byName >= 0 ? byName : u.index;
-      if (index !== undefined && index >= 0 && index < ask.labels.length) return answer({ choice: "pick", index, ...said });
-      if (u.none || u.no) return answer({ choice: "none", ...said });
-      return;
+      if (index !== undefined && index >= 0 && index < ask.labels.length) return answer({ choice: "pick", index, ...said }), act(`pick ${index}`);
+      // "none of these, I mean …" needs the rest of the sentence: only on the final text.
+      if (!partial && (u.none || u.no)) return answer({ choice: "none", ...said }), true;
+      return false;
     }
     if (ask.kind === "countdown") {
-      if (u.no) return answer({ choice: "no", ...said });
-      if (u.yes) return answer({ choice: "go", shown: true, ...said }); // the ring is up; no need to wait
-      return;
+      if (u.no) return answer({ choice: "no", ...said }), act("no");
+      if (u.yes) return answer({ choice: "go", shown: true, ...said }), act("go"); // the ring is up; no need to wait
+      return false;
     }
     if (ask.kind === "ok") {
-      if (u.yes) return answer({ choice: "yes", ...said });
-      if (u.no || u.none) return answer({ choice: "none", ...said });
-      return;
+      if (u.yes) return answer({ choice: "yes", ...said }), act("yes");
+      if (!partial && (u.no || u.none)) return answer({ choice: "none", ...said }), true;
+      return false;
     }
     // "Send — OK?", a safety check
-    if (u.yes) return answer({ choice: "yes", ...said });
-    if (u.no) return answer({ choice: "no", ...said });
-    return;
+    if (u.yes) return answer({ choice: "yes", ...said }), act("yes");
+    if (u.no) return answer({ choice: "no", ...said }), act("no");
+    return false;
   }
-  if (paused && u.resume) togglePause();
+  if (paused && u.resume) return togglePause(), act("resume");
+  return false;
 }
 
 function startServer() {

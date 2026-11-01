@@ -567,6 +567,15 @@
           case "notice":
             showNotice(m);
             break;
+          case "heard-partial": // the words AVO is hearing, while a card waits for an answer
+            if (body.classList.contains("ask") || body.classList.contains("countdown")) {
+              const line = body.classList.contains("ask") ? $(".note") : null;
+              if (line) {
+                line.textContent = `Heard: “${m.text}”`;
+                sendSize("ask", CARD_W, tall(card));
+              }
+            }
+            break;
           case "heard":
             showListening(m, "heard");
             break;
