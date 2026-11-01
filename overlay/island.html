@@ -310,21 +310,14 @@
       // every size is worked out in plain CSS px (tall() unzooms a rect) and
       // scaled once, in sendSize().
       let scale = 1;
+      let sizeNote = false; // the island is showing "Size …" after the shortcut
       const tall = (el) => Math.ceil(el.getBoundingClientRect().height / scale);
       function sendSize(state, width, height) {
         window.avo.send("island-size", { state, width: Math.round(width * scale), height: Math.round(height * scale) });
       }
 
-      // Swap the content and tell the main process the new size; it morphs the
-      // window (native animation) while the new content fades in.
-      function setState(state, html = "", extra = {}) {
-        clearTimeout(timer);
-        body.className = state + (extra.cls ? " " + extra.cls : "");
-        icon.innerHTML = { done: CHECK, warn: BANG, error: BANG, paused: PAUSE }[state] || (state === "launch" ? AVOLogo.markup({ className: "launch-logo", strokeWidth: 11 }) : MARK);
-        text.innerHTML = html;
-        const bar = $("#progress");
-        bar.classList.toggle("open", !task.total);
-        bar.style.setProperty("--done", task.total ? `${(100 * task.step) / task.total}%` : "0%");
+      // The window size a state needs, in plain CSS px.
+      function measure(state) {
         let width = IDLE_W, height = H;
         if (state === "input") (width = INPUT_W), (height = INPUT_H);
         else if (state === "listening" || state === "heard") {
@@ -339,7 +332,21 @@
           width = Math.min(MAX_W, Math.max(120, pill.scrollWidth + 2)); // +2: subpixel text would ellipsize
           pill.style.width = text.style.flex = "";
         }
-        sendSize(state, width, height);
+        return [width, height];
+      }
+
+      // Swap the content and tell the main process the new size; it morphs the
+      // window (native animation) while the new content fades in.
+      function setState(state, html = "", extra = {}) {
+        clearTimeout(timer);
+        sizeNote = false;
+        body.className = state + (extra.cls ? " " + extra.cls : "");
+        icon.innerHTML = { done: CHECK, warn: BANG, error: BANG, paused: PAUSE }[state] || (state === "launch" ? AVOLogo.markup({ className: "launch-logo", strokeWidth: 11 }) : MARK);
+        text.innerHTML = html;
+        const bar = $("#progress");
+        bar.classList.toggle("open", !task.total);
+        bar.style.setProperty("--done", task.total ? `${(100 * task.step) / task.total}%` : "0%");
+        sendSize(state, ...measure(state));
         if (!reduced.matches) shell.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
         if (state === "done" && !reduced.matches) draw(icon.querySelector("path"), 420);
       }
@@ -546,10 +553,12 @@
             scale = [1, 1.5, 2].includes(m.value) ? m.value : 1;
             document.documentElement.style.zoom = String(scale);
             const state = body.className.split(" ")[0] || "idle";
-            if (m.announce && state === "idle") {
+            if (m.announce && (state === "idle" || sizeNote)) {
+              // Pressed again while "Size …" shows: show the new size, count afresh.
               setState("info", `Size ${scale}×`);
-              timer = setTimeout(() => setState("idle"), 1200);
-            } else setState(state, text.innerHTML, { cls: body.className.split(" ").slice(1).join(" ") }); // re-measure at the new size
+              sizeNote = true;
+              timer = setTimeout(() => ((sizeNote = false), setState("idle")), 1200);
+            } else sendSize(state, ...measure(state)); // re-measure at the new size; leave any timer alone (11/01: it stuck)
             break;
           }
           case "listening":
