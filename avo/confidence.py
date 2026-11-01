@@ -187,6 +187,15 @@ def _same(a: list[tuple], b: list[tuple]) -> bool:
     return True
 
 
+DEAD_WINDOW = 3  # how many recent no-effect batches a new batch is compared against
+
+
+def repeats_dead(dead: list[list[dict]], actions: list[dict]) -> bool:
+    """True if this batch is one of the last few that changed nothing on screen (within REPEAT_PX)."""
+    sig = _signature(actions)
+    return bool(sig) and any(_same(sig, _signature(d)) for d in dead[-DEAD_WINDOW:])
+
+
 def repeats(history: list[list[dict]], actions: list[dict]) -> bool:
     """True if this click/type batch matches REPEAT_MIN of the last REPEAT_WINDOW batches."""
     if not any(a["type"] in ("click", "double_click", "type", "drag") for a in actions):

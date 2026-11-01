@@ -137,6 +137,16 @@ class PlainTest(unittest.TestCase):
         self.assertEqual(plain([{"type": "click", "x": 1, "y": 2}]), "clicking there")
         self.assertEqual(plain([{"type": "scroll", "x": 1, "y": 2, "scroll_y": 6}]), "scrolling")
 
+class DeadRepeatTest(unittest.TestCase):
+    def test_the_same_click_as_one_that_did_nothing(self):
+        from avo.confidence import repeats_dead
+
+        dead = [[{"type": "click", "x": 501, "y": 695}]]
+        self.assertTrue(repeats_dead(dead, [{"type": "click", "x": 501, "y": 699}]))  # 4 px off: the same
+        self.assertFalse(repeats_dead(dead, [{"type": "click", "x": 501, "y": 760}]))
+        self.assertFalse(repeats_dead(dead, [{"type": "wait"}]))  # waiting is never refused
+        self.assertFalse(repeats_dead([], [{"type": "click", "x": 501, "y": 695}]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -110,13 +110,26 @@ class LoopTest(LoopBase):
         self.assertTrue(summary["ok"])
         self.assertEqual(summary["api"]["calls"], 2)
 
-    def test_stuck_without_the_overlay_stops(self):
+    def test_a_dead_batch_isnt_run_again_and_a_second_stuck_stops(self):
+        # 10/31: cmd+L pressed 19 times; "View all results" clicked 3 more times at 0 px each.
         cmd_l = computer({"type": "keypress", "keys": ["cmd", "L"]})
-        result, summary, driver = self.run_with([reply(cmd_l)] * 5)
+        result, summary, driver = self.run_with([reply(cmd_l)] * 7)
         self.assertTrue(result.startswith("stopped: stuck"))
-        self.assertEqual(len(driver.ran), 3)
-        self.assertEqual(summary["counts"]["stuck"], 1)
-        self.assertEqual(summary["counts"]["no_effect"], 3)
+        self.assertEqual(len(driver.ran), 1)  # tried once; the five asks after it were refused
+        self.assertEqual(summary["counts"]["stuck"], 2)  # the first: another way; the second: stop
+        self.assertIn("NOT executed again", self.inputs[2]["input"][0]["content"][0]["text"])
+
+    def test_the_first_stuck_makes_a_fresh_plan_without_asking(self):
+        cmd_l = computer({"type": "keypress", "keys": ["cmd", "L"]})
+        result, summary, _ = self.run_with(
+            [plan_reply(start_kind="here", start_target=""), reply(cmd_l), reply(cmd_l), reply(cmd_l),
+             plan_reply(start_kind="here", start_target="", steps=["Click the search field first"]), reply(text="Done.")],
+            plan="auto",
+        )
+        self.assertEqual(result, "Done.")
+        self.assertEqual(summary["counts"]["replans"], 1)
+        self.assertEqual(summary["api"]["by_purpose"]["replan"]["calls"], 1)
+        self.assertIn("made a fresh plan", self.inputs[-1]["input"][0]["content"][0]["text"])
 
     def test_unknown_function_is_reported_not_run(self):
         result, _, driver = self.run_with([reply(fn("run_shell", cmd="ls")), reply(text="ok")])

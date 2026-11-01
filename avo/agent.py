@@ -16,7 +16,10 @@ from openai import OpenAI
 from avo import confirm
 from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
-from avo.effect import NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, EffectWatch, plain
+from avo.confidence import repeats_dead
+from avo.effect import (
+    DEAD_REPEAT_NOTE, NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, STUCK_REPLAN_NOTE, EffectWatch, plain,
+)
 from avo.gate import ask_user, assess
 from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
@@ -476,6 +479,8 @@ def run(
     effect = EffectWatch()
     confirmations: list[dict] = []  # every confirmation asked or counted down, for summary.json
     not_forward = 0  # click batches in a row the review says don't move the task forward
+    dead: list[list[dict]] = []  # batches that changed nothing on screen, not to be run again
+    last_dead = False  # the last batch changed nothing (or was refused for repeating one that didn't)
     personal_ok = False  # the user said yes to AVO being in their mail or messages
     draft = ""  # the last longer text typed: shown before a send
     try:
@@ -609,7 +614,15 @@ def run(
             a = None  # this step's gate assessment
             answered = False  # the user answered a question about this batch
             skip = False  # the user said no to this batch: nothing runs
-            if gate and not stop:
+            # The same batch as one that just did nothing on screen: don't run it
+            # again (10/31: "View all results" clicked three more times, 0 px each).
+            blocked = not stop and repeats_dead(dead, actions)
+            if blocked:
+                skip = True
+                print(f"[{step}] not run: the same as a batch that changed nothing")
+                notes.append(DEAD_REPEAT_NOTE)
+                log.annotate(step, blocked="repeats a batch that changed nothing")
+            if gate and not stop and not skip:
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
                     a = assess(client, checked_task(), past, done, png, actions, note, driver.geometry.shot_size,
@@ -663,15 +676,18 @@ def run(
             if not stop and not skip and actions and not answered and overlay.active:
                 if not personal_ok and personal_unasked(task, work_app, front_title(work_app)):
                     off = ("personal", "AVO is in your mail or messages — OK?", "Your task doesn’t mention them.")
-                elif not_forward >= OFF_TRACK_AFTER:
-                    off = ("forward", "Is this still your task?",
+                elif not_forward >= OFF_TRACK_AFTER and not last_dead:
+                    # (After a batch that did nothing, the stuck detector handles it, not a question.)
+                    off = ("forward", "AVO may be off track — keep going?",
                            f"AVO’s own check says its last {not_forward} steps don’t move your task forward.")
             if off:
                 kind, title, why = off
                 asked += 1
                 overlay.send("status", text="AVO has a question — see the card", busy=False)
                 with guard.acting(), guard.asking(), timed("you"):
-                    answer = overlay.ask(kind="confirm", title=title, intent=note, reason=why, codes=[])
+                    target, _ = confirm.target_of(actions, driver.to_screen)
+                    answer = overlay.ask(kind="confirm", title=title, reason=why, codes=[],
+                                         intent=f"Next: {confirm.saying(actions, target)}" + (f" — {note}" if note else ""))
                     refocus()
                 choice = (answer or {}).get("choice")
                 print(f"[{step}] off track ({kind}): user {choice}")
@@ -785,18 +801,42 @@ def run(
             # Did the batch do anything? Nothing changing on screen, again and
             # again, means the agent is stuck: say so to the model the first
             # time, and after STUCK_AFTER in a row stop and ask the user.
-            if stop or changed or skip:
+            verdict = None
+            if blocked:
+                verdict = effect.blocked()  # asking for a dead batch again is no progress either
+            elif stop or changed or skip:
                 effect.reset()  # the user or the page moved things, or nothing ran: count afresh
             else:
                 verdict = effect.record(executed, seen, png, driver.settle_area)
                 log.annotate(step, changed_px=effect.last_px)
+                if verdict in ("none", "stuck"):
+                    dead.append(executed)
+            last_dead = verdict in ("none", "stuck")
+            if verdict is not None:
                 no_effect += verdict in ("none", "stuck")
-                if verdict == "none":
+                if verdict == "none" and not blocked:
                     print(f"[{step}] nothing changed on screen")
                     notes.append(NO_EFFECT_NOTE)
+                elif verdict == "stuck" and stuck == 0:
+                    # The first time: try another way without bothering the user (a
+                    # fresh plan from Muse Wonder); stop and ask only if it sticks again.
+                    stuck += 1
+                    what = plain(executed or actions)
+                    print(f"[{step}] stuck: {what} changed nothing, {effect.streak} times in a row; trying another way")
+                    log.annotate(step, stuck=what, stuck_action="re-plan")
+                    overlay.send("status", text="Trying another way…", busy=True)
+                    effect.reset()
+                    if the_plan and replans < MAX_REPLANS and (fresh := make(png, past)):
+                        replans += 1
+                        fresh.question, fresh.answer = the_plan.question, the_plan.answer  # asked once is enough
+                        the_plan = fresh
+                        log.save("plan.json", the_plan.to_log() | {"replans": replans})
+                        notes.append(STUCK_REPLAN_NOTE.format(n=STUCK_AFTER))
+                    else:
+                        notes.append(NO_EFFECT_NOTE)
                 elif verdict == "stuck":
                     stuck += 1
-                    what = plain(executed)
+                    what = plain(executed or actions)
                     print(f"[{step}] stuck: {what} changed nothing, {effect.streak} times in a row")
                     log.annotate(step, stuck=what)
                     if not overlay.active:

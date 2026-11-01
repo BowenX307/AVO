@@ -36,6 +36,15 @@ NO_EFFECT_NOTE = (
     "keyboard focus may be in another window or field: click the target first. Don't repeat "
     "the same action; try something different."
 )
+DEAD_REPEAT_NOTE = (
+    "You already tried exactly this, and nothing on screen changed. It was NOT executed again. "
+    "Do something different: scroll to show more, click a different element, use the keyboard, "
+    "or open the page you need directly with open_url (most sites take a search URL with the query)."
+)
+STUCK_REPLAN_NOTE = (
+    "Your last {n} actions changed nothing on screen, so AVO made a fresh plan (above). "
+    "Follow it, and take a different approach from the one that failed."
+)
 STUCK_NOTE = (
     "AVO paused because your last {n} actions changed nothing on screen. The user has resumed "
     "and may have fixed something. Look at this screenshot afresh and take a different approach."
@@ -120,6 +129,12 @@ class EffectWatch:
             return "changed"
         if all(a["type"] in PASSIVE_KINDS for a in actions):
             return "passive"
+        self.streak += 1
+        return "stuck" if self.streak >= self.stuck_after else "none"
+
+    def blocked(self) -> str:
+        """A batch AVO refused to run again (it had done nothing before) counts as no effect."""
+        self.last_px = 0
         self.streak += 1
         return "stuck" if self.streak >= self.stuck_after else "none"
 
