@@ -454,6 +454,11 @@ function runTask({ text, regions: chosen = [], app: workApp, voice: spoken = fal
     fs.closeSync(log);
     task = null;
     if (listening?.phase === "task") stopListening();
+    if (stopRequested) {
+      stopRequested = false;
+      if (!finished) island.webContents.send("avo", { type: "done", ok: false, text: "You stopped the task", ms: 2000 });
+      return;
+    }
     if (!finished) {
       island.webContents.send("avo", { type: "done", text: `AVO stopped (exit ${code}). See runs/island.log`, ok: false, retry: true });
     }
@@ -752,7 +757,7 @@ function voiceKey() {
 // a task runs: stop it.
 function summonVoice() {
   vlog(`summon (${task || clients.size ? "stop task" : listening?.phase === "command" ? "end sentence" : "listen"})`);
-  if (task || clients.size) return stopByVoice();
+  if (task || clients.size || pendingStart) return stopByVoice();
   if (listening?.phase === "command") return finishCommand();
   if (!selecting && AT_REST.has(islandState)) startCommand();
 }
@@ -823,7 +828,8 @@ function commandHeard(text) {
   if (voice.understand(text).stop && text.split(/\s+/).length <= 2) return island.webContents.send("avo", { type: "idle" });
   const run = (lastRun = { text, regions: [], app, voice: true });
   island.webContents.send("avo", { type: "heard", text });
-  setTimeout(() => {
+  pendingStart = setTimeout(() => {
+    pendingStart = null;
     runTask(run);
     listenDuringTask([]);
   }, 600);
@@ -887,8 +893,23 @@ function openSession(state, key, keywords, { onPartial, onFinal, onEnded }) {
   return session;
 }
 
+let pendingStart = null; // the timer that starts a spoken task, for its first 600 ms
+let stopRequested = false;
+
 function stopByVoice() {
   vlog("stop requested");
+  if (!clients.size) {
+    // The agent hasn't connected yet (it takes a few seconds to start), so a
+    // "stop" message would go nowhere (11/01: the first "stop" was lost).
+    clearTimeout(pendingStart);
+    pendingStart = null;
+    stopListening();
+    if (task) {
+      stopRequested = true;
+      task.kill("SIGTERM");
+    } else island.webContents.send("avo", { type: "done", ok: false, text: "You stopped the task", ms: 2000 });
+    return;
+  }
   if (pendingAsk) answer({ choice: "stop", how: "voice" });
   else tellAgents({ type: "stop" });
   paused = false;
