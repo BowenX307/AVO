@@ -33,6 +33,7 @@ ANCESTORS = 3  # a link's text is a child of the link: look this far up
 BLANK = {"AXGroup", "AXWebArea", "AXScrollArea", "AXLayoutArea", "AXSplitGroup", "AXUnknown", "AXGenericElement"}
 AMBIGUOUS = 0.8  # don't snap unless the nearest is clearly nearer than the runner-up
 INSET = 4  # keep the snapped point this far inside the element's edge
+DESCEND, MAX_KIDS = 3, 40  # how many parents, and children each, to look through past an empty element
 
 _system = AX.AXUIElementCreateSystemWide()
 
@@ -81,9 +82,44 @@ def _frame(el) -> tuple[float, float, float, float] | None:
     return p.x, p.y, s.width, s.height
 
 
-def clickable_at(x: float, y: float) -> Target | None:
-    """The clickable element at a screen point (or its clickable ancestor)."""
+def _contains(el, x: float, y: float) -> bool:
+    f = _frame(el)
+    return bool(f) and f[0] <= x < f[0] + f[2] and f[1] <= y < f[1] + f[3]
+
+
+def _descend(el, x: float, y: float):
+    """The control under (x, y) that a hit-test on layout element `el` missed, if any.
+
+    11/01: hit-testing a Chrome tab returns an empty AXGroup over the tab strip,
+    not the tab (an AXRadioButton, a sibling of that group), so a click on a tab
+    looked like a click on nothing: AVO snapped it down onto the address bar,
+    or asked. Look at the children of the group and its parents (and into a tab
+    group) for a control containing the point. A few dozen AX calls, so only
+    for the one point being judged, not for every point nearby() probes.
+    """
+    for _ in range(DESCEND):
+        el = _attr(el, "AXParent") if el is not None else None
+        if el is None:
+            return None
+        for kid in (_attr(el, "AXChildren") or [])[:MAX_KIDS]:
+            role = _attr(kid, "AXRole")
+            if role in CLICKABLE and _contains(kid, x, y):
+                return kid
+            if role == "AXTabGroup" and _contains(kid, x, y):
+                for tab in (_attr(kid, "AXChildren") or [])[:MAX_KIDS]:
+                    if _attr(tab, "AXRole") in CLICKABLE and _contains(tab, x, y):
+                        return tab
+    return None
+
+
+def clickable_at(x: float, y: float, deep: bool = False) -> Target | None:
+    """The clickable element at a screen point (or its clickable ancestor).
+
+    deep: also look past an empty layout element the hit-test stopped at (_descend).
+    """
     err, el = AX.AXUIElementCopyElementAtPosition(_system, x, y, None)
+    if deep and not err and el is not None and _attr(el, "AXRole") in BLANK and not _text(el):
+        el = _descend(el, x, y) or el
     for _ in range(ANCESTORS + 1):
         if err or el is None:
             return None
@@ -112,7 +148,7 @@ def on_blank(x: float, y: float) -> bool:
     err, el = AX.AXUIElementCopyElementAtPosition(_system, x, y, None)
     if err or el is None:
         return False
-    return _attr(el, "AXRole") in BLANK and not _text(el)
+    return _attr(el, "AXRole") in BLANK and not _text(el) and _descend(el, x, y) is None
 
 
 def focused() -> Target | None:
@@ -145,7 +181,7 @@ def location(x: float, y: float) -> str | None:
     nearby (a click between two fields, which snap() leaves alone); None when it
     can't tell, e.g. a canvas or an app without accessibility info.
     """
-    if clickable_at(x, y):
+    if clickable_at(x, y, deep=True):
         return "on"
     if on_blank(x, y) and nearby(x, y):
         return "gap"
@@ -173,7 +209,7 @@ def warm_up(x: float, y: float) -> None:
 
 def snap(x: float, y: float) -> tuple[float, float, Target] | None:
     """Where to click instead of (x, y), or None to leave the click alone."""
-    if clickable_at(x, y) or not on_blank(x, y):
+    if clickable_at(x, y, deep=True) or not on_blank(x, y):
         return None
     ranked = nearby(x, y)
     if not ranked:

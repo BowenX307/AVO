@@ -361,6 +361,7 @@ function watchFrontApp() {
 let quitting = false;
 app.on("will-quit", () => {
   quitting = true;
+  task?.kill("SIGTERM"); // a running agent doesn't outlive the overlay
   frontWatch?.kill();
   helper?.kill();
   stopListening();

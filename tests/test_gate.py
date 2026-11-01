@@ -143,5 +143,29 @@ class NamedFixTest(unittest.TestCase):
         self.assertIsNone(self.fix("Empty space above Reply button", [self.reply], candidates=[{"label": "x"}, {"label": "y"}]))
 
 
+class ChromeTabTest(unittest.TestCase):
+    """11/01: a hit-test on a Chrome tab returns the empty strip over it, not the tab."""
+
+    def test_a_tab_under_an_empty_strip_counts_as_a_control(self):
+        from avo import snap
+
+        tab = {"AXRole": "AXRadioButton", "AXTitle": "Campus Mail — Inbox", "frame": (154, 116, 192, 41)}
+        group = {"AXRole": "AXTabGroup", "frame": (154, 116, 1060, 41), "AXChildren": [tab]}
+        strip = {"AXRole": "AXGroup", "frame": (154, 116, 1060, 41)}
+        toolbar = {"AXRole": "AXGroup", "frame": (40, 116, 1376, 41), "AXChildren": [strip, group]}
+        strip["AXParent"] = toolbar
+
+        def attr(el, name):
+            return el.get(name)
+
+        with mock.patch.object(snap.AX, "AXUIElementCopyElementAtPosition", lambda *a: (0, strip)), \
+                mock.patch.object(snap, "_attr", attr), mock.patch.object(snap, "_frame", lambda el: el.get("frame")):
+            self.assertIsNone(snap.clickable_at(215, 130))  # what the hit-test alone says
+            t = snap.clickable_at(215, 130, deep=True)
+            self.assertEqual((t.role, t.label), ("AXRadioButton", "Campus Mail — Inbox"))
+            self.assertEqual(snap.location(215, 130), "on")
+            self.assertIsNone(snap.snap(215, 130))  # not moved onto the address bar
+
+
 if __name__ == "__main__":
     unittest.main()
