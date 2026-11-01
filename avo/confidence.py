@@ -52,7 +52,10 @@ Judge strictly, as three separate questions:
    an inference nothing on screen states (a budget task, so probably the person in Finance),
    it is still ambiguous: the user should decide, and the agent's pick is shown as its guess.
    It is not ambiguous when the task, notes or screen name the option outright (full name,
-   role, or other detail that only one option has). If it is ambiguous, set ambiguous to true and list
+   role, or other detail that only one option has), or when the task asks for "a" or "any" such
+   thing and any of them would do (a study room, any 2 pm slot). Relative dates ARE ambiguous
+   when two dates on screen could be meant: "next Friday" said near a weekend can be the coming
+   Friday or the one after; "this weekend", "next week" likewise. List both. If it is ambiguous, set ambiguous to true and list
    every option that fits as candidates (label: just the option's visible text, e.g. "Alex Chen";
    and its center x, y in image 1),
    including the one the agent picked. Otherwise ambiguous is false and candidates is empty.

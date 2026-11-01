@@ -169,6 +169,9 @@ def assess(
     ]
     if not ((rev or {}).get("ambiguous") and len(candidates) >= 2):
         candidates = []
+    elif len({" ".join(c["label"].lower().split()) for c in candidates}) < len(candidates):
+        # "2:00 PM or 2:00 PM" (10/31, two rooms): nobody can answer that, so it isn't a question.
+        candidates = []
     reasons, plain = [], []
     if candidates:
         reasons.append("More than one fits: " + " or ".join(c["label"] for c in candidates))

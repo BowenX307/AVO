@@ -58,6 +58,13 @@ class GateTest(unittest.TestCase):
         self.assertTrue(a.flagged)
         self.assertEqual([c["label"] for c in a.candidates], ["Alex Chen", "Alex Rivera"])
 
+    def test_identical_options_arent_a_question(self):
+        same = OK_REVIEW | {"ambiguous": True, "candidates": [
+            {"label": "2:00 PM", "x": 100, "y": 100}, {"label": "2:00 PM", "x": 300, "y": 100}]}
+        a = assess(0.92, rev=same)
+        self.assertFalse(a.flagged)
+        self.assertEqual(a.candidates, [])
+
     def test_unsure_sam_and_the_review_says_hit(self):
         self.assertFalse(assess(0.6).flagged)
 

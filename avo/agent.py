@@ -20,7 +20,7 @@ from avo.confidence import repeats_dead
 from avo.effect import (
     DEAD_REPEAT_NOTE, NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, STUCK_REPLAN_NOTE, EffectWatch, plain,
 )
-from avo.gate import ask_user, assess
+from avo.gate import ask_user, assess, correct
 from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, NoKey, data_url, describe, friendly, make_client
@@ -50,6 +50,8 @@ cmd+L, type the address and press Enter together; to fill a form, click and type
 field you can already see in the same turn. End a turn only when the next action depends on \
 something you can't see yet (a page loading, a menu's options). After each turn AVO waits \
 until the screen stops changing, so don't end a turn with wait.
+- If the task can't be done here (the option or page it needs doesn't exist), stop and say \
+what is missing, instead of searching on and on.
 - Don't open or read the user's email, messages, files or other personal things unless the \
 task asks for them. To look something up, use the web.
 - Always write in English, even when the task is in another language."""
@@ -452,11 +454,18 @@ def run(
             spent[key] += time.time() - t0
 
     def checked_task() -> str:
-        """The task as the gate's review sees it: with the user's answer to the plan's question,
-        so it doesn't ask "which Smith?" again (10/31: it did)."""
+        """The task with the user's answers, as the model and the review see it every turn.
+
+        An answer is final: 10/31, after the user picked David Smith, the model
+        said "you picked the wrong professor" and the review asked again 4 times.
+        """
+        said = []
         if the_plan and the_plan.answer:
-            return f"{task}\n(AVO asked “{the_plan.question}” and the user answered: {the_plan.answer})"
-        return task
+            said.append(f"Asked “{the_plan.question}”, the user answered: {the_plan.answer}.")
+        said += [f"Asked which one, the user chose: {p}." for p in picks.values()]
+        if not said:
+            return task
+        return task + "\n(" + " ".join(said) + " These answers are final: follow them, don't switch away, and don't ask again.)"
 
     def make(screen: bytes, past: list[str] = (), boxed: bool = False) -> Plan | None:
         """A plan from this screen, or None if the planner fails (a plan helps; it isn't needed).
@@ -488,6 +497,7 @@ def run(
     the_plan: Plan | None = None
     effect = EffectWatch()
     confirmations: list[dict] = []  # every confirmation asked or counted down, for summary.json
+    picks: dict[frozenset, str] = {}  # the user's answer to each "which one?", by its set of options
     not_forward = 0  # click batches in a row the review says don't move the task forward
     dead: list[list[dict]] = []  # batches that changed nothing on screen, not to be run again
     last_dead = False  # the last batch changed nothing (or was refused for repeating one that didn't)
@@ -583,7 +593,7 @@ def run(
             log.save("plan.json", the_plan.to_log())
         response, seconds = ask_model(
             client, overlay, "1", effort, tool_list, instructions=instructions,
-            input=fresh_input(task, past, png, regions=selected, brief=the_plan.brief() if the_plan else ""),
+            input=fresh_input(checked_task(), past, png, regions=selected, brief=the_plan.brief() if the_plan else ""),
         )
 
         for step in range(1, max_steps + 1):
@@ -644,6 +654,15 @@ def run(
                 if a and not stop:
                     print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
                     entry = a.to_log()
+                    if a.flagged and a.candidates and (prior := picks.get(frozenset(c["label"] for c in a.candidates))):
+                        # Asked this before: use that answer, don't ask again.
+                        chosen = next(c for c in a.candidates if c["label"] == prior)
+                        if a.target and min(a.candidates, key=lambda c: (c["x"] - a.target[0]) ** 2 + (c["y"] - a.target[1]) ** 2) is not chosen:
+                            actions = correct(actions, (chosen["x"], chosen["y"]))
+                        print(f"[{step}] gate: asked before; the user chose {prior}")
+                        entry["user"] = {"choice": "pick", "answer": {"label": prior, "how": "earlier"}, "actions": actions}
+                        a.flagged = False
+                        answered = True
                     if a.flagged:
                         asked += 1
                         front = work_app or frontmost_app()
@@ -665,6 +684,7 @@ def run(
                         elif choice == "pick":
                             corrected += 1
                             note = (note + " " if note else "") + f"(the user chose “{answer['label']}”)"
+                            picks[frozenset(c["label"] for c in a.candidates)] = answer["label"]
                         elif choice == "no":
                             corrected += 1
                             note = (note + " " if note else "") + "(the user corrected the click point on screen)"
@@ -913,12 +933,14 @@ def run(
                     tool_list,
                     instructions=instructions,
                     input=fresh_input(
-                        task, past, png, nudge=only_looking(done), regions=selected,
+                        checked_task(), past, png, nudge=only_looking(done), regions=selected,
                         brief=the_plan.brief() if the_plan else "",
                     ),
                 )
         else:
             log.response(max_steps + 1, response)  # the reply we never acted on
+            last = next((p.split(" | ")[0].split(". ", 1)[-1] for p in reversed(past) if " | " in p), "")
+            result = f"stopped: step limit ({max_steps}) reached" + (f"; last step: {last}" if last else "")
 
     except StopTask:
         pass

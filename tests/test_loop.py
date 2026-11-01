@@ -131,6 +131,11 @@ class LoopTest(LoopBase):
         self.assertEqual(summary["api"]["by_purpose"]["replan"]["calls"], 1)
         self.assertIn("made a fresh plan", self.inputs[-1]["input"][0]["content"][0]["text"])
 
+    def test_the_step_limit_says_where_it_stopped(self):
+        click = lambda y: reply(computer({"type": "click", "x": 5, "y": y}), text=f"Looking for the 2FA setting {y}")
+        result, _, _ = self.run_with([click(10), click(60), click(110)], max_steps=2)
+        self.assertEqual(result, "stopped: step limit (2) reached; last step: Looking for the 2FA setting 60")
+
     def test_unknown_function_is_reported_not_run(self):
         result, _, driver = self.run_with([reply(fn("run_shell", cmd="ls")), reply(text="ok")])
         self.assertEqual(result, "ok")
