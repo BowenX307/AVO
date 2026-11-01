@@ -207,6 +207,12 @@
           asking = { l: Math.min(...rows.map((b) => b[0])), t: Math.min(...rows.map((b) => b[1])), r: Math.max(...rows.map((b) => b[2])) + 40, b: Math.max(...rows.map((b) => b[3])) };
           both({ type: "confirm", id: "p8", x: c[2].x, y: c[2].y, candidates: c, intent: "Several listings match “software engineer intern”.", reason: "" });
         },
+        async notice() {
+          to("island", {
+            type: "notice", title: "AVO needs Screen Recording and Accessibility",
+            text: "Screen Recording: to see the screen. Accessibility: to click, type and read buttons. Turn it on in System Settings → Privacy & Security for the app you start AVO from, then quit and reopen that app.",
+          });
+        },
         async clarify() {
           both({ type: "status", text: "Planning…", busy: true, phase: "planning" });
           await wait(900);

@@ -2,7 +2,8 @@
 
     uv run python -m avo.helper        (overlay/main.js starts it)
 
-Two jobs, one JSON object per line:
+Three jobs, one JSON object per line (the third: macOS permissions AVO is
+missing, at start and whenever that changes: {"event": "permissions", "missing": [...]}):
   - The summon key. A tap of right Option (press and release, nothing else in
     between) starts listening; while AVO works, the same tap stops it. A tap,
     not a hold: holding a key down is itself hard for some people. Electron's
@@ -221,8 +222,22 @@ def serve() -> None:
             emit({"id": req.get("id"), "keywords": words})
 
 
+def watch_permissions() -> None:
+    """Report missing macOS permissions at start and whenever that changes."""
+    from avo.permissions import missing
+
+    last = None
+    while True:
+        now = missing()
+        if now != last:
+            emit({"event": "permissions", "missing": now})
+            last = now
+        time.sleep(5)
+
+
 def main() -> None:
     threading.Thread(target=serve, name="avo-helper-stdin", daemon=True).start()
+    threading.Thread(target=watch_permissions, name="avo-helper-permissions", daemon=True).start()
     emit({"event": "ready"})
     watch_keys()  # runs the tap's run loop on the main thread
     while True:  # no tap (no permission): keep serving keywords

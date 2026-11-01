@@ -89,6 +89,7 @@ class LoopBase(unittest.TestCase):
             focus=lambda bundle: None,
             screen_text=lambda app: "",
             highlight=lambda *a, **k: None,
+            missing_permissions=lambda: [],
         ), mock.patch("avo.agent.Overlay", lambda: Overlay(url=None)):
             result = agent.run(
                 task, gate=False, snap_to_controls=False, human_guard=False, plan=plan, **kw
@@ -199,11 +200,17 @@ class PlanLoopTest(LoopBase):
         self.assertTrue(result.startswith("stopped: cost limit reached"))  # $0.375 a turn: stops after two
         self.assertEqual(len(driver.ran), 1)
 
+    def test_a_missing_permission_stops_before_anything_happens(self):
+        gap = [{"id": "screen", "name": "Screen Recording", "why": "see the screen", "essential": True, "url": ""}]
+        with mock.patch.object(agent, "missing_permissions", lambda: gap), \
+                mock.patch.object(agent, "make_client", lambda: self.fail("no API call without the permission")):
+            self.assertEqual(agent.run("x", overlay=Overlay(url=None)), "stopped: missing permission: Screen Recording")
+
     def test_no_key_says_so(self):
         def no_key():
             raise agent.NoKey("MODEL_API_KEY is not set")
 
-        with mock.patch.object(agent, "make_client", no_key):
+        with mock.patch.object(agent, "make_client", no_key), mock.patch.object(agent, "missing_permissions", lambda: []):
             self.assertEqual(agent.run("x", overlay=Overlay(url=None)), "stopped: MODEL_API_KEY is not set")
 
     def test_never(self):

@@ -26,6 +26,8 @@ from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, NoKey, data_url, describe, friendly, make_client
 from avo.meter import Meter
 from avo.overlay import Overlay
+from avo.permissions import explain as explain_permissions
+from avo.permissions import missing as missing_permissions
 from avo.planner import REPLAN_MODEL, Plan, make_plan
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
@@ -404,6 +406,13 @@ def run(
         raise ValueError(f"history must be 'full' or 'text', not {history!r}")
     if human_resume not in ("manual", "auto"):
         raise ValueError(f"human_resume must be 'manual' or 'auto', not {human_resume!r}")
+    gaps = [g for g in missing_permissions() if g["essential"]]
+    if gaps:  # without these AVO is blind (Screen Recording) or its clicks go nowhere (Accessibility)
+        print(f"result: stopped: {explain_permissions(gaps)}")
+        if (o := overlay or Overlay()).active:
+            o.send("done", text=explain_permissions(gaps), ok=False, error=True)
+            o.close()
+        return "stopped: missing permission: " + ", ".join(g["name"] for g in gaps)
     meter = Meter()  # every API call of the run, for summary.json
     try:
         client = meter.wrap(make_client())

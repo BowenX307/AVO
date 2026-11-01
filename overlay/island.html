@@ -239,7 +239,8 @@
       .row .stop:hover { color: var(--avo-paper); }
       .row .no, .row .yes { min-width: 64px; }
       body.picking .row .no, body.picking .row .yes, body.correcting .row .no, body.correcting .row .yes { display: none; }
-      body.safety .row .no { display: none; }
+      body.safety .row .no, body.notice .row .no { display: none; }
+      body.notice .row .yes { min-width: 120px; }
       body.safety .row .yes { min-width: 84px; }
       body.confirming .row .yes { min-width: 84px; }
 
@@ -402,6 +403,7 @@
 
       function showCard(m) {
         body.classList.remove("correcting");
+        $(".row .stop").textContent = "Stop";
         $(".preview").textContent = "";
         if (m.kind === "countdown") return showCountdown(m);
         if (m.kind === "confirm") return showConfirm(m);
@@ -459,6 +461,20 @@
         $(".loupe").removeAttribute("src");
         $(".row .yes").textContent = "Continue";
         setState("ask", "", { cls: "safety" });
+      }
+
+      // A permission AVO is missing: which, what for, and a button to the
+      // right pane of System Settings. Nothing is waiting on an answer.
+      function showNotice(m) {
+        $(".choices").replaceChildren();
+        $(".preview").textContent = "";
+        $(".q").textContent = m.title || "AVO needs a permission";
+        $(".intent").textContent = m.text || "";
+        $(".under").textContent = $(".reason").textContent = $(".note").textContent = "";
+        $(".loupe").removeAttribute("src");
+        $(".row .yes").textContent = "Open Settings";
+        $(".row .stop").textContent = "Later";
+        setState("ask", "", { cls: "notice" });
       }
 
       // Before an ordinary step: "Clicking “Reply”", the line running out.
@@ -539,6 +555,9 @@
           case "listening":
             showListening(m);
             break;
+          case "notice":
+            showNotice(m);
+            break;
           case "heard":
             showListening(m, "heard");
             break;
@@ -585,8 +604,10 @@
       for (const b of document.querySelectorAll(".ctl button")) {
         b.addEventListener("click", () => window.avo.send("island-control", { cmd: b.dataset.cmd }));
       }
-      $(".row .yes").addEventListener("click", () => window.avo.send("bubble-choice", { choice: "yes" }));
-      $(".row .stop").addEventListener("click", () => window.avo.send("bubble-choice", { choice: "stop" }));
+      $(".row .yes").addEventListener("click", () =>
+        body.classList.contains("notice") ? window.avo.send("island-control", { cmd: "open-settings" }) : window.avo.send("bubble-choice", { choice: "yes" }));
+      $(".row .stop").addEventListener("click", () =>
+        body.classList.contains("notice") ? window.avo.send("island-control", { cmd: "dismiss-notice" }) : window.avo.send("bubble-choice", { choice: "stop" }));
       $(".row .no").addEventListener("click", () => {
         if (body.classList.contains("confirming")) return window.avo.send("bubble-choice", { choice: "decline" });
         body.classList.add("correcting");

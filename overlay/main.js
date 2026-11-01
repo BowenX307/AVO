@@ -19,7 +19,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execFile, execFileSync, spawn } = require("child_process");
-const { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen, session, systemPreferences } = require("electron");
+const { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen, session, shell, systemPreferences } = require("electron");
 const { WebSocketServer } = require("ws");
 const { roundGlass } = require("./glass");
 const voice = require("./voice");
@@ -243,6 +243,14 @@ function togglePause() {
 }
 
 ipcMain.on("island-control", (_e, { cmd }) => {
+  if (cmd === "open-settings") {
+    if (notice?.url) shell.openExternal(notice.url);
+    return;
+  }
+  if (cmd === "dismiss-notice") {
+    notice = null;
+    return island.webContents.send("avo", { type: "idle" });
+  }
   if (cmd === "retry") return retry();
   if (cmd === "cancel") return answer({ choice: "no", how: "click" }); // during a countdown
   if (cmd === "dismiss") return island.webContents.send("avo", { type: "idle" });
@@ -394,6 +402,11 @@ ipcMain.on("island-cancel", cancelInput);
 
 ipcMain.on("island-submit", (_e, { text }) => {
   if (task) return;
+  if (!permissionsOk()) {
+    if (selecting) endSelect(false);
+    closeInput();
+    return;
+  }
   const chosen = regions;
   const run = (lastRun = { text, regions: chosen, app: returnTo });
   if (selecting) endSelect(true); // keep the boxes, faint, while the agent works
@@ -405,6 +418,7 @@ ipcMain.on("island-submit", (_e, { text }) => {
 // Retry after AVO got stuck: the same task and boxes, with the same app in front.
 function retry() {
   if (!lastRun || clients.size) return;
+  if (!permissionsOk()) return;
   island.webContents.send("avo", { type: "status", text: "Starting…", busy: true });
   if (lastRun.app) execFile("open", ["-b", lastRun.app]);
   const go = () => setTimeout(() => runTask(lastRun), 400);
@@ -603,6 +617,35 @@ function route(msg) {
   pointer.webContents.send("avo", toPointerWindow(msg));
 }
 
+// ---- permissions ----
+// helper.py reports the macOS permissions AVO is missing (avo/permissions.py)
+// at start and whenever that changes. The island says which one and what for,
+// with a button to the right pane of System Settings; a task doesn't start
+// without the essential ones (Screen Recording, Accessibility).
+
+let missingPerms = [];
+let notice = null; // the permission card on the island: { url }
+
+function showNotice(gaps) {
+  if (!gaps.length) return;
+  const names = gaps.map((g) => g.name).join(" and ");
+  notice = { url: gaps[0].url };
+  island.webContents.send("avo", {
+    type: "notice",
+    title: `AVO needs ${names}`,
+    text: gaps.map((g) => `${g.name}: to ${g.why}.`).join(" ") +
+      " Turn it on in System Settings → Privacy & Security for the app you start AVO from, then quit and reopen that app.",
+  });
+}
+
+// True if a task can start; otherwise shows what's missing.
+function permissionsOk() {
+  const essential = missingPerms.filter((g) => g.essential);
+  if (!essential.length) return true;
+  showNotice(essential);
+  return false;
+}
+
 // ---- voice ----
 // helper.py (a Python process kept running) reports taps of the summon key and
 // reads names off the screen; voice.js streams the microphone to Meta's
@@ -631,6 +674,15 @@ function startHelper() {
       }
       if (m.event === "summon") summonVoice();
       else if (m.event === "ready") prefetchKeywords();
+      else if (m.event === "permissions") {
+        const fresh = (m.missing || []).filter((g) => !missingPerms.some((o) => o.id === g.id));
+        missingPerms = m.missing || [];
+        if (fresh.length && !task && !clients.size) showNotice(missingPerms);
+        if (!missingPerms.length && notice && islandState === "ask") {
+          notice = null;
+          island.webContents.send("avo", { type: "idle" });
+        }
+      }
       else if (m.event === "error") console.log(`helper: ${m.text}`);
       else if (m.id && helperWaits.has(m.id)) {
         helperWaits.get(m.id)(m.keywords || []);
@@ -701,8 +753,13 @@ function summonVoice() {
 async function startCommand() {
   const key = voiceKey();
   if (!key) return;
+  if (!permissionsOk()) return;
   if (!(await micOk())) {
-    island.webContents.send("avo", { type: "done", ok: false, text: "Microphone access is off: System Settings → Privacy → Microphone", ms: 5000 });
+    notice = { url: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" };
+    island.webContents.send("avo", {
+      type: "notice", title: "AVO needs the Microphone",
+      text: "Microphone: to hear your task. Turn it on in System Settings → Privacy & Security for the app you start AVO from, then quit and reopen that app.",
+    });
     return;
   }
   stopListening();
