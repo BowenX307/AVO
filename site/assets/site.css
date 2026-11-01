@@ -212,6 +212,14 @@ h3 { font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; }
 .e3 .bar em { font: 500 15px var(--avo-font-mono); font-style: normal; min-width: 3.2em; text-align: right; }
 .e3 .bar small { grid-column: 3; font: 12px var(--avo-font-mono); color: var(--avo-gray-2); text-align: right; }
 .e3 figcaption { font-size: 13.5px; line-height: 1.5; color: var(--avo-gray-2); }
+.models i { display: block; margin-top: 8px; font-style: normal; font-size: 14px; line-height: 1.45; color: var(--avo-ink); }
+.notfor ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 16px; line-height: 1.5; }
+.limit-list { margin: 0; padding-left: 22px; display: grid; gap: 10px; max-width: 760px; font-size: 18px; line-height: 1.5; }
+.stat em { font-style: normal; font-weight: 600; color: var(--avo-ink); }
+.hero-stat { margin-top: 10px; font: 500 15px var(--avo-font-mono); }
+#results .evidence-grid { grid-template-columns: 1fr; gap: 36px; }
+#results .stats { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+@media (max-width: 860px) { #results .stats { grid-template-columns: 1fr; gap: 24px; } }
 .limits { margin-top: 48px; max-width: 760px; }
 .limits b { font: 500 12px var(--avo-font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
 .limits ul { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--avo-gray-1); }

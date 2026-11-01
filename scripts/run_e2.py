@@ -193,6 +193,9 @@ def main() -> None:
         CHART.parent.mkdir(parents=True, exist_ok=True)
         CHART.write_text(draw(rows, res))
         CHART.with_name(CHART.stem + "-light.svg").write_text(draw(rows, res, dark=False))  # the website is light only
+        from e2_chart import draw_main
+
+        CHART.with_name("e2-tremor-8px-light.svg").write_text(draw_main(rows, res, sigma=8, dark=False))  # the website's big chart
         print(f"wrote {CHART} and its light-only copy")
     except ImportError:
         pass

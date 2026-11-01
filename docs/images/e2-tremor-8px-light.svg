@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 500" width="1120" height="500" role="img" aria-labelledby="mt md" font-family="Geist, Inter, -apple-system, sans-serif">
+<title id="mt">Hit rate by button size with a simulated 8 px tremor</title>
+<desc id="md">30 simulated clicks per point. At 12 px, clicking alone hits 33%, AVO with SAM only 47%, AVO 100%.</desc>
+<style>.bg{fill:#F5F5F2}.ink{fill:#0A0A0A}.muted{fill:#6B6B68}.grid{stroke:#D9D9D6;stroke-width:1}.l-avo{stroke:#0A0A0A}.l-sam,.l-alone{stroke:#8A8A86}.d-avo{fill:#0A0A0A}.d-sam,.d-alone{fill:#8A8A86}text{font-size:14px}.title{font-size:20px;font-weight:600}.v{font-size:14px;font-weight:600}</style>
+<rect class="bg" width="1120" height="500" rx="14"/>
+<text class="ink title" x="32" y="44">How often a shaky click hits the button</text>
+<text class="muted" x="32" y="68">Simulated tremor: every aim lands off by a random 8 px (standard deviation). 30 clicks per point.</text>
+<line class="l-avo" x1="32" y1="94" x2="60" y2="94" stroke-width="3" stroke-linecap="round"/><text class="ink" x="68" y="99">AVO</text>
+<line class="l-sam" x1="124.8" y1="94" x2="152.8" y2="94" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round"/><text class="ink" x="160.8" y="99">AVO, SAM only (no name)</text>
+<line class="l-alone" x1="369.59999999999997" y1="94" x2="397.59999999999997" y2="94" stroke-width="3" stroke-linecap="round"/><text class="ink" x="405.59999999999997" y="99">Clicking alone</text>
+<line class="grid" x1="70" x2="1080" y1="436.0" y2="436.0"/><text class="muted" x="60" y="441.0" text-anchor="end">0%</text>
+<line class="grid" x1="70" x2="1080" y1="357.0" y2="357.0"/><text class="muted" x="60" y="362.0" text-anchor="end">25%</text>
+<line class="grid" x1="70" x2="1080" y1="278.0" y2="278.0"/><text class="muted" x="60" y="283.0" text-anchor="end">50%</text>
+<line class="grid" x1="70" x2="1080" y1="199.0" y2="199.0"/><text class="muted" x="60" y="204.0" text-anchor="end">75%</text>
+<line class="grid" x1="70" x2="1080" y1="120.0" y2="120.0"/><text class="muted" x="60" y="125.0" text-anchor="end">100%</text>
+<text class="muted" x="140.0" y="462" text-anchor="middle">12 px</text>
+<text class="muted" x="375.0" y="462" text-anchor="middle">18 px</text>
+<text class="muted" x="610.0" y="462" text-anchor="middle">24 px</text>
+<text class="muted" x="845.0" y="462" text-anchor="middle">32 px</text>
+<text class="muted" x="1080.0" y="462" text-anchor="middle">44 px</text>
+<text class="muted" x="610.0" y="488" text-anchor="middle">button size</text>
+<path class="l-alone" d="M140.0 330.7 L375.0 278.0 L610.0 246.4 L845.0 141.1 L1080.0 120.0" fill="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="d-alone" cx="140.0" cy="330.7" r="5"/>
+<circle class="d-alone" cx="375.0" cy="278.0" r="5"/>
+<circle class="d-alone" cx="610.0" cy="246.4" r="5"/>
+<circle class="d-alone" cx="845.0" cy="141.1" r="5"/>
+<circle class="d-alone" cx="1080.0" cy="120.0" r="5"/>
+<text class="ink v" x="128.0" y="335.7" text-anchor="end">33%</text>
+<path class="l-sam" d="M140.0 288.5 L375.0 193.7 L610.0 204.3 L845.0 183.2 L1080.0 120.0" fill="none" stroke-width="2" stroke-dasharray="6 5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="d-sam" cx="140.0" cy="288.5" r="4"/>
+<circle class="d-sam" cx="375.0" cy="193.7" r="4"/>
+<circle class="d-sam" cx="610.0" cy="204.3" r="4"/>
+<circle class="d-sam" cx="845.0" cy="183.2" r="4"/>
+<circle class="d-sam" cx="1080.0" cy="120.0" r="4"/>
+<text class="ink v" x="128.0" y="293.5" text-anchor="end">47%</text>
+<path class="l-avo" d="M140.0 120.0 L375.0 120.0 L610.0 120.0 L845.0 120.0 L1080.0 120.0" fill="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle class="d-avo" cx="140.0" cy="120.0" r="5"/>
+<circle class="d-avo" cx="375.0" cy="120.0" r="5"/>
+<circle class="d-avo" cx="610.0" cy="120.0" r="5"/>
+<circle class="d-avo" cx="845.0" cy="120.0" r="5"/>
+<circle class="d-avo" cx="1080.0" cy="120.0" r="5"/>
+<text class="ink v" x="128.0" y="125.0" text-anchor="end">100%</text>
+</svg>

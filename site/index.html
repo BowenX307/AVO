@@ -36,7 +36,6 @@
       <div class="wrap">
         <a class="brand" href="./" aria-label="AVO home">
           <svg viewBox="0 0 340 100" fill="none" stroke="currentColor" stroke-width="13" stroke-linejoin="miter" stroke-linecap="square" aria-hidden="true"><path d="M10 90 L50 10 L90 90" /><path d="M126 10 L166 90 L206 10" /><path d="M261.01 21.01 A41 41 0 1 1 318.99 78.99 A41 41 0 1 1 261.01 21.01 Z" /></svg>
-          <span>AVO</span>
         </a>
         <nav>
           <a class="wide" href="#how">How it works</a>
@@ -54,6 +53,7 @@
           <h1><span class="dim">Say what you want done.</span> AVO handles the clicks — and asks when it isn’t sure.</h1>
           <div class="row">
             <p class="lede">For people who find using a mouse or trackpad difficult.</p>
+            <!-- After E1: <p class="hero-stat">Same task: N things said with AVO, M commands with Voice Control.</p> -->
             <div class="ctas">
               <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
               <a class="btn line" href="docs.html#install">Install for macOS</a>
@@ -73,13 +73,19 @@
         </div>
       </section>
 
+
+
+
+
+
+
       <!-- ② Who it's for -->
       <section id="who">
         <div class="wrap">
           <div class="head">
             <span class="label">Who it’s for</span>
             <h2 data-reveal>Every click costs something. AVO makes you pay less of it.</h2>
-            <p class="lede">AVO is for people who can speak clearly but pay a price for every precise move of the hand: it can’t be done, can’t be done accurately, hurts, tires, or takes a long time.</p>
+            <p class="lede">AVO is for people who can speak clearly, but for whom every precise hand movement is impossible, inaccurate, painful, tiring, or slow.</p>
           </div>
           <div class="three">
             <div><span class="mono">01 · Hardly able to use the hands</span><p class="who-eg">For example, after a high spinal cord injury.</p><p>One sentence replaces dozens of step-by-step commands.</p></div>
@@ -89,30 +95,15 @@
           <p class="aside-note">This first version is built mainly for the first two groups.</p>
           <div class="notfor">
             <b>Not the right tool if…</b>
-            <p>speaking is hard for you — AVO’s main input is your voice; or you rely on a screen reader — AVO asks by drawing rings on the screen, and screen-reader users need a different kind of interaction.</p>
+            <ul>
+              <li>Speaking is hard for you. AVO’s main input is your voice.</li>
+              <li>You rely on a screen reader. AVO asks by drawing rings on the screen, and screen-reader users need a different kind of interaction.</li>
+            </ul>
           </div>
         </div>
       </section>
 
-      <!-- ③ Why it asks -->
-      <section>
-        <div class="wrap split">
-          <figure class="media" style="margin: 0">
-            <i class="corners"></i>
-            <div class="ph" role="img" aria-label="Placeholder for a screen recording">
-              <b>Clip needed · 5–10 s loop</b>
-              <span>A plain agent (AVO off) replies to the wrong Professor Smith, then reports Done ✓</span>
-            </div>
-          </figure>
-          <div>
-            <div class="done-tag">Agent: <s>Done ✓</s></div>
-            <p class="quote" data-reveal>Agents ask for permission. AVO asks for understanding.</p>
-            <p>A reply to the wrong professor sets off no permission prompt — it isn’t “sensitive”, it’s just wrong. And fixing it by hand is exactly what costs the most. So AVO asks a one-word question first: “Which Smith?” — “Two.”</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ④ Two moments -->
+      <!-- ③ Two moments -->
       <section>
         <div class="wrap">
           <div class="head">
@@ -147,7 +138,7 @@
         </div>
       </section>
 
-      <!-- ⑤ Why not Voice Control -->
+      <!-- ④ Why not Voice Control -->
       <section id="voice-control">
         <div class="wrap">
           <div class="head">
@@ -179,6 +170,24 @@
         </div>
       </section>
 
+      <!-- ⑤ Why it asks -->
+      <section>
+        <div class="wrap split">
+          <figure class="media" style="margin: 0">
+            <i class="corners"></i>
+            <div class="ph" role="img" aria-label="Placeholder for a screen recording">
+              <b>Clip needed · 5–10 s loop</b>
+              <span>A plain agent (AVO off) replies to the wrong Professor Smith, then reports Done ✓</span>
+            </div>
+          </figure>
+          <div>
+            <div class="done-tag">Agent: <s>Done ✓</s></div>
+            <p class="quote" data-reveal>Agents ask for permission. AVO asks for understanding.</p>
+            <p>A reply to the wrong professor sets off no permission prompt — it isn’t “sensitive”, it’s just wrong. And fixing it by hand is exactly what costs the most. So AVO asks a one-word question first: “Which Smith?” — “Two.”</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ⑥ How it works -->
       <section id="how">
         <div class="wrap">
@@ -187,28 +196,30 @@
             <h2 data-reveal>One sentence in. Checked before every step.</h2>
             <p class="lede">Computer-use models don’t say how sure they are. AVO checks each step before it happens, and asks you only when it should.</p>
           </div>
-          <figure class="diagram" style="margin-left: 0; margin-right: 0" aria-label="You say the task (or box it roughly); Muse Spark plans and acts; before each step AVO checks whether several things fit, whether the target is clear (SAM 3.1), and whether the step can be undone. If sure, it rings the target and counts down a second; if not, it rings the options and asks, and your answer goes back in.">
-            <svg class="h" viewBox="0 0 1160 310" role="img" aria-hidden="true">
+          <figure class="diagram" style="margin-left: 0; margin-right: 0" aria-label="You say the task (or box it roughly); Muse Spark plans and acts; before each step AVO checks whether several things fit, whether the target is clear (SAM 3.1), and whether the step can be undone. Three outcomes: several fit, so it rings each and asks which; an ordinary step, so it rings the target and counts down a second; a step that can't be undone, so it shows it and waits for yes. Your answer goes back in.">
+            <svg class="h" viewBox="0 0 1160 300" role="img" aria-hidden="true">
               <defs><marker id="tip" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
-              <rect class="box" x="0.5" y="78" width="200" height="84" rx="10" />
-              <text class="t" x="18" y="112">You say it</text><text class="s" x="18" y="136">or box it, roughly</text>
-              <path class="wire" d="M201 120 H263" marker-end="url(#tip)" />
-              <rect class="box" x="265" y="78" width="200" height="84" rx="10" />
-              <text class="t" x="283" y="112">Muse Spark</text><text class="s" x="283" y="136">plans, then acts</text>
-              <path class="wire" d="M465 120 H527" marker-end="url(#tip)" />
-              <rect class="box" x="529" y="40" width="270" height="160" rx="10" />
-              <text class="t" x="547" y="74">Before each step</text>
-              <text class="s" x="547" y="102">several things fit?</text><text class="s" x="547" y="126">a clear target? (SAM 3.1)</text><text class="s" x="547" y="150">can’t be undone?</text>
-              <path class="wire" d="M799 120 H829 V62 H857 M829 120 V178 H857" />
-              <path class="wire" d="M849 62 H857" marker-end="url(#tip)" /><path class="wire" d="M849 178 H857" marker-end="url(#tip)" />
-              <rect class="box fill" x="859.5" y="30" width="300" height="64" rx="10" />
-              <text class="t inv" x="877" y="58">Sure</text><text class="s inv" x="877" y="80">rings it, counts down 1 s</text>
-              <rect class="box" x="859.5" y="146" width="300" height="64" rx="32" />
-              <text class="t" x="885" y="174">Not sure</text><text class="s" x="885" y="196">rings the options, asks</text>
-              <path class="wire dash" d="M1009 210 V266 H365 V164" marker-end="url(#tip)" />
-              <text class="s" x="687" y="292" text-anchor="middle">your answer goes back in</text>
+              <rect class="box" x="0.5" y="104" width="200" height="84" rx="10" />
+              <text class="t" x="18" y="138">You say it</text><text class="s" x="18" y="162">or box it, roughly</text>
+              <path class="wire" d="M201 146 H263" marker-end="url(#tip)" />
+              <rect class="box" x="265" y="104" width="200" height="84" rx="10" />
+              <text class="t" x="283" y="138">Muse Spark</text><text class="s" x="283" y="162">plans, then acts</text>
+              <path class="wire" d="M465 146 H527" marker-end="url(#tip)" />
+              <rect class="box" x="529" y="80" width="250" height="132" rx="10" />
+              <text class="t" x="547" y="112">Before each step</text>
+              <text class="s" x="547" y="140">several things fit?</text><text class="s" x="547" y="162">a clear target? (SAM 3.1)</text><text class="s" x="547" y="184">can’t be undone?</text>
+              <path class="wire" d="M779 146 H809 V44 H837 M809 146 H837 M809 146 V248 H837" />
+              <path class="wire" d="M829 44 H837" marker-end="url(#tip)" /><path class="wire" d="M829 146 H837" marker-end="url(#tip)" /><path class="wire" d="M829 248 H837" marker-end="url(#tip)" />
+              <rect class="box" x="839.5" y="12" width="320" height="64" rx="32" />
+              <text class="t" x="865" y="40">Several fit</text><text class="s" x="865" y="62">rings each, asks which</text>
+              <rect class="box fill" x="839.5" y="114" width="320" height="64" rx="10" />
+              <text class="t inv" x="857" y="142">An ordinary step</text><text class="s inv" x="857" y="164">rings it, counts down 1 s</text>
+              <rect class="box" x="839.5" y="216" width="320" height="64" rx="32" />
+              <text class="t" x="865" y="244">Can’t be undone</text><text class="s" x="865" y="266">shows it, waits for “yes”</text>
+              <path class="wire dash" d="M999 12 V2 H365 V102" marker-end="url(#tip)" />
+              <text class="s" x="682" y="22" text-anchor="middle">your answer goes back in</text>
             </svg>
-            <svg class="v" viewBox="0 0 340 530" role="img" aria-hidden="true">
+            <svg class="v" viewBox="0 0 340 640" role="img" aria-hidden="true">
               <defs><marker id="tipv" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
               <rect class="box" x="20.5" y="0.5" width="299" height="70" rx="10" />
               <text class="t" x="38" y="30">You say it</text><text class="s" x="38" y="52">or box it, roughly</text>
@@ -219,14 +230,15 @@
               <rect class="box" x="20.5" y="200" width="299" height="122" rx="10" />
               <text class="t" x="38" y="230">Before each step</text>
               <text class="s" x="38" y="256">several things fit?</text><text class="s" x="38" y="278">a clear target? (SAM 3.1)</text><text class="s" x="38" y="300">can’t be undone?</text>
-              <path class="wire" d="M170 322 V346 H86 V378 M170 346 H254 V378" />
-              <path class="wire" d="M86 370 V378" marker-end="url(#tipv)" /><path class="wire" d="M254 370 V378" marker-end="url(#tipv)" />
-              <rect class="box fill" x="10.5" y="380" width="150" height="70" rx="10" />
-              <text class="t inv" x="26" y="410">Sure</text><text class="s inv" x="26" y="432">counts down 1 s</text>
-              <rect class="box" x="179.5" y="380" width="150" height="70" rx="35" />
-              <text class="t" x="200" y="410">Not sure</text><text class="s" x="200" y="432">rings, asks</text>
-              <path class="wire dash" d="M254 450 V478 H337 V135 H322" marker-end="url(#tipv)" />
-              <text class="s" x="170" y="510" text-anchor="middle">your answer goes back in</text>
+              <path class="wire" d="M170 322 V340 H40 V378 M170 340 V458 M170 340 H300 V538" />
+              <path class="wire" d="M40 370 V378" marker-end="url(#tipv)" /><path class="wire" d="M170 450 V458" marker-end="url(#tipv)" /><path class="wire" d="M300 530 V538" marker-end="url(#tipv)" />
+              <rect class="box" x="10.5" y="380" width="200" height="60" rx="30" />
+              <text class="t" x="30" y="406">Several fit</text><text class="s" x="30" y="426">asks which</text>
+              <rect class="box fill" x="70.5" y="460" width="200" height="60" rx="10" />
+              <text class="t inv" x="86" y="486">Ordinary step</text><text class="s inv" x="86" y="506">counts down 1 s</text>
+              <rect class="box" x="129.5" y="540" width="200" height="60" rx="30" />
+              <text class="t" x="150" y="566">Can’t be undone</text><text class="s" x="150" y="586">waits for “yes”</text>
+              <text class="s" x="170" y="628" text-anchor="middle">your answer goes back to Muse Spark</text>
             </svg>
           </figure>
           <div class="three asks">
@@ -235,10 +247,10 @@
             <div><span class="mono">Can’t be undone</span><p>Send, submit, delete, pay, book: AVO shows what will happen — the reply it wrote, say — and waits for your “yes”.</p></div>
           </div>
           <div class="models four">
-            <div><b>Muse Voice Transcribe</b><span>hears you, with the names on screen as hints</span></div>
-            <div><b>Muse Spark</b><span>plans, acts, and checks each step</span></div>
-            <div><b>Muse Wonder</b><span>re-plans when AVO gets stuck</span></div>
-            <div><b>SAM&nbsp;3.1</b><span>finds the exact target inside a rough box</span></div>
+            <div><b>Muse Voice Transcribe</b><span>hears you, with the names on screen as hints.</span><i>Without it, “Smith” is heard as “Smyth”, and you’re back to typing.</i></div>
+            <div><b>Muse Spark</b><span>plans, acts, and checks every step before it happens.</span><i>Without it, nobody notices that two people fit the task.</i></div>
+            <div><b>Muse Wonder</b><span>makes a fresh plan when AVO gets stuck.</span><i>Without it, a dead end means clicking the same thing again.</i></div>
+            <div><b>SAM&nbsp;3.1</b><span>finds the exact target inside a rough box.</span><i>Without it, a rough box is just a rough box.</i></div>
           </div>
           <p class="claim" data-reveal>AVO isn’t another agent. It’s the layer between you and your computer.</p>
         </div>
@@ -254,16 +266,16 @@
           </div>
           <div class="evidence-grid">
             <figure class="chart">
-              <a href="images/e2-tremor-light.svg" aria-label="Open the chart full size"><img src="images/e2-tremor-light.svg" width="960" height="400" alt="Three line charts of hit rate by button size (12 to 44 px), one line per tremor level (0, 4, 8 and 12 px). Clicking alone, a 12 px button is hit 23% of the time at 12 px of tremor. With a rough box and SAM 3.1 alone, 40%. With a rough box and the button's name, 100% at every size and tremor level." /></a>
-              <figcaption>E2 · a simulated tremor: every aim lands off by a random offset. 30 clicks per point on one screenshot of <code>demo/targets.html</code>; 600 SAM&nbsp;3.1 calls.</figcaption>
+              <a href="images/e2-tremor-8px-light.svg" aria-label="Open the chart full size"><img src="images/e2-tremor-8px-light.svg" width="960" height="460" alt="Line chart of hit rate by button size (12 to 44 px) with a simulated 8 px tremor. Clicking alone: 33% at 12 px rising to 100% at 44 px. AVO with a rough box and the button's name: 100% at every size. AVO with SAM 3.1 only: 47% at 12 px." /></a>
+              <figcaption>E2 · simulated tremor of 8 px. 30 clicks per point on one screenshot of <code>demo/targets.html</code>; 600 SAM&nbsp;3.1 calls in all. <a href="images/e2-tremor-light.svg">Every tremor level →</a></figcaption>
             </figure>
             <div class="stats">
-              <div class="stat"><b>23% → 100%</b><span>A 12 px button with 12 px of tremor: hit when clicking alone, and with AVO given a rough box and the button’s name</span></div>
-              <div class="stat"><b>23% → 40%</b><span>The same, with a rough box and SAM&nbsp;3.1 alone, no name</span></div>
-              <div class="stat"><b>3 / 3</b><span>Demo tasks done in a first scripted run (reply, book, download), with 2 or 3 things said in each</span></div>
+              <div class="stat"><b>33% → 100%</b><span><em>Simulated tremor</em>: a 12 px button, 8 px of shake (the chart above), hit when clicking alone vs with AVO. When the app names its buttons (most do), AVO doesn’t need to aim at all: you box roughly and say the name.</span></div>
+              <div class="stat"><b>33% → 47%</b><span>The same with SAM&nbsp;3.1 alone, when there is no name to go on.</span></div>
+              <div class="stat"><b>3 / 3</b><span>Demo tasks done in a first scripted run (reply, book, download), with 2 or 3 things said in each.</span></div>
             </div>
           </div>
-          <p class="aside-note">The 100% assumes the app exposes its buttons’ names (most do, through macOS accessibility) and that AVO heard the name right; the rows on the test page sit further apart than in most apps. SAM alone sometimes does worse than clicking (a 32 px button at 8 px of tremor: 93% alone, 80% with SAM). Clicking alone is computed, so it doesn’t count the time a click takes. <a href="https://github.com/BowenX307/AVO/tree/main/eval/e2">Data and scripts</a>.</p>
+          <p class="aside-note">The rows on the test page sit further apart than in most apps, which makes finding a button by name easy. SAM alone sometimes does worse than clicking (a 32 px button at 8 px of tremor: 93% alone, 80% with SAM). Clicking alone is computed, so it doesn’t count the time a click takes. <a href="https://github.com/BowenX307/AVO/tree/main/eval/e2">Data and scripts</a>.</p>
           <div class="pending">
             <div class="ph" role="img" aria-label="Placeholder for a chart">
               <b>E1 · Coming</b>
@@ -277,19 +289,26 @@
               <figcaption>Three demo tasks, each with a real ambiguity (two Professor Smiths, “next Friday”, two near-identical handouts), 3 runs per setup, a script answering for the user. A small sample: a direction, not a rate. AVO asked about 1 more thing per task.</figcaption>
             </figure>
           </div>
-          <div class="limits">
-            <b>Known limits</b>
-            <ul>
-              <li>Not yet tried by the people it’s for. When it has been, this page will say what they said.</li>
-              <li>Relies on your voice; typing works as a fallback.</li>
-              <li>Needs a network connection and the Meta Model API.</li>
-              <li>macOS only, and best in the browser: desktop apps are harder for it.</li>
-            </ul>
-          </div>
         </div>
       </section>
 
-      <!-- ⑧ Privacy and safety -->
+      <!-- ⑧ Known limits -->
+      <section id="limits">
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Known limits</span>
+            <h2 data-reveal>What AVO can’t do yet.</h2>
+          </div>
+          <ul class="limit-list">
+            <li>Not yet tried by the people it’s for. When it has been, this page will say what they said.</li>
+            <li>Relies on your voice; typing works as a fallback.</li>
+            <li>Needs a network connection and the Meta Model API.</li>
+            <li>macOS only, on the main display, and best in the browser: desktop apps are harder for it.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ⑨ Privacy and safety -->
       <section>
         <div class="wrap">
           <div class="head">
