@@ -15,7 +15,9 @@ Modes (E3):
   irreversible  no gate; asks only before irreversible steps
   bare          no gate, nothing asked: the agent alone
 
-Takes over the screen: don't use the computer while it runs. Writes
+Takes over the screen: don't use the computer while it runs. Each run stays in
+its demo page: AVO gets no open_app / open_url, and a run stops the moment any
+other window is in front. Writes
 runs/demo-<timestamp>/results.json and prints a table. Fling the mouse into a
 screen corner to abort.
 """
@@ -115,9 +117,12 @@ def one(spec: dict, mode: str, reports: Reports, effort: str) -> dict:
     user = ScriptedUser(spec["means"])
     before = set(RUNS_DIR.glob("2*"))
     t0 = time.time()
+    # Only ever inside the demo page: no open_app / open_url, and the run stops
+    # the moment anything else is in front (10/31: a run that lost its tab
+    # opened the real Mail app and searched it).
     result = run(
         spec["task"], app="com.google.Chrome", overlay=user, human_guard=False, effort=effort,
-        **MODES[mode],
+        tools=False, stay_in=("com.google.Chrome", spec["title"]), **MODES[mode],
     )
     time.sleep(1.0)  # the page's last report
     ok, what = check(spec, reports.state)

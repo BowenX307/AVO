@@ -136,6 +136,15 @@ class LoopTest(LoopBase):
         result, _, _ = self.run_with([click(10), click(60), click(110)], max_steps=2)
         self.assertEqual(result, "stopped: step limit (2) reached; last step: Looking for the 2FA setting 60")
 
+    def test_leaving_the_demo_page_stops_the_run(self):
+        # 10/31: a scripted run whose tab was lost opened the real Mail app.
+        with mock.patch.object(agent, "front_title", lambda app: "Inbox - Mail"):
+            result, _, driver = self.run_with(
+                [reply(computer({"type": "click", "x": 5, "y": 5}))], stay_in=("com.google.Chrome", "Campus Mail")
+            )
+        self.assertTrue(result.startswith("stopped: left Campus Mail"))
+        self.assertEqual(driver.ran, [])
+
     def test_unknown_function_is_reported_not_run(self):
         result, _, driver = self.run_with([reply(fn("run_shell", cmd="ls")), reply(text="ok")])
         self.assertEqual(result, "ok")

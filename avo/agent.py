@@ -319,6 +319,7 @@ def run(
     voice: bool = False,
     overlay: Overlay | None = None,
     confirm_mode: str = "all",
+    stay_in: tuple[str, str] | None = None,
 ) -> str:
     """Run the computer-tool loop.
 
@@ -363,6 +364,10 @@ def run(
         yes before irreversible steps and unusual checks) or "off" (nothing
         asked). The last two exist for the E3 comparison on demo pages, where a
         script plays the user.
+    stay_in: (app bundle id, a word in the window title) the run must stay in,
+        e.g. ("com.google.Chrome", "Campus Mail"). Before each batch runs,
+        anything else in front stops the run. Scripted runs use it (10/31: a
+        scripted run that lost its demo tab opened the real Mail app).
     """
     if plan not in ("auto", "always", "never"):
         raise ValueError(f"plan must be 'auto', 'always' or 'never', not {plan!r}")
@@ -556,7 +561,7 @@ def run(
                 if choice in ("stop", None):
                     result = "stopped: user stopped the task"
                     raise StopTask
-        start = the_plan.start_action() if the_plan and not selected else None
+        start = the_plan.start_action() if the_plan and not selected and not stay_in else None  # confined: open nothing
         if start:  # open the plan's start ourselves: no turn spent on the address bar or the Dock
             print(f"[0] opening the start: {describe([start])}")
             overlay.send("status", text=f"Plan · {len(the_plan.steps)} steps", busy=True)
@@ -771,6 +776,13 @@ def run(
                         f"The user said no to this: {describe(actions)}. It was NOT executed; don't repeat it."
                         + (f" They said: “{ok.said}”" if ok.said else "")
                     )
+
+            if stay_in and actions:
+                front, title = frontmost_app(), front_title(stay_in[0])
+                if front != stay_in[0] or stay_in[1].lower() not in title.lower():
+                    result = f"stopped: left {stay_in[1]} (in front: {front} · {title[:60]})"
+                    print(f"[{step}] {result}")
+                    break
 
             executed: list[dict] = []
             changed: ScreenChanged | None = None

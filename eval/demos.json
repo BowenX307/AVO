@@ -14,7 +14,8 @@
       "body_any": [
         "late"
       ]
-    }
+    },
+    "title": "Campus Mail"
   },
   {
     "id": "room-friday",
@@ -30,7 +31,8 @@
     "check": {
       "booked_date": "2026-11-13",
       "booked_time": "2:00 PM"
-    }
+    },
+    "title": "Library Study Rooms"
   },
   {
     "id": "course-week3",
@@ -46,6 +48,7 @@
       "not_downloaded": [
         "w3-handout"
       ]
-    }
+    },
+    "title": "PHYS 212"
   }
 ]
