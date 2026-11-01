@@ -28,6 +28,7 @@ For an ambiguous click it rings every candidate and asks "Which one did you mean
 from __future__ import annotations
 
 import io
+import os
 import re
 import time
 from collections.abc import Callable
@@ -53,6 +54,10 @@ MAX_HIGHLIGHT_FRACTION = 0.25  # ignore SAM boxes bigger than this share of the 
 # 0.668). On the 38 live asks you answered, 0.8 still asks about 18/23 real
 # problems against 14/23 at 0.7: gaps between fields there scored 0.73-0.79.
 SAM_CLEAR = 0.8
+# Testing only: AVO_ASK_FIRST=1 asks "OK to click here?" on a run's first click
+# even when the gate wouldn't, so the No + click-the-right-spot path can be tried
+# on demand (11/01: the expense form got no question at all).
+_ask_first = os.environ.get("AVO_ASK_FIRST") == "1"
 
 
 @dataclass
@@ -181,6 +186,11 @@ def assess(
         if rev is None or not rev.get("hits_intended_target", True):
             reasons.append(f"May miss — under the click: {under}" if under else "The click may miss its target")
             plain.append("It might miss what it's aiming at.")
+    global _ask_first
+    if _ask_first and not reasons:
+        _ask_first = False
+        reasons.append("Test: AVO_ASK_FIRST")
+        plain.append("Test mode: AVO asks on the first click.")
     return Assessment(
         flagged=bool(reasons),
         reasons=reasons,
@@ -364,6 +374,34 @@ def _locate(label: str, x: float, y: float) -> Target | None:
         if score > best_score:
             best, best_score = t, score
     return best or clickable_at(x, y)
+
+
+FIX_RADIUS = 48  # points: how far a click may be from the control the review names
+# Words that say where the click is, not what's there ("Empty space above Reply button").
+PLACE_WORDS = {"empty", "space", "blank", "area", "gap", "above", "below", "under", "over", "left", "right",
+               "of", "near", "next", "to", "beside", "between", "just", "edge", "outside", "white", "background"}
+
+
+def named_fix(a: Assessment, driver: MacDriver) -> tuple[list[float], Target] | None:
+    """The control a "may miss" click was clearly meant for, to click instead of asking.
+
+    11/01: the review said "Empty space above Reply button", a Reply button was
+    right there, and the user still had to read a card and answer it. When the
+    review's words name exactly one control within FIX_RADIUS of the click,
+    AVO clicks that control (screen point returned). Never for a choice between
+    options, and never when two nearby controls match.
+    """
+    if not a.flagged or a.candidates or not a.review or a.review.get("hits_intended_target", True):
+        return None
+    want = _words(a.review.get("element_under_click") or "") - PLACE_WORDS
+    if not want:
+        return None
+    x, y = driver.to_screen(*a.target)
+    matches = [t for t in nearby(x, y, FIX_RADIUS) if want & _words(t.label)]
+    if len({tuple(round(v) for v in t.frame) for t in matches}) != 1:
+        return None
+    t = matches[0]
+    return list(t.inside(*t.center)), t
 
 
 def correct(actions: list[dict], point: tuple[int, int]) -> list[dict]:

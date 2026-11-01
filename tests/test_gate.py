@@ -113,5 +113,35 @@ class RingTest(unittest.TestCase):
         self.assertEqual((choice, actions[0]["x"], actions[0]["y"]), ("pick", 610, 433))  # the middle of the SAM box
 
 
+class NamedFixTest(unittest.TestCase):
+    """11/01: "Empty space above Reply button" with Reply right there asked anyway."""
+
+    def setUp(self):
+        from types import SimpleNamespace
+        from avo.snap import Target
+
+        self.driver = SimpleNamespace(to_screen=lambda x, y: (x, y))
+        self.reply = Target("AXButton", "Reply", (600, 402, 60, 24))
+        self.forward = Target("AXButton", "Forward", (670, 402, 70, 24))
+
+    def fix(self, under, near, hits=False, **kw):
+        a = gate.Assessment(flagged=True, target=(629, 396), review={"element_under_click": under, "hits_intended_target": hits}, **kw)
+        with mock.patch.object(gate, "nearby", lambda x, y, r: near):
+            return gate.named_fix(a, self.driver)
+
+    def test_clicks_the_control_the_review_names(self):
+        (x, y), t = self.fix("Empty space above Reply button", [self.reply, self.forward])
+        self.assertEqual((t.label, x, y), ("Reply", 630, 414))
+
+    def test_asks_when_nothing_or_two_match(self):
+        self.assertIsNone(self.fix("Empty space above the toolbar", [self.reply, self.forward]))
+        self.assertIsNone(self.fix("Gap between Reply and Forward buttons", [self.reply, self.forward]))
+        self.assertIsNone(self.fix("Empty space", [self.reply]))
+
+    def test_never_for_a_choice_or_a_hit(self):
+        self.assertIsNone(self.fix("Reply button", [self.reply], hits=True))
+        self.assertIsNone(self.fix("Empty space above Reply button", [self.reply], candidates=[{"label": "x"}, {"label": "y"}]))
+
+
 if __name__ == "__main__":
     unittest.main()

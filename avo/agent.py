@@ -23,7 +23,7 @@ from avo.confidence import repeats_dead
 from avo.effect import (
     DEAD_REPEAT_NOTE, NO_EFFECT_NOTE, STUCK_AFTER, STUCK_REPLAN_NOTE, EffectWatch, plain,
 )
-from avo.gate import ask_user, assess, correct
+from avo.gate import ask_user, assess, correct, first_gated, named_fix
 from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
 from avo.llm import MODEL, NoKey, data_url, describe, friendly, make_client
@@ -747,6 +747,17 @@ def run(
                         entry["user"] = {"choice": "pick", "answer": {"label": prior, "how": "earlier"}, "actions": actions}
                         a.flagged = False
                         answered = True
+                    if a.flagged and snap_to_controls and (fix := named_fix(a, driver)):
+                        # The review names the control the click just missed: click it, don't ask.
+                        (fx, fy), t = fix
+                        sx, sy = driver.to_shot(fx, fy)
+                        actions = correct(actions, (sx, sy))
+                        i = first_gated(actions)
+                        actions[i] = {**actions[i], "_snap": {"from": list(a.target), "role": t.role, "label": t.label}}
+                        print(f"[{step}] gate: fixed to the named control {t.label!r} -> ({sx},{sy})")
+                        entry["fixed"] = {"label": t.label, "role": t.role, "to": [sx, sy]}
+                        snaps += 1
+                        a.flagged = False
                     if a.flagged:
                         asked += 1
                         front = work_app or frontmost_app()
