@@ -113,8 +113,9 @@ class LoopTest(LoopBase):
     def test_a_dead_batch_isnt_run_again_and_a_second_stuck_stops(self):
         # 10/31: cmd+L pressed 19 times; "View all results" clicked 3 more times at 0 px each.
         cmd_l = computer({"type": "keypress", "keys": ["cmd", "L"]})
-        result, summary, driver = self.run_with([reply(cmd_l)] * 7)
-        self.assertTrue(result.startswith("stopped: stuck"))
+        why = reply(text="The page doesn't seem to have an address bar to focus.")
+        result, summary, driver = self.run_with([reply(cmd_l)] * 6 + [why])
+        self.assertEqual(result, "stopped: The page doesn't seem to have an address bar to focus.")  # says why
         self.assertEqual(len(driver.ran), 1)  # tried once; the five asks after it were refused
         self.assertEqual(summary["counts"]["stuck"], 2)  # the first: another way; the second: stop
         self.assertIn("NOT executed again", self.inputs[2]["input"][0]["content"][0]["text"])

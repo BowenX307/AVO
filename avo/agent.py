@@ -18,7 +18,7 @@ from avo.desktop import frontmost_app, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.confidence import repeats_dead
 from avo.effect import (
-    DEAD_REPEAT_NOTE, NO_EFFECT_NOTE, STUCK_AFTER, STUCK_NOTE, STUCK_REPLAN_NOTE, EffectWatch, plain,
+    DEAD_REPEAT_NOTE, NO_EFFECT_NOTE, STUCK_AFTER, STUCK_REPLAN_NOTE, EffectWatch, plain,
 )
 from avo.gate import ask_user, assess, correct
 from avo.helper import front_title, screen_text
@@ -198,6 +198,35 @@ OFF_TRACK_AFTER = 2  # steps in a row the review says don't move the task forwar
 def personal_unasked(task: str, app: str | None, title: str) -> bool:
     """True if AVO is in the user's mail or messages and the task doesn't mention them."""
     return (app in PERSONAL_APPS or bool(PERSONAL_TITLE.search(title))) and not MAIL_TASK.search(task)
+
+
+STUCK_EXPLAIN = """\
+An agent tried this task on a macOS screen and got stuck: even after a fresh plan, its actions \
+stopped changing anything. The screenshot shows where it is now.
+Task: {task}
+Its last steps:
+{past}
+In one short sentence for the user (English, under 25 words), say what seems to be missing or \
+blocking the task here, e.g. "This page doesn't seem to have a two-factor setting." No apologies."""
+
+
+def why_stuck(client: OpenAI, task: str, past: list[str], png: bytes, what: str) -> str:
+    """One sentence on why the task can't go on from this screen; a plain fallback if the call fails."""
+    fallback = f"stuck: {what} changes nothing, even after a fresh plan"
+    try:
+        r = client.responses.create(
+            model=MODEL,
+            reasoning={"effort": "minimal"},
+            input=[{"role": "user", "content": [
+                {"type": "input_text", "text": STUCK_EXPLAIN.format(task=task, past="\n".join(past[-6:]) or "(none)")},
+                {"type": "input_image", "image_url": data_url(png)},
+            ]}],
+        )
+        said = " ".join((r.output_text or "").split())
+        return said[:200] if said else fallback
+    except Exception as e:
+        print(f"explaining the stop: {type(e).__name__}: {e}")
+        return fallback
 
 
 def options_on_screen(options: list[str], app: str | None) -> bool:
@@ -881,30 +910,14 @@ def run(
                     else:
                         notes.append(NO_EFFECT_NOTE)
                 elif verdict == "stuck":
+                    # The second time, after a fresh plan already failed: stop and say why,
+                    # rather than wait for a Resume that can't help (checklist 3.3).
                     stuck += 1
                     what = plain(executed or actions)
-                    print(f"[{step}] stuck: {what} changed nothing, {effect.streak} times in a row")
-                    log.annotate(step, stuck=what)
-                    if not overlay.active:
-                        result = f"stopped: stuck, {what} changed nothing on screen"
-                        break
-                    overlay.send("interrupt", text=f"Stuck — {what} changes nothing")
-                    with guard.asking(), timed("paused"):  # moving to Resume isn't "you moved"
-                        resumed = hold("stuck")
-                    if not resumed:
-                        result = "stopped: user stopped the task"
-                        break
-                    refocus()
-                    print(f"[{step}] resumed after getting stuck; re-planning")
-                    effect.reset()
-                    notes.append(STUCK_NOTE.format(n=STUCK_AFTER))
-                    png = driver.screenshot()
-                    log.screenshot(step, png)
-                    if the_plan and replans < MAX_REPLANS and (fresh := make(png, past)):
-                        replans += 1
-                        fresh.question, fresh.answer = the_plan.question, the_plan.answer  # asked once is enough
-                        the_plan = fresh
-                        log.save("plan.json", the_plan.to_log() | {"replans": replans})
+                    print(f"[{step}] stuck again: {what} changed nothing, {effect.streak} times in a row; stopping")
+                    log.annotate(step, stuck=what, stuck_action="stop")
+                    result = f"stopped: {why_stuck(client, task, past, png, what)}"
+                    break
 
             draft = next((a["text"] for a in reversed(executed) if a["type"] == "type" and len(a.get("text") or "") >= 15), draft)
             line = f"{step}. {note + ' | ' if note else ''}{describe(executed) or '(nothing executed)'}"
