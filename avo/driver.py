@@ -29,7 +29,7 @@ import Quartz
 from PIL import Image, ImageChops, ImageStat
 
 from avo import events
-from avo.desktop import OVERLAY_TITLES, work_area
+from avo.desktop import OVERLAY_TITLES, has_window, work_area
 from avo.effect import still
 from avo.events import chord
 from avo.overlay import Overlay
@@ -290,8 +290,17 @@ class MacDriver:
         self.settle_area = area
         return frame
 
+    def on_desktop(self) -> bool:
+        """Working in Finder with no Finder window open: on the desktop itself."""
+        return self.work_app == "com.apple.finder" and not has_window(self.work_app)
+
     def work_box(self) -> tuple[int, int, int, int] | None:
         """The window being worked in (desktop.work_area), in screenshot pixels."""
+        if self.on_desktop():
+            # The desktop's icons aren't in any window: watch the whole screen (11/01:
+            # the file moved into its folder, but the window in front didn't change,
+            # so it looked like nothing happened and AVO kept going).
+            return None
         area = work_area() if self.geometry else None
         if area is None:
             return None

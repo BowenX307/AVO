@@ -159,5 +159,21 @@ class DeadRepeatTest(unittest.TestCase):
         self.assertTrue(repeats_dead(dead, drag((1218, 216), (1212, 210))))
 
 
+
+class DesktopAreaTest(unittest.TestCase):
+    def test_on_the_desktop_the_whole_screen_is_watched(self):
+        # 11/01: the file moved into its folder, but only the Terminal window in front was watched.
+        from avo import driver as drv
+
+        d = drv.MacDriver.__new__(drv.MacDriver)
+        d.geometry, d.work_app = object(), "com.apple.finder"
+        with mock.patch.object(drv, "has_window", lambda b: False), \
+                mock.patch.object(drv, "work_area", lambda: (0, 0, 100, 100)):
+            self.assertIsNone(d.work_box())
+            self.assertTrue(d.on_desktop())
+        d.work_app = "com.google.Chrome"
+        self.assertFalse(d.on_desktop())
+
+
 if __name__ == "__main__":
     unittest.main()
