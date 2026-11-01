@@ -174,6 +174,11 @@ def _signature(actions: list[dict]) -> list[tuple]:
         if a["type"] in ("wait", "screenshot"):
             continue
         point = (a["x"], a["y"]) if "x" in a and "y" in a else None
+        if a["type"] == "drag" and a.get("path"):
+            # Where it starts and where it drops: 11/01, a real drag to the folder was
+            # blocked as "the same" as a zero-length one that had started there.
+            start, end = a["path"][0], a["path"][-1]
+            point = (start["x"], start["y"], end["x"], end["y"])
         detail = a.get("text") or "+".join(a.get("keys") or []) or a.get("button") or ""
         sig.append((a["type"], point, detail.lower()))
     return sig
@@ -185,7 +190,7 @@ def _same(a: list[tuple], b: list[tuple]) -> bool:
     for (ka, pa, da), (kb, pb, db) in zip(a, b):
         if ka != kb or da != db:
             return False
-        if pa and pb and math.dist(pa, pb) > REPEAT_PX:
+        if pa and pb and (len(pa) != len(pb) or any(math.dist(pa[i:i + 2], pb[i:i + 2]) > REPEAT_PX for i in range(0, len(pa), 2))):
             return False
     return True
 

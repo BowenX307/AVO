@@ -147,6 +147,17 @@ class DeadRepeatTest(unittest.TestCase):
         self.assertFalse(repeats_dead(dead, [{"type": "wait"}]))  # waiting is never refused
         self.assertFalse(repeats_dead([], [{"type": "click", "x": 501, "y": 695}]))
 
+    def test_a_drag_to_somewhere_else_is_not_the_same(self):
+        # 11/01: a zero-length drag did nothing; the real drag to the folder was then refused.
+        from avo.confidence import repeats_dead
+
+        def drag(*pts):
+            return [{"type": "drag", "path": [{"x": x, "y": y} for x, y in pts]}]
+
+        dead = [drag((1215, 214), (1215, 214))]
+        self.assertFalse(repeats_dead(dead, drag((1220, 220), (1122, 215))))
+        self.assertTrue(repeats_dead(dead, drag((1218, 216), (1212, 210))))
+
 
 if __name__ == "__main__":
     unittest.main()
