@@ -35,8 +35,13 @@ class ScriptedUserTest(unittest.TestCase):
 
         user = ScriptedUser([])
         button = Target("AXButton", "Book room", (100, 200, 120, 36))
-        with mock.patch("avo.snap.clickable_at", lambda x, y: None), mock.patch("avo.snap.nearby", lambda x, y: [button]):
+        with mock.patch("avo.snap.clickable_at", lambda x, y: None), mock.patch("avo.snap.nearby", lambda x, y: [button]), \
+                mock.patch("avo.snap.in_page", lambda x, y: True):
             self.assertEqual(user.ask(x=150, y=250), {"choice": "no", "x": 160.0, "y": 218.0, "how": "script"})
+        # 10/31: the nearest control was an extension button in Chrome's toolbar. Never that.
+        with mock.patch("avo.snap.clickable_at", lambda x, y: None), mock.patch("avo.snap.nearby", lambda x, y: [button]), \
+                mock.patch("avo.snap.in_page", lambda x, y: False):
+            self.assertEqual(user.ask(x=150, y=250)["choice"], "yes")
         with mock.patch("avo.snap.clickable_at", lambda x, y: button):
             self.assertEqual(user.ask(x=150, y=210)["choice"], "yes")
 

@@ -126,6 +126,18 @@ def focused() -> Target | None:
     return Target(_attr(el, "AXRole") or "", _text(el)[:40], frame)
 
 
+def in_page(x: float, y: float) -> bool:
+    """True if (x, y) is inside a web page's content, not the browser's own toolbar or extensions."""
+    err, el = AX.AXUIElementCopyElementAtPosition(_system, x, y, None)
+    for _ in range(40):
+        if err or el is None:
+            return False
+        if _attr(el, "AXRole") == "AXWebArea":
+            return True
+        el = _attr(el, "AXParent")
+    return False
+
+
 def location(x: float, y: float) -> str | None:
     """What the accessibility tree says about a click point, for the gate (avo/gate.py).
 

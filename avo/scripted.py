@@ -9,7 +9,8 @@ and answers AVO's questions from the task's spec:
     words, as a person would say it.
   - "OK to click here?": yes if the click is on a control (accessibility says
     so); if it's off one, a person would point at the right spot, so the
-    script answers with the middle of the nearest control.
+    script answers with the middle of the nearest control inside the web page
+    (never the browser's toolbar or extensions).
   - "Send — OK?", an unusual safety check: yes.
   - the countdown before an ordinary step: stays silent, so it runs. The run's
     settings say answerer=script, so a log never passes for a person's.
@@ -70,16 +71,18 @@ class ScriptedUser(Overlay):
         return answer
 
     def check_click(self, x: float, y: float) -> dict:
-        """Yes if (x, y) (screen points) is on a control; else the middle of the nearest one."""
-        from avo.snap import clickable_at, nearby
+        """Yes if (x, y) (screen points) is on a control; else the middle of the nearest one
+        in the web page. Never the browser's own toolbar: 10/31, the nearest control
+        to a click near the top of the page was an extension button, and it opened."""
+        from avo.snap import clickable_at, in_page, nearby
 
         if clickable_at(x, y):
             return {"choice": "yes", "how": "script"}
-        near = nearby(x, y)
-        if not near:
-            return {"choice": "yes", "how": "script"}  # nothing to point at instead
-        cx, cy = near[0].center
-        return {"choice": "no", "x": cx, "y": cy, "how": "script"}
+        for t in nearby(x, y):
+            cx, cy = t.center
+            if in_page(cx, cy):
+                return {"choice": "no", "x": cx, "y": cy, "how": "script"}
+        return {"choice": "yes", "how": "script"}  # nothing in the page to point at instead
 
     def pause_requested(self) -> bool:
         return False
