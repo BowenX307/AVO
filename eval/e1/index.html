@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E1 timer</title>
+    <style>
+      :root { --ink: #111; --muted: #6b6b6b; --line: #e3e3e3; --bg: #fff; --soft: #f5f5f5; --ok: #127a3a; --bad: #b42318; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+      main { max-width: 880px; margin: 0 auto; padding: 28px 16px 64px; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 20px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+      td.task { width: 46%; }
+      .n { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+      .first { font-size: 12px; color: var(--muted); }
+      button { font: inherit; border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+      button.ghost { background: #fff; color: var(--ink); }
+      button:disabled { opacity: .35; cursor: default; }
+      .cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+      .res { font-variant-numeric: tabular-nums; }
+      .res.ok::before { content: "✓ "; color: var(--ok); }
+      .res.bad::before { content: "✗ "; color: var(--bad); }
+      .link { background: none; border: 0; color: var(--muted); padding: 0; text-decoration: underline; font-size: 12px; }
+      #run { position: sticky; top: 0; z-index: 2; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: none; }
+      #run.on { display: block; }
+      #run .what { font-size: 18px; font-weight: 600; margin: 4px 0 10px; }
+      #run .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      #clock { font: 600 28px/1 ui-monospace, Menlo, monospace; min-width: 90px; }
+      #level { width: 120px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+      #level i { display: block; height: 100%; width: 0; background: var(--ink); }
+      #form { display: none; margin-top: 12px; gap: 10px; flex-direction: column; }
+      #form.on { display: flex; }
+      #form label { display: flex; gap: 8px; align-items: center; }
+      #form input[type=text], #form input[type=number] { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+      .help { background: var(--soft); border-radius: 12px; padding: 14px 16px; margin-top: 28px; color: #333; }
+      .help h2 { font-size: 15px; margin: 0 0 6px; }
+      .help code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+      .tag { font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>E1 · Voice Control vs AVO</h1>
+      <p class="sub">Each task twice: once with macOS Voice Control, once with AVO. Hands off the mouse and keyboard while a task runs; only speak. The mic records while a task runs so what was said can be counted afterwards (kept on this Mac, not committed).</p>
+
+      <section id="run">
+        <div class="tag" id="runtool"></div>
+        <div class="what" id="runtask"></div>
+        <div class="row">
+          <span id="clock">0:00</span>
+          <span id="level" title="microphone"><i></i></span>
+          <span class="tag" id="mic"></span>
+          <button id="done">Done</button>
+          <button class="ghost" id="gaveup">Gave up</button>
+        </div>
+        <div id="form">
+          <label id="workedrow"><input type="checkbox" id="worked" /> It worked (<span id="manual"></span>)</label>
+          <label id="answerrow">Answer found: <input type="text" id="answer" size="12" /></label>
+          <label>Mistakes I had to undo or redo: <input type="number" id="mistakes" min="0" value="0" style="width:64px" /></label>
+          <label>Note: <input type="text" id="note" size="40" /></label>
+          <div class="row"><button id="save">Save</button><span class="tag">Saved to eval/e1/results.json</span></div>
+        </div>
+      </section>
+
+      <table>
+        <thead><tr><th>Task</th><th>Voice Control</th><th>AVO</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+
+      <div class="help">
+        <h2>Voice Control (System Settings → Accessibility → Voice Control)</h2>
+        Turn it on before the Voice Control column and off before the AVO column, so the two don't hear each other.
+        Useful commands: <code>show numbers</code> then <code>click 12</code> · <code>click Reply</code> ·
+        <code>show grid</code> then <code>3</code>, <code>5</code> · <code>scroll down</code> · <code>type I'll be ten minutes late</code> ·
+        <code>press return</code> · <code>open Google Chrome</code> · <code>drag that</code> / <code>drop that</code> (after moving to a spot with a grid number).
+        <h2 style="margin-top:12px">AVO</h2>
+        Tap right ⌥ and say the task in your own words. Answer its questions by voice.
+        <h2 style="margin-top:12px">Order</h2>
+        Tasks 1–4: Voice Control first. Tasks 5–8: AVO first. (Whoever goes second has seen the task; this splits that evenly.)
+      </div>
+    </main>
+    <script>
+      const $ = (s) => document.querySelector(s);
+      const TOOL_NAMES = { "voice-control": "Voice Control", avo: "AVO" };
+      let data = { tasks: [], results: [] };
+      let running = null, ticker = null;
+
+      async function refresh() {
+        data = await (await fetch("/e1/state")).json();
+        draw();
+      }
+
+      const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+      function draw() {
+        const rows = $("#rows");
+        rows.innerHTML = "";
+        data.tasks.forEach((t, i) => {
+          const tr = document.createElement("tr");
+          const first = i < 4 ? "voice-control" : "avo";
+          tr.innerHTML = `<td class="task"><span class="n">${i + 1}</span><span class="t"></span><div class="first">${TOOL_NAMES[first]} first</div></td>`;
+          tr.querySelector(".t").textContent = t.task;
+          for (const tool of data.tools) {
+            const td = document.createElement("td");
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            const r = [...data.results].reverse().find((x) => x.task === t.id && x.tool === tool);
+            if (r) {
+              const res = document.createElement("span");
+              res.className = "res " + (r.ok ? "ok" : "bad");
+              res.textContent = `${fmt(r.seconds)}` + (r.said != null ? ` · ${r.said} said` : "") + (r.mistakes ? ` · ${r.mistakes} mistakes` : "");
+              res.title = r.check;
+              if (!r.audio_s) res.textContent += " · no audio recorded!";
+              const redo = document.createElement("button");
+              redo.className = "link";
+              redo.textContent = "discard and redo";
+              redo.onclick = async () => {
+                if (!confirm("Discard this result?")) return;
+                await fetch("/e1/discard", { method: "POST", body: JSON.stringify({ task: t.id, tool }) });
+                refresh();
+              };
+              cell.append(res, redo);
+            } else {
+              const b = document.createElement("button");
+              b.textContent = `Start with ${TOOL_NAMES[tool]}`;
+              b.disabled = !!running;
+              b.onclick = () => start(t, tool);
+              cell.append(b);
+            }
+            td.append(cell);
+            tr.append(td);
+          }
+          rows.append(tr);
+        });
+      }
+
+      // ---- microphone: 24 kHz 16-bit mono PCM, sent to the server in ~0.5 s batches ----
+      let micStream = null, micCtx = null, pending = [], sender = null;
+      async function micOn() {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+        micCtx = new AudioContext({ sampleRate: 24000 });
+        const src = micCtx.createMediaStreamSource(micStream);
+        const node = micCtx.createScriptProcessor(2048, 1, 1);
+        node.onaudioprocess = (e) => {
+          const f = e.inputBuffer.getChannelData(0);
+          const pcm = new Int16Array(f.length);
+          let peak = 0;
+          for (let i = 0; i < f.length; i++) {
+            pcm[i] = Math.max(-1, Math.min(1, f[i])) * 0x7fff;
+            peak = Math.max(peak, Math.abs(f[i]));
+          }
+          pending.push(pcm);
+          $("#level i").style.width = Math.min(100, peak * 300) + "%";
+        };
+        src.connect(node);
+        node.connect(micCtx.destination);
+        sender = setInterval(flush, 500);
+      }
+      async function flush() {
+        if (!pending.length) return;
+        const n = pending.reduce((a, p) => a + p.length, 0);
+        const all = new Int16Array(n);
+        let o = 0;
+        for (const p of pending) { all.set(p, o); o += p.length; }
+        pending = [];
+        await fetch("/e1/audio", { method: "POST", body: all.buffer }).catch(() => {});
+      }
+      async function micOff() {
+        clearInterval(sender);
+        await flush();
+        micStream?.getTracks().forEach((t) => t.stop());
+        await micCtx?.close();
+        micStream = micCtx = null;
+      }
+
+      async function start(t, tool) {
+        try {
+          await micOn();
+        } catch (e) {
+          alert("The microphone is needed to count what you say: " + e.message);
+          return;
+        }
+        await fetch("/e1/start", { method: "POST", body: JSON.stringify({ task: t.id, tool }) });
+        running = { t, tool, t0: Date.now() };
+        $("#run").classList.add("on");
+        $("#form").classList.remove("on");
+        $("#runtool").textContent = `Task ${data.tasks.indexOf(t) + 1} · ${TOOL_NAMES[tool]}`;
+        $("#runtask").textContent = t.task;
+        $("#mic").textContent = "recording";
+        $("#done").disabled = $("#gaveup").disabled = false;
+        clearInterval(ticker);
+        ticker = setInterval(() => ($("#clock").textContent = fmt((Date.now() - running.t0) / 1000)), 250);
+        draw();
+        window.scrollTo(0, 0);
+      }
+
+      async function stop(outcome) {
+        running.t1 = Date.now() / 1000;
+        running.outcome = outcome;
+        clearInterval(ticker);
+        await micOff();
+        $("#mic").textContent = "stopped";
+        $("#done").disabled = $("#gaveup").disabled = true;
+        const c = running.t.check;
+        $("#workedrow").style.display = c.manual ? "" : "none";
+        $("#manual").textContent = c.manual || "";
+        $("#answerrow").style.display = c.answer ? "" : "none";
+        $("#worked").checked = false;
+        $("#answer").value = $("#note").value = "";
+        $("#mistakes").value = 0;
+        $("#form").classList.add("on");
+      }
+
+      $("#done").onclick = () => stop("done");
+      $("#gaveup").onclick = () => stop("gave_up");
+      $("#save").onclick = async () => {
+        const body = {
+          outcome: running.outcome, t1: running.t1, worked: $("#worked").checked, answer: $("#answer").value.trim(),
+          mistakes: Number($("#mistakes").value) || 0, note: $("#note").value.trim(),
+        };
+        const r = await (await fetch("/e1/end", { method: "POST", body: JSON.stringify(body) })).json();
+        running = null;
+        $("#run").classList.remove("on");
+        if (r.row) $("#runtool").textContent = "";
+        refresh();
+      };
+
+      refresh();
+    </script>
+  </body>
+</html>

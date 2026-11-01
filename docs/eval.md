@@ -13,7 +13,7 @@ AVO's thresholds were tuned on one set of tasks, and results are reported on oth
 **Used only for reporting:**
 - **E2** (simulated tremor, `demo/targets.html`). The parameters were fixed before the one and only run, and nothing was changed after seeing the results.
 - **The demo tasks** (`eval/demos.json`: mail, room, course). These were built after the gate's thresholds were set, and no threshold was changed after their runs. One task wording did change after a run: room's "this Friday" became "next Friday", because nobody reads "this Friday" (said on a Saturday) as ambiguous. That changes what the task tests, not how AVO decides.
-- **E1** tasks will be new tasks, not used for anything else.
+- **E1** tasks 6–8 are new; tasks 1–5 use the demo pages AVO was tuned on, and are reported apart.
 
 ## E2 · Simulated tremor: clicking alone vs AVO
 
@@ -66,7 +66,33 @@ The room run above used the old wording, "this Friday"; it must be re-run with "
 
 ## E1 · What it takes: Voice Control vs AVO
 
-*In progress.* There will be about 12 everyday tasks, including 2–3 on real websites, each marked real or mock. For Voice Control: the fewest commands a practised user needs, done by hand and timed. For AVO: 3 runs per task, counting what was said (the task, every answer, every yes/no), success, time and cost.
+*Set up on 11/01, not run yet.* The method below was written before any data, and won't change to suit the results.
+
+**Tasks** (`eval/e1/tasks.json`, 8 for now; more if there's time). Tasks 1–5 run on the demo pages AVO was built and tuned on (other tasks on them shaped its prompts and checks), which favours AVO; tasks 6–8 are new to it. Results are reported for both groups separately.
+
+| # | Task | Where | Checked by |
+|---|---|---|---|
+| 1 | Reply to Professor David Smith's lab email, say you'll be ten minutes late, send it | mock (`demo/mail.html`) | the page: sent to David |
+| 2 | Book a study room on Friday, November 13 at 2 pm | mock (`demo/room.html`) | the page: booking |
+| 3 | Download the corrected week 3 handout | mock (`demo/course.html`) | the page: which file |
+| 4 | Fill in the expense form from the receipt (follow the policy) and submit | mock (`demo/expense.html`) | the page: Lakeview · 2026-10-24 · Meals · $46.54 |
+| 5 | Assign the "Update Q4 budget sheet" card to Alex Rivera | mock (`demo/board.html`) | the page: owner |
+| 6 | On Wikipedia, find the year the Golden Gate Bridge opened | real site | the answer (1937) |
+| 7 | On Meta Careers, search for software engineer internships | real site | the person: results showing |
+| 8 | Move e1-notes.txt on the Desktop into the e1-archive folder | real app (Finder, made-up file) | the disk |
+
+The tasks name exactly what is meant (David, Rivera, the corrected handout), so neither tool has to resolve an ambiguity: E1 measures effort, E3 measures ambiguity.
+
+**How.** `uv run scripts/e1.py` serves a timer page. Each task is done twice, once with macOS Voice Control and once with AVO, by speaking only. Tasks 1–4 go Voice Control first, 5–8 AVO first, so that having seen a task once helps each tool equally. Voice Control is off during AVO tasks and AVO is idle during Voice Control tasks.
+
+**Measures.**
+- **Done:** checked by the page, the disk, or the answer; for task 7, by the person. Giving up counts as not done.
+- **Time:** from Start to the page's own report (the send, the booking, the file arriving) when there is one, otherwise to the Done click.
+- **Things said:** the microphone records while a task runs, and Meta's speech recognition (endpointing) counts the utterances afterwards (`scripts/e1.py --count`), the same way for both tools. Voice Control keeps no log of its own. The audio stays on the Mac (`eval/e1/audio/`, not committed).
+- **Mistakes:** steps the person had to undo or redo, reported by the person after each task.
+- **Cost:** AVO's API spend, from its `summary.json`.
+
+**Limits, stated up front.** One person, the author, who has no motor impairment and used Voice Control for the first time. That gives a first impression of the effort, not a user study. Utterance counts from endpointing are approximate (a command said with a pause can count twice).
 
 ## E3 · Silent errors: does asking prevent confidently wrong results?
 

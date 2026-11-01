@@ -77,6 +77,16 @@ class CheckTest(unittest.TestCase):
         self.assertTrue(run_demo.check(spec, {"downloads": ["w3-handout-corrected"]})[0])
         self.assertFalse(run_demo.check(spec, {"downloads": ["w3-handout", "w3-handout-corrected"]})[0])
 
+    def test_expense_and_board(self):
+        # E1's checks (eval/e1/tasks.json): subtotal + tax, no tip; the budget card to Rivera.
+        e = {"id": "x", "check": {"submitted": {"merchant": "lakeview", "date": "2026-10-24", "category": "meals", "amount": "46.54"}}}
+        good = {"submitted": {"merchant": "LAKEVIEW CAFÉ", "date": "2026-10-24", "category": "Meals", "amount": "$46.54"}}
+        self.assertTrue(run_demo.check(e, good)[0])
+        self.assertFalse(run_demo.check(e, {"submitted": {**good["submitted"], "amount": "54.54"}})[0])
+        b = {"id": "y", "check": {"assigned": {"budget": "Alex Rivera"}}}
+        self.assertTrue(run_demo.check(b, {"assigned": {"budget": "Alex Rivera", "review": "Alex Chen"}})[0])
+        self.assertFalse(run_demo.check(b, {"assigned": {"budget": "Alex Chen"}})[0])
+
 
 class ServerTest(unittest.TestCase):
     def test_pages_and_reports(self):

@@ -106,7 +106,20 @@ def check(spec: dict, state: dict | None) -> tuple[bool, str]:
             return False, "nothing downloaded"
         ok = c["downloaded"] in d and not set(d) & set(c.get("not_downloaded", []))
         return ok, "downloaded " + ", ".join(d)
-    raise ValueError(f"unknown check in {spec['id']}")
+    if "submitted" in c:
+        got = state.get("submitted")
+        if not got:
+            return False, "nothing submitted"
+        want = c["submitted"]
+        ok = all(want[k] in str(got.get(k, "")).lower().replace("$", "") for k in want)
+        return ok, "submitted " + " · ".join(str(got.get(k, "")) for k in want)
+    if "assigned" in c:
+        got = state.get("assigned") or {}
+        if not got:
+            return False, "nothing assigned"
+        ok = all(got.get(k) == v for k, v in c["assigned"].items())
+        return ok, "assigned " + ", ".join(f"{k}: {got.get(k)}" for k in c["assigned"])
+    raise ValueError(f"unknown check in {spec.get('id')}")
 
 
 def one(spec: dict, mode: str, reports: Reports, effort: str) -> dict:

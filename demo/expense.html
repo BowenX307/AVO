@@ -110,7 +110,15 @@
         const done = document.getElementById("done");
         done.textContent = `Submitted: ${v("merchant")} · ${v("date")} · ${v("category")} · $${v("amount")}`;
         done.style.display = "block";
+        report({ submitted: { merchant: v("merchant"), date: v("date"), category: v("category"), amount: v("amount") } });
       });
+
+      // For scripted and E1 runs: the page's result, sent to the harness when it
+      // serves the page; nothing is sent when opened as a file.
+      function report(state) {
+        document.body.dataset.state = JSON.stringify(state);
+        if (location.protocol.startsWith("http")) fetch("/report", { method: "POST", body: JSON.stringify(state) }).catch(() => {});
+      }
     </script>
   </body>
 </html>

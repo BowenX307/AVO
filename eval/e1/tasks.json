@@ -1,0 +1,50 @@
+[
+  {
+    "id": "mail-reply",
+    "task": "Reply to Professor David Smith's lab email and say you'll be ten minutes late. Send it.",
+    "start": "demo/mail.html",
+    "check": {"sent_to": "david.smith@physics.example.edu", "body_any": ["late"]}
+  },
+  {
+    "id": "room-book",
+    "task": "Book a study room on Friday, November 13 at 2 pm.",
+    "start": "demo/room.html",
+    "check": {"booked_date": "2026-11-13", "booked_time": "2:00 PM"}
+  },
+  {
+    "id": "course-download",
+    "task": "Download the corrected week 3 handout.",
+    "start": "demo/course.html",
+    "check": {"downloaded": "w3-handout-corrected", "not_downloaded": ["w3-handout"]}
+  },
+  {
+    "id": "expense-form",
+    "task": "Fill in the expense form from the receipt (follow the policy under it) and submit it.",
+    "start": "demo/expense.html",
+    "check": {"submitted": {"merchant": "lakeview", "date": "2026-10-24", "category": "meals", "amount": "46.54"}}
+  },
+  {
+    "id": "board-assign",
+    "task": "Assign the “Update Q4 budget sheet” card to Alex Rivera.",
+    "start": "demo/board.html",
+    "check": {"assigned": {"budget": "Alex Rivera"}}
+  },
+  {
+    "id": "wiki-year",
+    "task": "On Wikipedia, find the year the Golden Gate Bridge opened.",
+    "start": "https://en.wikipedia.org/wiki/Main_Page",
+    "check": {"answer": "1937"}
+  },
+  {
+    "id": "meta-jobs",
+    "task": "On the Meta Careers site, search for software engineer internships.",
+    "start": "https://www.metacareers.com/jobs",
+    "check": {"manual": "a results page for software engineer intern jobs is showing"}
+  },
+  {
+    "id": "finder-move",
+    "task": "Move e1-notes.txt on the Desktop into the e1-archive folder.",
+    "start": "finder",
+    "check": {"moved": ["e1-notes.txt", "e1-archive"]}
+  }
+]

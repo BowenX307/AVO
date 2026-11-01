@@ -224,6 +224,7 @@
               show(p.name);
               closeMenus();
               say(`“${c.title}” assigned to ${p.name}`);
+              report({ assigned: Object.fromEntries(CARDS.map((k) => [k.id, k.who])) });
             });
             menu.appendChild(item);
           }
@@ -273,6 +274,13 @@
         }
         drag = null;
       });
+
+      // For scripted and E1 runs: the page's result, sent to the harness when it
+      // serves the page; nothing is sent when opened as a file.
+      function report(state) {
+        document.body.dataset.state = JSON.stringify(state);
+        if (location.protocol.startsWith("http")) fetch("/report", { method: "POST", body: JSON.stringify(state) }).catch(() => {});
+      }
     </script>
   </body>
 </html>
