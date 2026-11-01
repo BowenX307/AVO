@@ -293,7 +293,7 @@ class StopTask(Exception):
     """The user stopped the task before it began (Stop on the planner's question)."""
 
 
-class Terminated(Exception):
+class Terminated(BaseException):  # not Exception: a check's "except Exception" mustn't swallow it (11/01: it did)
     """SIGTERM: the overlay ends a task that didn't stop within a second of "stop"
     (it may be waiting on the model). Raised in the main thread, so even a
     pending API call ends; the run still writes its summary and says so."""

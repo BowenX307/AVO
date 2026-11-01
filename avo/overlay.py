@@ -82,8 +82,13 @@ class Overlay:
         return self._control is not None
 
     def pause(self) -> None:
-        """Mark the task paused, e.g. when the user paused instead of answering a question."""
-        self._control = "pause"
+        """Mark the task paused, e.g. when the user paused instead of answering a question.
+
+        A "stop" already received stays a stop (11/01: pausing overwrote it, and
+        the task waited for a Resume until "stop" was said again).
+        """
+        if self._control != "stop":
+            self._control = "pause"
 
     def wait_while_paused(self, tick: Callable[[], bool] | None = None, every: float = 0.25) -> bool:
         """Block until the user resumes (True) or stops (False).

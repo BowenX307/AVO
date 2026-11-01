@@ -279,6 +279,23 @@ class OnScreenTest(unittest.TestCase):
             self.assertFalse(agent.options_on_screen(["Prof. Anna Smith (Math 241)"], "x"))
 
 
+class StopTest(unittest.TestCase):
+    def test_a_stop_isnt_turned_into_a_pause(self):
+        o = Overlay(url=None)
+        o._control = "stop"
+        o.pause()
+        self.assertEqual(o._control, "stop")
+
+    def test_terminated_gets_past_except_exception(self):
+        try:
+            try:
+                raise agent.Terminated()
+            except Exception:
+                self.fail("a check swallowed the stop")
+        except agent.Terminated:
+            pass
+
+
 class ReplanTest(unittest.TestCase):
     def test_a_replan_is_wonders_and_metered_apart(self):
         from avo.planner import REPLAN_MODEL, make_plan
