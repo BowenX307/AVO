@@ -624,7 +624,7 @@ def run(
                         ask = "Which one did you mean? Pick on screen" if a.candidates else "AVO needs your OK — see the highlight"
                         overlay.send("status", text=ask, busy=False)
                         with guard.acting(), guard.asking(), timed("you"):
-                            choice, actions, answer = ask_user(overlay, driver, a, actions, note, png)
+                            choice, actions, answer = ask_user(overlay, driver, a, actions, note, png, client=client)
                             if front:  # answering on the overlay may have focused it
                                 focus(front)
                         print(f"[{step}] user: {choice}" + (f" -> {describe(actions)}" if choice == "no" else ""))

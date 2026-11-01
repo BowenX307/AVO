@@ -11,6 +11,9 @@ const WebSocket = require("ws");
 
 const URL = "wss://api.meta.ai/v1/asr/realtime";
 const MODEL = "muse-voice-transcribe-1.0";
+// Meta rejects the whole session if any keyword is longer than this (not in the
+// docs; 10/31: "ASR keyword 16 exceeds the maximum length of 30 characters").
+const MAX_KEYWORD = 30;
 // Always among the keywords: what people say to AVO mid-task.
 const CONTROL_WORDS = ["AVO", "stop", "yes", "no", "one", "two", "three", "four", "none of these", "resume", "cancel"];
 
@@ -39,7 +42,7 @@ class Session {
           mode: "ENDPOINTING",
           emitAudioProgress: false,
           languageBias: ["English"], // a hint: Mandarin still comes through (code-switching)
-          keywords: [...new Set([...CONTROL_WORDS, ...keywords])].slice(0, 120),
+          keywords: [...new Set([...CONTROL_WORDS, ...keywords])].filter((k) => k && k.length <= MAX_KEYWORD).slice(0, 120),
         }),
       );
       for (const chunk of this.queue) this.ws.send(chunk);
@@ -80,6 +83,29 @@ class Session {
       this.ws.close();
     } catch {}
   }
+}
+
+// The part of each option that tells it apart, as keywords for the answer:
+// "Software Engineer Intern, Systems and Infrastructure (PhD)" and "…, Machine
+// Learning (PhD)" -> "Systems and Infrastructure", "Machine Learning". A part
+// still too long becomes its words.
+const STOP = new Set(["the", "and", "for", "with", "into", "from", "that", "this", "your", "you"]);
+
+function distinct(labels = []) {
+  const toks = labels.map((l) => String(l).split(/\s+/).filter(Boolean));
+  if (!toks.length) return [];
+  const same = (i, at) => toks.every((t) => t[at(t, i)] !== undefined && t[at(t, i)].toLowerCase() === toks[0][at(toks[0], i)].toLowerCase());
+  let pre = 0;
+  while (toks.length > 1 && pre < Math.min(...toks.map((t) => t.length)) - 1 && same(pre, (t, i) => i)) pre++;
+  let suf = 0;
+  while (toks.length > 1 && suf < Math.min(...toks.map((t) => t.length)) - pre - 1 && same(suf, (t, i) => t.length - 1 - i)) suf++;
+  const out = [];
+  for (const t of toks) {
+    const part = t.slice(pre, t.length - suf).join(" ").replace(/^[\s,;:–—-]+|[\s,;:–—-]+$/g, "");
+    if (part.length <= MAX_KEYWORD) out.push(part);
+    else out.push(...part.split(/[\s,;:()]+/).filter((w) => w.length >= 3 && w.length <= MAX_KEYWORD && !STOP.has(w.toLowerCase())));
+  }
+  return [...new Set(out.filter(Boolean))];
 }
 
 // ---- understanding a short answer ----
@@ -125,4 +151,4 @@ function understand(text) {
   return out;
 }
 
-module.exports = { Session, apiKey, understand, labelIndex, CONTROL_WORDS };
+module.exports = { Session, apiKey, understand, labelIndex, distinct, CONTROL_WORDS, MAX_KEYWORD };

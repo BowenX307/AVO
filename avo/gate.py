@@ -221,7 +221,8 @@ def loupe(png: bytes, point: tuple[int, int]) -> str:
 
 
 def ask_user(
-    overlay: Overlay, driver: MacDriver, a: Assessment, actions: list[dict], note: str, png: bytes
+    overlay: Overlay, driver: MacDriver, a: Assessment, actions: list[dict], note: str, png: bytes,
+    client: OpenAI | None = None,
 ) -> tuple[str, list[dict], dict | None]:
     """Point at the target and ask. Returns (choice, actions to run, raw answer).
 
@@ -231,7 +232,7 @@ def ask_user(
     If the overlay can't ask, proceeds with the original actions.
     """
     if a.candidates:
-        return _ask_which(overlay, driver, a, actions)
+        return _ask_which(overlay, driver, a, actions, png, client)
     x, y = driver.to_screen(*a.target)
     box = None
     if a.box:
@@ -259,20 +260,58 @@ def ask_user(
     return "yes", actions, answer
 
 
+def _ring_from_sam(client: OpenAI, png: bytes, point: tuple[int, int], driver: MacDriver) -> list[float] | None:
+    """The box of the element SAM segments at a point (screen points), or None."""
+    try:
+        segments, _ = segment(client, png, points=[point])
+    except Exception as e:
+        print(f"SAM failed: {type(e).__name__}: {e}")
+        return None
+    seg = max(segments, key=lambda s: s.confidence or 0, default=None)
+    if seg is None:
+        return None
+    w, h = driver.geometry.shot_size
+    l, t, r, b = seg.box
+    if (r - l) * (b - t) > MAX_HIGHLIGHT_FRACTION * w * h:
+        return None  # the whole page, not an element
+    return [*driver.to_screen(l, t), *driver.to_screen(r, b)]
+
+
 def _ask_which(
-    overlay: Overlay, driver: MacDriver, a: Assessment, actions: list[dict]
+    overlay: Overlay, driver: MacDriver, a: Assessment, actions: list[dict], png: bytes = b"",
+    client: OpenAI | None = None,
 ) -> tuple[str, list[dict], dict | None]:
-    """Ring every candidate of an ambiguous click and let the user pick one."""
-    shown = []
+    """Ring every candidate of an ambiguous click and let the user pick one.
+
+    Each ring goes on the control whose text matches the candidate (macOS
+    accessibility). Where that finds nothing (10/31, in Edge: every ring fell
+    back to a small fixed box at the model's guess), poke the point so the
+    browser builds its accessibility tree and look once more, then ring the
+    element SAM segments at the guess.
+    """
+    shown, missing = [], []
     for c in a.candidates:
         x, y = driver.to_screen(c["x"], c["y"])
         control = _locate(c["label"], x, y)
+        if control is None:
+            clickable_at(x, y)
+            time.sleep(0.2)
+            control = _locate(c["label"], x, y)
         if control:
             l, t, w, h = control.frame
             box, (x, y) = [l, t, l + w, t + h], control.center
         else:
             box = [x - 60, y - 16, x + 60, y + 16]
+            missing.append(len(shown))
         shown.append({"label": c["label"], "x": round(x), "y": round(y), "box": [round(v) for v in box]})
+    if missing and client is not None and png:
+        with ThreadPoolExecutor(len(missing)) as pool:
+            boxes = list(pool.map(lambda i: _ring_from_sam(client, png, (a.candidates[i]["x"], a.candidates[i]["y"]), driver), missing))
+        for i, box in zip(missing, boxes):
+            if box:
+                shown[i]["box"] = [round(v) for v in box]
+                shown[i]["x"], shown[i]["y"] = round((box[0] + box[2]) / 2), round((box[1] + box[3]) / 2)
+                shown[i]["ring"] = "sam"
     print("asking which: " + "; ".join(f"{c['label']} @({c['x']},{c['y']})" for c in shown), flush=True)
     # The candidate nearest the planned click is the agent's own guess.
     px, py = driver.to_screen(*a.target)

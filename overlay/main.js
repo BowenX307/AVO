@@ -676,18 +676,20 @@ async function startCommand() {
   const fresh = await screenWords(app, 300); // audio is buffered meanwhile
   if (listening !== state) return;
   const words = fresh && fresh.length ? fresh : keywordCache.app === app ? keywordCache.words : [];
-  state.session = new voice.Session({
-    key,
-    keywords: words,
+  openSession(state, key, words, {
     onPartial: (text) => {
       if (listening !== state) return;
       state.partial = text;
       island.webContents.send("avo", { type: "listening", text });
     },
     onFinal: (text) => listening === state && commandHeard(text || state.partial),
-    onError: (e) => console.log(`voice: ${e}`),
-    onClose: () => {
-      if (listening === state) commandHeard(state.partial);
+    // The session ended. With words heard, that's the task; on an error with
+    // nothing heard, say so rather than quietly closing (10/31: it closed the
+    // moment you started talking, and you couldn't tell why).
+    onEnded: (error) => {
+      if (listening !== state) return;
+      if (error && !state.partial) cancelCommand(`Couldn't listen: ${error}`.slice(0, 120));
+      else commandHeard(state.partial);
     },
   });
   // Nothing said for a while: give up quietly.
@@ -731,18 +733,56 @@ function listenDuringTask(labels) {
   if (!key) return;
   listening?.session?.close();
   listening?.timers.forEach(clearTimeout);
-  const state = (listening = { phase: "task", partial: "", timers: [], labels });
+  const state = (listening = { phase: "task", partial: "", timers: [], labels, fails: 0 });
   mic(true);
-  state.session = new voice.Session({
-    key,
-    keywords: labels,
+  const handlers = {
     onFinal: (text) => listening === state && text && heardDuringTask(text),
-    onError: (e) => console.log(`voice: ${e}`),
-    onClose: (code) => {
-      // The session ended by itself (e.g. its time limit): keep listening while the task runs.
-      if (listening === state && (task || clients.size)) setTimeout(() => listening === state && listenDuringTask(labels), 300);
+    onEnded: (error) => {
+      // The session ended by itself (its time limit, a dropped connection):
+      // keep listening while the task runs, but don't loop on an error
+      // (10/31: twelve rejected sessions in a row, and "the first one" was never heard).
+      if (listening !== state || !(task || clients.size)) return;
+      state.fails = error ? state.fails + 1 : 0;
+      if (state.fails > MAX_VOICE_FAILS) {
+        console.log("voice: giving up for this task");
+        state.session = null;
+        mic(false); // the dot goes out: AVO isn't listening
+        return;
+      }
+      setTimeout(() => listening === state && openSession(state, key, [], handlers), 300 * (state.fails + 1));
+    },
+  };
+  // The answers' telling parts as keywords ("Systems and Infrastructure"), never whole long labels.
+  openSession(state, key, voice.distinct(labels), handlers);
+}
+
+const MAX_VOICE_FAILS = 3;
+
+// A recognition session for `state`. If Meta rejects the keywords, try once
+// more without them; any other end goes to onEnded(error or null).
+function openSession(state, key, keywords, { onPartial, onFinal, onEnded }) {
+  let error = null;
+  const session = new voice.Session({
+    key,
+    keywords,
+    onPartial,
+    onFinal,
+    onError: (e) => {
+      error = e;
+      console.log(`voice: ${e}`);
+    },
+    onClose: () => {
+      if (listening !== state || state.session !== session) return;
+      if (error && keywords.length && /keyword/i.test(error)) {
+        console.log("voice: keywords rejected; listening without them");
+        openSession(state, key, [], { onPartial, onFinal, onEnded });
+        return;
+      }
+      onEnded(error);
     },
   });
+  state.session = session;
+  return session;
 }
 
 function stopByVoice() {

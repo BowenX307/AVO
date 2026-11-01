@@ -83,5 +83,28 @@ class GateTest(unittest.TestCase):
         self.assertTrue(a.to_log()["repeat"])
 
 
+class RingTest(unittest.TestCase):
+    def test_rings_come_from_sam_when_accessibility_finds_nothing(self):
+        # 10/31, Edge: no control found, so both rings were small fixed boxes at the model's guess.
+        from types import SimpleNamespace
+
+        asked = []
+        overlay = SimpleNamespace(ask=lambda **f: asked.append(f) or {"choice": "pick", "index": 0})
+        driver = SimpleNamespace(to_screen=lambda x, y: (x, y), to_shot=lambda x, y: (x, y),
+                                 geometry=SimpleNamespace(shot_size=(1280, 832)))
+        seg = Seg(0.9)
+        seg.box = (400, 420, 820, 446)  # the listing's title line
+        a = gate.Assessment(flagged=True, target=(688, 361), plain=["Your task fits more than one of these."], candidates=[
+            {"label": "Software Engineer Intern, Systems and Infrastructure (PhD)", "x": 540, "y": 433},
+            {"label": "Software Engineer Intern, Machine Learning (PhD)", "x": 512, "y": 563}])
+        with mock.patch.object(gate, "_locate", lambda *a: None), mock.patch.object(gate, "clickable_at", lambda *a: None), \
+                mock.patch.object(gate, "segment", lambda *a, **k: ([seg], "")), mock.patch.object(gate.time, "sleep"):
+            choice, actions, _ = gate._ask_which(overlay, driver, a, CLICK, b"png", client=object())
+        rings = asked[0]["candidates"]
+        self.assertEqual(rings[0]["box"], [400, 420, 820, 446])
+        self.assertEqual(rings[0]["ring"], "sam")
+        self.assertEqual((choice, actions[0]["x"], actions[0]["y"]), ("pick", 610, 433))  # the middle of the SAM box
+
+
 if __name__ == "__main__":
     unittest.main()

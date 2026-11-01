@@ -39,6 +39,7 @@ MODIFIERS = (
     | Quartz.kCGEventFlagMaskCommand | Quartz.kCGEventFlagMaskSecondaryFn
 )
 MAX_KEYWORDS = 80
+MAX_KEYWORD_CHARS = 30  # Meta rejects the whole session over a longer keyword
 BUDGET_S = 0.4  # time to spend walking the accessibility tree
 MAX_NODES = 3000
 NAMED_ROLES = {"AXButton", "AXLink", "AXMenuItem", "AXMenuBarItem", "AXTab", "AXRadioButton", "AXCheckBox",
@@ -169,9 +170,9 @@ def keywords(bundle: str | None) -> list[str]:
     labels: list[str] = []
     names: list[str] = []
     for role, t in texts(bundle):
-        if role in NAMED_ROLES and 2 <= len(t) <= 40:
+        if role in NAMED_ROLES and 2 <= len(t) <= MAX_KEYWORD_CHARS:
             labels.append(t)
-        names += [m.strip() for m in PROPER.findall(t) if m.strip() not in COMMON]
+        names += [m.strip() for m in PROPER.findall(t) if m.strip() not in COMMON and len(m.strip()) <= MAX_KEYWORD_CHARS]
     out, keys = [], set()
     for t in labels + names:
         k = t.lower()
