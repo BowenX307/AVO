@@ -118,6 +118,7 @@ function setScale(value, announce) {
 }
 
 function cycleScale() {
+  console.log(`${new Date().toISOString().slice(11, 23)} scale ${uiScale} -> ${SCALES[(SCALES.indexOf(uiScale) + 1) % SCALES.length]}`);
   setScale(SCALES[(SCALES.indexOf(uiScale) + 1) % SCALES.length], true);
 }
 
@@ -617,6 +618,11 @@ function route(msg) {
   pointer.webContents.send("avo", toPointerWindow(msg));
 }
 
+// A timestamped line in the overlay's log, for checking timings afterwards.
+function vlog(what) {
+  console.log(`${new Date().toISOString().slice(11, 23)} ${what}`);
+}
+
 // ---- permissions ----
 // helper.py reports the macOS permissions AVO is missing (avo/permissions.py)
 // at start and whenever that changes. The island says which one and what for,
@@ -745,6 +751,7 @@ function voiceKey() {
 // Tap right Option: listen for a task; tap again: that's the end of it; while
 // a task runs: stop it.
 function summonVoice() {
+  vlog(`summon (${task || clients.size ? "stop task" : listening?.phase === "command" ? "end sentence" : "listen"})`);
   if (task || clients.size) return stopByVoice();
   if (listening?.phase === "command") return finishCommand();
   if (!selecting && AT_REST.has(islandState)) startCommand();
@@ -808,6 +815,7 @@ function cancelCommand(text) {
 }
 
 function commandHeard(text) {
+  vlog(`task heard: ${JSON.stringify(text)}`);
   const app = listening?.app || userApp;
   stopListening();
   text = String(text || "").trim();
@@ -880,6 +888,7 @@ function openSession(state, key, keywords, { onPartial, onFinal, onEnded }) {
 }
 
 function stopByVoice() {
+  vlog("stop requested");
   if (pendingAsk) answer({ choice: "stop", how: "voice" });
   else tellAgents({ type: "stop" });
   paused = false;
@@ -888,7 +897,7 @@ function stopByVoice() {
 
 function heardDuringTask(text) {
   const u = voice.understand(text);
-  console.log(`heard: ${JSON.stringify(text)} -> ${JSON.stringify(u)}`);
+  vlog(`heard: ${JSON.stringify(text)} -> ${JSON.stringify(u)}`);
   if (u.stop) return stopByVoice();
   const ask = pendingAsk;
   if (ask) {

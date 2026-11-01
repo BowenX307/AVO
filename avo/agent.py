@@ -316,6 +316,7 @@ def fresh_input(
             "\n\nSteps already taken (the screenshot shows the screen after them):\n"
             + "\n".join(history)
         )
+    text += "\n\nWrite your messages in English, whatever language the task is in."  # the island shows them
     if nudge:
         text += (
             f"\n\nYour last {STILL_STEPS} steps only scrolled or pressed keys. If what the task "
