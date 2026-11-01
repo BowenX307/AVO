@@ -56,7 +56,7 @@ field you can already see in the same turn. End a turn only when the next action
 something you can't see yet (a page loading, a menu's options). After each turn AVO waits \
 until the screen stops changing, so don't end a turn with wait.
 - After you move, delete or send something, it disappearing from where it was means it \
-worked: look at the destination once if you can, then stop and reply. Don't go looking for it again.
+worked: stop and reply. Don't open the folder or go looking for it to check.
 - If the task can't be done here (the option or page it needs doesn't exist), stop and say \
 what is missing, instead of searching on and on.
 - Don't open or read the user's email, messages, files or other personal things unless the \
@@ -205,6 +205,12 @@ OFF_TRACK_AFTER = 2  # steps in a row the review says don't move the task forwar
 def personal_unasked(task: str, app: str | None, title: str) -> bool:
     """True if AVO is in the user's mail or messages and the task doesn't mention them."""
     return (app in PERSONAL_APPS or bool(PERSONAL_TITLE.search(title))) and not MAIL_TASK.search(task)
+
+
+MOVED_NOTE = (
+    "Your drag changed the screen. If what you dragged is no longer where it was, it moved: "
+    "the task is done, so reply and stop. Don't open the destination to check."
+)
 
 
 STUCK_EXPLAIN = """\
@@ -593,6 +599,7 @@ def run(
             # bring the app back over it (11/01: Chrome came back, then got minimized again).
             print(f"{work_app} has no window on screen: working on the desktop")
             work_app = "com.apple.finder"
+        driver.work_app = work_app
         if work_app and frontmost_app() != work_app:
             focus(work_app)
         guard.start()
@@ -954,6 +961,10 @@ def run(
                 log.annotate(step, changed_px=effect.last_px)
                 if verdict in ("none", "stuck"):
                     dead.append(executed)
+            if verdict == "changed" and any(a["type"] == "drag" for a in executed):
+                # 11/01: the file was in its folder, and the model, not seeing it on the
+                # desktop any more, opened Finder to look for it.
+                notes.append(MOVED_NOTE)
             last_dead = verdict in ("none", "stuck")
             if verdict is not None:
                 no_effect += verdict in ("none", "stuck")

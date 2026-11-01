@@ -42,7 +42,8 @@ the task is on a website (the official site when one is obvious, e.g. https://ww
 for jobs at Meta; a search page with the query in the address is fine). "app" with the app's name \
 when the task is in a desktop app. "here" (target empty) when the screen already shows the right place.
 - steps: 1 to {max_steps} short steps, in order, as a person would do them.
-- done_when: what will be on screen when the task is complete, concretely.
+- done_when: what will be on screen when the task is complete, concretely, without extra steps \
+to check (for a move: the item is gone from where it was, not "appears when the folder is opened").
 - question: empty, unless the task can be read in clearly different ways that lead to different \
 results and the screen doesn't settle it. Then one short question for the user. Don't ask about \
 anything the agent can find out by looking, or where a sensible default exists. Don't ask which of \
