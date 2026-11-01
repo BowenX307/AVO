@@ -383,7 +383,7 @@
 
       function showDone(m) {
         const t = String(m.text || "");
-        if (m.ok === false && /stopped the task/i.test(t)) {
+        if (m.ok === false && /stopped the task|you said no/i.test(t)) { // the user's own call, not a failure
           setState("warn", esc(t));
           timer = setTimeout(() => setState("idle"), m.ms ?? 2500);
         } else if (m.ok === false) {

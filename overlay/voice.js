@@ -123,9 +123,13 @@ const FILLER = new Set(["the", "a", "an", "one", "that", "this", "please", "prof
 const words = (s) => String(s).toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
 
 // Which of `labels` the words name, e.g. "the physics one" -> "Prof. David Smith (Physics 212)"; -1 if none or a tie.
+// Two words match if they're the same, or share their first 5 letters ("physical" said for
+// "Physics", 11/01).
+const sameWord = (a, b) => a === b || (a.length >= 5 && b.length >= 5 && a.slice(0, 5) === b.slice(0, 5));
+
 function labelIndex(text, labels = []) {
-  const said = new Set(words(text).filter((w) => !FILLER.has(w)));
-  const scores = labels.map((l) => words(l).filter((w) => !FILLER.has(w) && said.has(w)).length);
+  const said = words(text).filter((w) => !FILLER.has(w));
+  const scores = labels.map((l) => words(l).filter((w) => !FILLER.has(w) && said.some((s) => sameWord(s, w))).length);
   const best = Math.max(0, ...scores);
   return best > 0 && scores.filter((s) => s === best).length === 1 ? scores.indexOf(best) : -1;
 }

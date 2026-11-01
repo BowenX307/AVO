@@ -296,6 +296,14 @@ class StopTest(unittest.TestCase):
             pass
 
 
+class DeclineTest(unittest.TestCase):
+    def test_a_plain_no_is_a_no_and_changes_are_changes(self):
+        for said in ("", "no", "No.", "no, don't send it", "nope, cancel"):
+            self.assertFalse(agent.wants_changes(said), said)
+        for said in ("no, make it shorter", "no, add my name at the end"):
+            self.assertTrue(agent.wants_changes(said), said)
+
+
 class ReplanTest(unittest.TestCase):
     def test_a_replan_is_wonders_and_metered_apart(self):
         from avo.planner import REPLAN_MODEL, make_plan

@@ -233,6 +233,15 @@ def why_stuck(client: OpenAI, task: str, past: list[str], png: bytes, what: str)
         return fallback
 
 
+NO_WORDS = {"no", "nope", "nah", "don't", "dont", "do", "not", "send", "it", "cancel", "stop", "wait", "please", "thanks"}
+
+
+def wants_changes(said: str) -> bool:
+    """True if a spoken "no" carries more than a no: "no, make it shorter", "no, add my name"."""
+    words = re.findall(r"[a-z']+", (said or "").lower())
+    return len([w for w in words if w not in NO_WORDS]) >= 2
+
+
 def options_on_screen(options: list[str], app: str | None) -> bool:
     """True if every option's words are on the app's window (accessibility text)."""
     if not options or not app:
@@ -823,11 +832,18 @@ def run(
                     break
                 if ok.choice == "pause":
                     stop = "pause"
+                elif ok.choice == "no" and ok.irreversible and not wants_changes(ok.said):
+                    # A plain "no" to sending (submitting, deleting…) means don't: end the
+                    # task. 11/01: skipping only the step made the model try Send again and
+                    # again. A "no" with changes ("no, make it shorter") goes on below.
+                    name = ok.irreversible.strip().rstrip(".")
+                    result = f"stopped: not done — you said no to “{name}”"
+                    break
                 elif ok.choice == "no":
                     skip = True
                     notes.append(
                         f"The user said no to this: {describe(actions)}. It was NOT executed; don't repeat it."
-                        + (f" They said: “{ok.said}”" if ok.said else "")
+                        + (f" They said: “{ok.said}”. Do what they ask first." if ok.said else "")
                     )
 
             if stay_in and actions:
