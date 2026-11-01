@@ -28,6 +28,19 @@ def _bundle(pid: int) -> str | None:
     return app.bundleIdentifier() if app else None
 
 
+def has_window(bundle: str | None) -> bool:
+    """True if the app has an ordinary window on screen (not minimized, not hidden)."""
+    if not bundle:
+        return False
+    for w in Quartz.CGWindowListCopyWindowInfo(
+        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID
+    ):
+        b = w["kCGWindowBounds"]
+        if w.get("kCGWindowLayer") == 0 and b["Width"] >= 80 and b["Height"] >= 40 and _bundle(w["kCGWindowOwnerPID"]) == bundle:
+            return True
+    return False
+
+
 def work_area() -> tuple[float, float, float, float] | None:
     """Screen points (l, t, r, b) around the window being worked in.
 

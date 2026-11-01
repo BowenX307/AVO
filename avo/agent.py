@@ -13,10 +13,11 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
+import AppKit
 from openai import OpenAI
 
 from avo import confirm
-from avo.desktop import frontmost_app, overlay_windows
+from avo.desktop import frontmost_app, has_window, overlay_windows
 from avo.driver import FRESH_THRESHOLD, Interrupted, MacDriver, ScreenChanged
 from avo.confidence import repeats_dead
 from avo.effect import (
@@ -54,6 +55,8 @@ cmd+L, type the address and press Enter together; to fill a form, click and type
 field you can already see in the same turn. End a turn only when the next action depends on \
 something you can't see yet (a page loading, a menu's options). After each turn AVO waits \
 until the screen stops changing, so don't end a turn with wait.
+- After you move, delete or send something, it disappearing from where it was means it \
+worked: look at the destination once if you can, then stop and reply. Don't go looking for it again.
 - If the task can't be done here (the option or page it needs doesn't exist), stop and say \
 what is missing, instead of searching on and on.
 - Don't open or read the user's email, messages, files or other personal things unless the \
@@ -261,8 +264,17 @@ def options_on_screen(options: list[str], app: str | None) -> bool:
 
 
 def focus(bundle: str) -> None:
-    """Bring an app to the front, which gives it the keyboard."""
-    subprocess.run(["open", "-b", bundle])
+    """Bring an app to the front, which gives it the keyboard.
+
+    Activates the running app rather than `open -b`, which also asks it to
+    reopen: that brought back a Chrome window the user had minimized (11/01),
+    and makes Finder open a new window.
+    """
+    apps = AppKit.NSRunningApplication.runningApplicationsWithBundleIdentifier_(bundle)
+    if apps:
+        apps[0].activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
+    else:
+        subprocess.run(["open", "-b", bundle])
     time.sleep(0.3)
 
 
@@ -576,6 +588,11 @@ def run(
         if work_app in ours:
             work_app = None
             print("warning: AVO's overlay is in front and no app to work in was given")
+        if work_app and work_app != "com.apple.finder" and not has_window(work_app):
+            # Its windows are minimized or closed: the user is on the desktop. Don't
+            # bring the app back over it (11/01: Chrome came back, then got minimized again).
+            print(f"{work_app} has no window on screen: working on the desktop")
+            work_app = "com.apple.finder"
         if work_app and frontmost_app() != work_app:
             focus(work_app)
         guard.start()

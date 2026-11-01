@@ -70,7 +70,9 @@ class FakeDriver:
 
 
 class LoopBase(unittest.TestCase):
+    app_has_window = True
     def run_with(self, replies, plan="never", driver=None, task="Open Meta careers", **kw):
+        self.focused = []
         script = iter(replies)
         inputs = []
 
@@ -86,10 +88,11 @@ class LoopBase(unittest.TestCase):
             MacDriver=driver or FakeDriver,
             overlay_windows=lambda: [],
             frontmost_app=lambda: "com.google.Chrome",
-            focus=lambda bundle: None,
+            focus=lambda bundle: self.focused.append(bundle),
             screen_text=lambda app: "",
             highlight=lambda *a, **k: None,
             missing_permissions=lambda: [],
+            has_window=lambda bundle: self.app_has_window,
         ), mock.patch("avo.agent.Overlay", lambda: Overlay(url=None)):
             result = agent.run(
                 task, gate=False, snap_to_controls=False, human_guard=False, plan=plan, **kw
@@ -294,6 +297,15 @@ class StopTest(unittest.TestCase):
                 self.fail("a check swallowed the stop")
         except agent.Terminated:
             pass
+
+
+class MinimizedTest(LoopBase):
+    app_has_window = False  # 11/01: Chrome minimized, the user on the desktop
+
+    def test_a_minimized_app_isnt_brought_back(self):
+        self.run_with([reply(text="Done.")])
+        self.assertNotIn("com.google.Chrome", self.focused)  # Chrome stays minimized
+        self.assertEqual(self.focused, ["com.apple.finder"])  # the desktop gets the keyboard
 
 
 class DeclineTest(unittest.TestCase):
