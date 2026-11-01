@@ -143,6 +143,25 @@ def _text(el) -> str:
     return " ".join(w for w in words if w).strip()
 
 
+def item_at(x: float, y: float) -> str:
+    """The name of what's at a screen point: a file or folder icon, a row, a card ("" if none).
+
+    Used to check a drag (avo/agent.py): Finder's desktop icons are AXImage
+    elements titled with the file's name, which the hit-test finds even
+    though they aren't controls.
+    """
+    err, el = AX.AXUIElementCopyElementAtPosition(_system, x, y, None)
+    for _ in range(ANCESTORS):
+        if err or el is None:
+            return ""
+        for name in ("AXTitle", "AXFilename", "AXValue", "AXDescription"):
+            value = _attr(el, name)
+            if isinstance(value, str) and value.strip():
+                return value.strip()[:80]
+        el = _attr(el, "AXParent")
+    return ""
+
+
 def on_blank(x: float, y: float) -> bool:
     """True if (x, y) is on layout-only space: no control, no text."""
     err, el = AX.AXUIElementCopyElementAtPosition(_system, x, y, None)

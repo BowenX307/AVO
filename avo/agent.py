@@ -26,6 +26,7 @@ from avo.effect import (
 from avo.gate import ask_user, assess, correct, first_gated, named_fix
 from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
+from avo import moves
 from avo.llm import MODEL, NoKey, data_url, describe, friendly, make_client
 from avo.meter import Meter
 from avo.overlay import Overlay
@@ -205,12 +206,6 @@ OFF_TRACK_AFTER = 2  # steps in a row the review says don't move the task forwar
 def personal_unasked(task: str, app: str | None, title: str) -> bool:
     """True if AVO is in the user's mail or messages and the task doesn't mention them."""
     return (app in PERSONAL_APPS or bool(PERSONAL_TITLE.search(title))) and not MAIL_TASK.search(task)
-
-
-MOVED_NOTE = (
-    "Your drag changed the screen. If what you dragged is no longer where it was, it moved: "
-    "the task is done, so reply and stop. Don't open the destination to check."
-)
 
 
 STUCK_EXPLAIN = """\
@@ -731,6 +726,11 @@ def run(
             # The same batch as one that just did nothing on screen: don't run it
             # again (10/31: "View all results" clicked three more times, 0 px each).
             blocked = not stop and repeats_dead(dead, actions)
+            if not stop and not blocked and moves.zero_length(actions):
+                skip = True
+                print(f"[{step}] not run: a drag that starts and ends at the same point")
+                notes.append(moves.ZERO_DRAG_NOTE)
+                log.annotate(step, blocked="zero-length drag")
             if blocked:
                 skip = True
                 print(f"[{step}] not run: the same as a batch that changed nothing")
@@ -890,6 +890,7 @@ def run(
 
             executed: list[dict] = []
             changed: ScreenChanged | None = None
+            drags: list[moves.Drag] = []
             if not stop and not skip:
                 print(f"[{step}] executing {len(actions)} action(s)", flush=True)
                 guard.arm()
@@ -899,6 +900,7 @@ def run(
                             print(f"[{step}] the overlay had the keyboard; giving it back to {work_app}")
                             focus(work_app)
                         driver.work_app = work_app
+                        drags = moves.before(actions, driver.to_screen)
                         driver.execute(actions, seen=png)
                     executed = actions
                 except Interrupted as e:
@@ -951,20 +953,24 @@ def run(
             # Did the batch do anything? Nothing changing on screen, again and
             # again, means the agent is stuck: say so to the model the first
             # time, and after STUCK_AFTER in a row stop and ask the user.
+            # A drag that moved its item into the place it was dropped on: AVO checks
+            # that itself (11/01: the file was in its folder, and the model, not seeing
+            # it on the desktop any more, opened Finder to look for it).
+            moved = moves.after(drags) if drags and not stop and not changed and len(executed) == len(actions) else []
+            for m in moved:
+                print(f"[{step}] moved: {m.item!r} into {m.target!r}")
+                log.annotate(step, moved={"item": m.item, "into": m.target})
+                notes.append(m.note())
             verdict = None
             if blocked:
                 verdict = effect.blocked()  # asking for a dead batch again is no progress either
-            elif stop or changed or skip:
-                effect.reset()  # the user or the page moved things, or nothing ran: count afresh
+            elif stop or changed or skip or moved:
+                effect.reset()  # the user or the page moved things, nothing ran, or it plainly worked: count afresh
             else:
-                verdict = effect.record(executed, seen, png, driver.settle_area)
+                verdict = effect.record(executed, seen, png, moves.cover(driver.settle_area, executed))
                 log.annotate(step, changed_px=effect.last_px)
                 if verdict in ("none", "stuck"):
                     dead.append(executed)
-            if verdict == "changed" and any(a["type"] == "drag" for a in executed):
-                # 11/01: the file was in its folder, and the model, not seeing it on the
-                # desktop any more, opened Finder to look for it.
-                notes.append(MOVED_NOTE)
             last_dead = verdict in ("none", "stuck")
             if verdict is not None:
                 no_effect += verdict in ("none", "stuck")

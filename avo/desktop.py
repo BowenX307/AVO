@@ -41,6 +41,34 @@ def has_window(bundle: str | None) -> bool:
     return False
 
 
+def desktop_icons() -> dict[str, tuple[float, float, float, float]]:
+    """The icons on the desktop: name -> frame (l, t, w, h) in screen points.
+
+    Finder lists them in its accessibility tree whether or not windows cover
+    them ({} when Finder isn't running or the list can't be read).
+    """
+    import ApplicationServices as AX
+
+    from avo.snap import _attr, _frame
+
+    apps = AppKit.NSRunningApplication.runningApplicationsWithBundleIdentifier_("com.apple.finder")
+    if not apps:
+        return {}
+    out = {}
+    try:
+        for area in _attr(AX.AXUIElementCreateApplication(apps[0].processIdentifier()), "AXChildren") or []:
+            if _attr(area, "AXRole") != "AXScrollArea":
+                continue
+            for group in _attr(area, "AXChildren") or []:
+                for icon in _attr(group, "AXChildren") or []:
+                    name, frame = _attr(icon, "AXTitle"), _frame(icon)
+                    if name and frame:
+                        out[str(name)] = frame
+    except Exception:
+        return {}
+    return out
+
+
 def work_area() -> tuple[float, float, float, float] | None:
     """Screen points (l, t, r, b) around the window being worked in.
 
