@@ -442,3 +442,5 @@ section.tight { padding: 72px 0; }
   .strip, .trio { grid-template-columns: 1fr; gap: 24px; }
   .trio { margin-top: 48px; }
 }
+.clipnote { margin-top: 10px; font-size: 13px; color: var(--avo-gray-2); }
+.media video { display: block; height: auto; aspect-ratio: auto; background: var(--avo-gray-4); }
