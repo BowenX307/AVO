@@ -518,3 +518,5 @@ section.tight { padding: 56px 0 72px; }
 }
 .compare li.tr::after { content: " *"; color: #66665f; }
 .trnote { margin-top: 6px; font-size: 13px; color: #66665f; }
+.clip.wrong { max-width: 880px; margin: 8px 0 0; }
+.wrongnote { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 15px; color: var(--avo-gray-2); }

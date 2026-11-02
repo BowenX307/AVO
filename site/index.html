@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="brand/tokens.css" />
-    <link rel="stylesheet" href="assets/site.css?v=202611021601" />
+    <link rel="stylesheet" href="assets/site.css?v=202611021613" />
     <script>
       // Play the opening once per visit, and never with "reduce motion" on.
       // The failsafe drops it if the scripts below never run.
@@ -24,7 +24,7 @@
       })();
     </script>
     <script src="brand/logo-animated.js" defer></script>
-    <script src="assets/site.js?v=202611021601" defer></script>
+    <script src="assets/site.js?v=202611021613" defer></script>
   </head>
   <body>
     <div id="intro" aria-hidden="true"></div>
@@ -276,7 +276,13 @@
             <h2 data-reveal>Agents ask for permission. AVO asks for understanding.</h2>
             <p class="lede">A reply to the wrong professor triggers no permission prompt. It isn’t “sensitive”, it’s just wrong.</p>
           </div>
-          <!-- Clip D (a plain agent replies to the wrong Professor Smith, then Done ✓) goes here once recorded. -->
+          <figure class="media clip wrong" data-clip="wrongsmith">
+            <i class="corners"></i>
+            <video autoplay muted loop playsinline preload="metadata" poster="media/wrongsmith.jpg?v=202611021613" width="1600" height="1074" aria-label="The same task with the agent alone, no AVO: it opens Anna Smith’s email, not David’s, writes the reply and sends it, without asking.">
+              <source src="media/wrongsmith.mp4?v=202611021613" type="video/mp4" />
+            </video>
+          </figure>
+          <p class="clipnote wrongnote"><span class="done-tag">Agent: <s>Done ✓</s></span> The agent alone, same words: sent to Anna Smith, not David. It never asked.</p>
           <div class="trio" id="e3" role="img" aria-label="Finished the task wrong without asking. The agent alone: 78%, 7 of 9 runs. Asking only before send or book: 56%, 5 of 9. AVO: 0%, 0 of 9.">
             <div><b>78%</b><i style="--w: 78%"></i><span>the agent alone</span></div>
             <div><b>56%</b><i style="--w: 56%"></i><span>asks only before send / book</span></div>
