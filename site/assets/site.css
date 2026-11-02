@@ -446,10 +446,10 @@ section.tight { padding: 72px 0; }
 .media video { display: block; height: auto; aspect-ratio: auto; background: var(--avo-gray-4); }
 
 /* Hero: the words and figures beside a smaller clip */
-.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 32px 56px; align-items: end; margin-top: 40px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 32px 56px; align-items: center; margin-top: clamp(56px, 7vw, 104px); }
 .hero-grid .row { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 28px; margin-top: 0; }
 .hero-grid .media { margin: 0; }
 @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
 .hero-grid .footnote, .hero-clip .clipnote { margin: 14px 0 0; font-size: 13px; line-height: 1.5; color: var(--avo-gray-2); }
-.hero-grid .row .footnote { margin-top: -14px; white-space: nowrap; }
+.hero-grid .row .footnote { margin-top: -10px; white-space: nowrap; }
 @media (max-width: 900px) { .hero-grid .row .footnote { white-space: normal; } }
