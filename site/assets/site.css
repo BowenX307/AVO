@@ -525,7 +525,7 @@ section.tight { padding: 56px 0 72px; }
 
 /* ---- final: what AVO is, the flow on phones, Remote, the cards, the evidence block, the story ---- */
 .what { margin-top: 72px; padding-top: 40px; border-top: 1px solid var(--avo-gray-4); }
-.intro { max-width: 62ch; font-size: clamp(18px, 1.6vw, 21px); line-height: 1.55; }
+.whatis { max-width: 62ch; font-size: clamp(18px, 1.6vw, 21px); line-height: 1.55; }
 .steps3 { list-style: none; margin: 32px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
 .steps3 li { border-top: 1px solid var(--avo-ink); padding-top: 16px; }
 .steps3 .mono { font-size: 12px; color: var(--avo-gray-2); }
