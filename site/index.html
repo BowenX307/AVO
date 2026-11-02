@@ -53,9 +53,10 @@
           <h1><span class="dim">Say what you want done.</span><br />AVO handles the clicks.</h1>
           <div class="row">
             <p class="lede">For people who find using a mouse or trackpad difficult.</p>
-            <a class="hero-num" href="#e1">
-              <b>8 / 8 <span>vs</span> 2 / 8</b>
-              <span>everyday tasks done right by voice: AVO vs macOS Voice Control<sup>1</sup></span>
+            <a class="hero-num" href="#e1" aria-label="Everyday tasks done right by voice: AVO 8 of 8, macOS Voice Control 2 of 8. Details.">
+              <span class="fig us"><b>8<i>/8</i></b><small>AVO</small></span>
+              <span class="fig"><b>2<i>/8</i></b><small>macOS Voice Control</small></span>
+              <span class="cap">everyday tasks done right, by voice<sup>1</sup></span>
             </a>
             <div class="ctas">
               <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
@@ -221,7 +222,7 @@
             <h2 data-reveal>One sentence in. Checked before every step.</h2>
             <p class="lede">Computer-use models don’t say how sure they are. AVO checks each step before it happens, and asks you only when it should.</p>
           </div>
-          <figure class="diagram" style="margin-left: 0; margin-right: 0" aria-label="You say the task (or box it roughly); Muse Spark plans and acts; before each step AVO checks whether several things fit, whether the target is clear (SAM 3.1), and whether the step can be undone. Three outcomes: several fit, so it rings each and asks which; an ordinary step, so it rings the target and counts down a second; a step that can't be undone, so it shows it and waits for yes. Your answer goes back in.">
+          <figure class="diagram" style="margin-left: 0; margin-right: 0" aria-label="You say the task (or box it roughly); Muse Spark plans and acts, and Muse Wonder makes a fresh plan when it gets stuck; before each step AVO checks whether several things fit, whether the target is clear (SAM 3.1), and whether the step can be undone. Three outcomes: several fit, so it rings each and asks which; an ordinary step, so it rings the target and counts down a second; a step that can't be undone, so it shows it and waits for yes. Your answer goes back in.">
             <svg class="h" viewBox="0 0 1160 300" role="img" aria-hidden="true">
               <defs><marker id="tip" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
               <rect class="box" x="0.5" y="104" width="200" height="84" rx="10" />
@@ -229,18 +230,22 @@
               <path class="wire" d="M201 146 H263" marker-end="url(#tip)" />
               <rect class="box" x="265" y="104" width="200" height="84" rx="10" />
               <text class="t" x="283" y="138">Muse Spark</text><text class="s" x="283" y="162">plans, then acts</text>
+              <path class="wire dash" d="M352 190 V226" marker-end="url(#tip)" /><path class="wire dash" d="M378 226 V190" marker-end="url(#tip)" />
+              <text class="s" x="392" y="213">stuck?</text>
+              <rect class="box" x="265" y="228" width="200" height="60" rx="10" />
+              <text class="t" x="283" y="254">Muse Wonder</text><text class="s" x="283" y="276">a fresh plan</text>
               <path class="wire" d="M465 146 H527" marker-end="url(#tip)" />
               <rect class="box" x="529" y="80" width="250" height="132" rx="10" />
               <text class="t" x="547" y="112">Before each step</text>
               <text class="s" x="547" y="140">several things fit?</text><text class="s" x="547" y="162">a clear target? (SAM 3.1)</text><text class="s" x="547" y="184">can’t be undone?</text>
               <path class="wire" d="M779 146 H809 V44 H837 M809 146 H837 M809 146 V248 H837" />
               <path class="wire" d="M829 44 H837" marker-end="url(#tip)" /><path class="wire" d="M829 146 H837" marker-end="url(#tip)" /><path class="wire" d="M829 248 H837" marker-end="url(#tip)" />
-              <rect class="box fill" x="839.5" y="12" width="320" height="64" rx="10" />
-              <text class="t inv" x="857" y="40">Several fit</text><text class="s inv" x="857" y="62">rings each, asks which</text>
+              <rect class="box" x="839.5" y="12" width="320" height="64" rx="10" />
+              <text class="t" x="857" y="40">Several fit</text><text class="s" x="857" y="62">rings each, asks which</text>
               <rect class="box fill" x="839.5" y="114" width="320" height="64" rx="10" />
               <text class="t inv" x="857" y="142">An ordinary step</text><text class="s inv" x="857" y="164">rings it, counts down 1 s</text>
-              <rect class="box fill" x="839.5" y="216" width="320" height="64" rx="10" />
-              <text class="t inv" x="857" y="244">Can’t be undone</text><text class="s inv" x="857" y="266">shows it, waits for “yes”</text>
+              <rect class="box" x="839.5" y="216" width="320" height="64" rx="10" />
+              <text class="t" x="857" y="244">Can’t be undone</text><text class="s" x="857" y="266">shows it, waits for “yes”</text>
               <path class="wire dash" d="M999 12 V2 H365 V102" marker-end="url(#tip)" />
               <text class="s" x="682" y="22" text-anchor="middle">your answer goes back in</text>
             </svg>
@@ -248,21 +253,24 @@
               <defs><marker id="tipv" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
               <rect class="box" x="20.5" y="0.5" width="299" height="70" rx="10" />
               <text class="t" x="38" y="30">You say it</text><text class="s" x="38" y="52">or box it, roughly</text>
-              <path class="wire" d="M170 71 V98" marker-end="url(#tipv)" />
-              <rect class="box" x="20.5" y="100" width="299" height="70" rx="10" />
-              <text class="t" x="38" y="130">Muse Spark</text><text class="s" x="38" y="152">plans, then acts</text>
-              <path class="wire" d="M170 170 V198" marker-end="url(#tipv)" />
+              <path class="wire" d="M98 71 V98" marker-end="url(#tipv)" />
+              <rect class="box" x="20.5" y="100" width="155" height="70" rx="10" />
+              <text class="t" x="36" y="130">Muse Spark</text><text class="s" x="36" y="152">plans, then acts</text>
+              <path class="wire dash" d="M177 126 H193" marker-end="url(#tipv)" /><path class="wire dash" d="M193 144 H177" marker-end="url(#tipv)" />
+              <rect class="box" x="195.5" y="100" width="124" height="70" rx="10" />
+              <text class="t" x="209" y="130">Muse Wonder</text><text class="s" x="209" y="152">if stuck</text>
+              <path class="wire" d="M98 170 V198" marker-end="url(#tipv)" />
               <rect class="box" x="20.5" y="200" width="299" height="122" rx="10" />
               <text class="t" x="38" y="230">Before each step</text>
               <text class="s" x="38" y="256">several things fit?</text><text class="s" x="38" y="278">a clear target? (SAM 3.1)</text><text class="s" x="38" y="300">can’t be undone?</text>
               <path class="wire" d="M170 322 V340 H40 V378 M170 340 V458 M170 340 H300 V538" />
               <path class="wire" d="M40 370 V378" marker-end="url(#tipv)" /><path class="wire" d="M170 450 V458" marker-end="url(#tipv)" /><path class="wire" d="M300 530 V538" marker-end="url(#tipv)" />
-              <rect class="box fill" x="10.5" y="380" width="200" height="60" rx="10" />
-              <text class="t inv" x="26" y="406">Several fit</text><text class="s inv" x="26" y="426">asks which</text>
+              <rect class="box" x="10.5" y="380" width="200" height="60" rx="10" />
+              <text class="t" x="26" y="406">Several fit</text><text class="s" x="26" y="426">asks which</text>
               <rect class="box fill" x="70.5" y="460" width="200" height="60" rx="10" />
               <text class="t inv" x="86" y="486">Ordinary step</text><text class="s inv" x="86" y="506">counts down 1 s</text>
-              <rect class="box fill" x="129.5" y="540" width="200" height="60" rx="10" />
-              <text class="t inv" x="145" y="566">Can’t be undone</text><text class="s inv" x="145" y="586">waits for “yes”</text>
+              <rect class="box" x="129.5" y="540" width="200" height="60" rx="10" />
+              <text class="t" x="145" y="566">Can’t be undone</text><text class="s" x="145" y="586">waits for “yes”</text>
               <text class="s" x="170" y="628" text-anchor="middle">your answer goes back to Muse Spark</text>
             </svg>
           </figure>
