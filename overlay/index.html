@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="../brand/tokens.css" />
     <style>
       /* Black, white and grey only. The agent's pointer is the Λ of the logo
-         turned into an open arrow: off-white with a black rim, so it reads on
-         dark and light screens alike. Rings around targets are drawn like the
+         turned into an open arrow: solid white, no rim, set off by a soft dark
+         halo, so it reads on dark and light screens alike. Rings around targets are drawn like the
          logo's O: one stroke, a little past closed, then settled back. */
       :root {
         --glide: 300ms;
@@ -48,7 +48,9 @@
         height: 1px;
         overflow: visible;
         transform-origin: 0 0; /* the tip is the point */
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.32));
+        /* No outline: a tight soft halo separates it from white pages, a wider
+           one gives it lift (11/01: the black rim looked heavy). */
+        filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.6)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.36));
       }
       #cursor.press .arrow { animation: press 200ms var(--avo-ease); }
       @keyframes press { 40% { transform: scale(0.9); } }
@@ -218,12 +220,12 @@
   </head>
   <body>
     <div id="cursor">
-      <!-- The logo's Λ, as a thick open stroke: black rim (8) under off-white (5).
-           The rim's miter tip is at (0, 0), the point; turned 30° counter-clockwise. -->
+      <!-- The logo's Λ, as one thick open stroke of solid white (the outline the
+           black rim used to have), its miter tip at (0, 0), the point; turned 30°
+           counter-clockwise. The halo is the CSS filter on .arrow. -->
       <svg class="arrow" aria-hidden="true">
         <g transform="rotate(-30)" fill="none" stroke-linejoin="miter" stroke-linecap="square">
-          <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#0A0A0A" stroke-width="8" />
-          <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#F5F5F2" stroke-width="5" />
+          <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#FFFFFF" stroke-width="8" />
         </g>
       </svg>
       <svg class="think" viewBox="0 0 14 14" aria-hidden="true">

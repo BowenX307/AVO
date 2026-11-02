@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AVO pointer test</title>
+    <!-- The pointer (copied from index.html) on the backgrounds it has to read on.
+         Serve the repo root and open http://localhost:8000/overlay/pointer-test.html -->
+    <style>
+      body { margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); font: 13px -apple-system, sans-serif; }
+      .bg { position: relative; height: 220px; display: flex; align-items: flex-end; padding: 10px; box-sizing: border-box; }
+      .bg span { opacity: 0.6; }
+      .arrow { position: absolute; left: 50%; top: 40%; width: 1px; height: 1px; overflow: visible;
+        filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.6)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.36)); }
+      iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div class="bg" style="background: #fff"><span>white page</span></div>
+    <div class="bg" style="background: #f2f2f2"><span>light grey UI</span></div>
+    <div class="bg" style="background: #8a8a8a; color: #fff"><span>mid grey</span></div>
+    <div class="bg" style="background: #1e1e1e; color: #fff"><span>dark mode</span></div>
+    <div class="bg" style="background: #0a84ff; color: #fff"><span>blue button</span></div>
+    <div class="bg"><iframe src="../demo/mail.html"></iframe><span style="position: relative">a real page</span></div>
+    <template id="arrow">
+      <svg class="arrow" aria-hidden="true"><g transform="rotate(-30)" fill="none" stroke-linejoin="miter" stroke-linecap="square">
+        <path d="M-7.5 23.94 L0 8.94 L7.5 23.94" stroke="#FFFFFF" stroke-width="8" /></g></svg>
+    </template>
+    <script>
+      for (const bg of document.querySelectorAll(".bg")) bg.append(document.getElementById("arrow").content.cloneNode(true));
+    </script>
+  </body>
+</html>
