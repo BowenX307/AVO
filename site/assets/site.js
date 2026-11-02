@@ -67,7 +67,7 @@
       extras.forEach((e) => e.remove());
       big.remove();
       veil.remove();
-      root.classList.remove("intro");
+      root.classList.remove("intro", "opening");
       for (const t of ["keydown", "pointerdown", "wheel", "touchstart"]) removeEventListener(t, end, true);
     }
     for (const t of ["keydown", "pointerdown", "wheel", "touchstart"]) addEventListener(t, end, { capture: true, passive: true });
@@ -104,6 +104,7 @@
     }
 
     function open(ox, oy, cursor) {
+      root.classList.add("opening"); // the scrollbar strip fades to the page colour with the reveal
       veil.style.setProperty("--ox", `${ox}px`);
       veil.style.setProperty("--oy", `${oy}px`);
       const far = Math.hypot(Math.max(ox, innerWidth - ox), Math.max(oy, innerHeight - oy));

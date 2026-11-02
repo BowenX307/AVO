@@ -238,7 +238,8 @@ footer a:hover { color: var(--avo-ink); }
 
 /* ---- the opening: the logo draws, the cursor clicks O, O opens into the page ---- */
 #intro, #intro-logo, .intro-cursor { display: none; }
-html.intro { overflow: hidden; background: var(--avo-paper); } /* the opening's black is the #intro veil on top; behind it stays light, so a resize or a side panel opening mid-intro never shows a black block */
+html.intro { overflow: hidden; background: var(--avo-ink); transition: background-color 900ms cubic-bezier(0.65, 0, 0.35, 1); } /* the kept scrollbar strip: black while the logo draws, like the veil... */
+html.intro.opening { background: var(--avo-paper); } /* ...and light as the circle opens, so no strip shows */
 html.intro #intro {
   display: block;
   position: fixed;
@@ -441,7 +442,8 @@ section.tight { padding: 56px 0 72px; }
   .trio { margin-top: 48px; }
 }
 .clipnote { margin-top: 10px; font-size: 13px; color: var(--avo-gray-2); }
-.media video { display: block; height: auto; aspect-ratio: auto; background: var(--avo-gray-4); }
+.media video { display: block; height: auto; aspect-ratio: auto 1600 / 1064; background: var(--avo-gray-4); } /* the box has its final height before the video loads: nothing jumps */
+.clip[data-clip="wrongsmith"] video { aspect-ratio: auto 1600 / 1074; }
 
 /* Hero: the words and figures beside a smaller clip */
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 32px 56px; align-items: center; margin-top: clamp(56px, 7vw, 104px); }
