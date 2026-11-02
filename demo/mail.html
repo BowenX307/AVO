@@ -103,6 +103,11 @@
       // Smith" doesn't say which one, so AVO should ask.
       const inbox = [
         {
+          id: 10, from: "Campus IT", dept: "", email: "it-help@example.edu", time: "9:40 AM",
+          subject: "Scheduled maintenance tonight", unread: true,
+          body: "Campus Wi-Fi and the course portal will be unavailable tonight from 1:00 to 3:00 am while we upgrade the network.",
+        },
+        {
           id: 1, from: "Prof. Anna Smith", dept: "Math 241", email: "anna.smith@math.example.edu", time: "9:12 AM",
           subject: "Our 2:00 meeting today", unread: true,
           body: "Hi Jamie,\n\nJust confirming our meeting at 2:00 today in my office (Altgeld 214) to go over your project draft.\n\nBest,\nAnna Smith",
@@ -118,6 +123,11 @@
           body: "Hello everyone,\n\nReminder: lab section meets at 2:00 today in Loomis 141. We start the pendulum experiment right away, so please let me know if you can't be on time.\n\nDavid Smith",
         },
         {
+          id: 11, from: "Maya Chen", dept: "", email: "maya.chen@student.example.edu", time: "7:52 AM",
+          subject: "Groceries?", unread: false,
+          body: "I'm going to the store after class. Need anything? I'm getting eggs and oat milk.",
+        },
+        {
           id: 4, from: "Jordan Park", dept: "", email: "jordan.park@student.example.edu", time: "Yesterday",
           subject: "Study group Thursday?", unread: false,
           body: "Hey! Are you still up for the study group on Thursday at 6? I booked a room in the library.",
@@ -126,6 +136,41 @@
           id: 5, from: "Career Center", dept: "", email: "careers@example.edu", time: "Yesterday",
           subject: "Resume review drop-in hours", unread: false,
           body: "Drop-in resume reviews are open this week, Monday to Thursday, 1–4 pm.",
+        },
+        {
+          id: 12, from: "Registrar", dept: "", email: "registrar@example.edu", time: "Yesterday",
+          subject: "Spring registration opens Monday", unread: false,
+          body: "Your registration window opens Monday, Nov 9 at 8:00 am. Check your holds in the student portal before then.",
+        },
+        {
+          id: 13, from: "CS 225 Course Staff", dept: "", email: "cs225@example.edu", time: "Oct 29",
+          subject: "MP3 grades posted", unread: false,
+          body: "Grades for MP3 are now on the course site. Regrade requests are open until next Friday.",
+        },
+        {
+          id: 14, from: "Hiking Club", dept: "", email: "hiking@clubs.example.edu", time: "Oct 29",
+          subject: "Saturday trip to Starved Rock", unread: false,
+          body: "The bus leaves the Union at 8:00 am on Saturday. Bring water, lunch and good shoes. Reply if you need a spot.",
+        },
+        {
+          id: 15, from: "Financial Aid Office", dept: "", email: "finaid@example.edu", time: "Oct 28",
+          subject: "Your spring aid package", unread: false,
+          body: "Your financial aid package for the spring semester is ready to review in the student portal.",
+        },
+        {
+          id: 16, from: "Priya Patel", dept: "", email: "priya.patel@student.example.edu", time: "Oct 28",
+          subject: "Notes from Tuesday", unread: false,
+          body: "Here are my notes from Tuesday's lecture, in case you missed the part about eigenvalues.",
+        },
+        {
+          id: 17, from: "Student Wellness", dept: "", email: "wellness@example.edu", time: "Oct 27",
+          subject: "Free flu shots this week", unread: false,
+          body: "Walk-in flu shots are free for students at McKinley Health Center, Monday to Friday, 9 am to 4 pm.",
+        },
+        {
+          id: 18, from: "Dining Services", dept: "", email: "dining@example.edu", time: "Oct 27",
+          subject: "New hours at the Union", unread: false,
+          body: "Starting next week the Union food court opens at 7:00 am and stays open until 10:00 pm on weekdays.",
         },
       ];
       const sent = [];

@@ -8,3 +8,4 @@ __pycache__/
 node_modules
 node_modules.nosync/
 eval/e1/audio/
+site/media/raw/
