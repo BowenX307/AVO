@@ -459,16 +459,6 @@ section.tight { padding: 56px 0 72px; }
 .strip > div > a { display: inline-block; margin-top: 10px; font: 500 12px var(--avo-font-mono); color: var(--avo-gray-2); text-decoration: none; }
 .strip > div > a:hover { color: var(--avo-ink); text-decoration: underline; }
 
-/* the caption over a clip, in time with it (captions.json; the same lines are a WebVTT track) */
-.clip { position: relative; }
-.captag {
-  display: block; width: fit-content; max-width: 100%; min-height: 2.9em; margin: 14px auto 0; padding: 9px 16px;
-  border-radius: 12px; background: var(--avo-ink); color: #fff;
-  font: 500 clamp(14px, 1.3vw, 17px)/1.35 var(--avo-font-sans); text-align: center;
-  opacity: 0; transition: opacity 150ms var(--avo-ease);
-}
-.captag.on { opacity: 1; }
-.captag:empty { visibility: hidden; } /* keep its height, so nothing jumps between lines */
 
 /* tips: a <details> that opens on hover (fine pointers), focus + Enter, or a tap */
 .tip > summary { list-style: none; cursor: pointer; }
@@ -524,7 +514,6 @@ section.tight { padding: 56px 0 72px; }
   .models { grid-template-columns: 1fr 1fr; gap: 0 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .captag { transition: none; }
   .compare.play ol li { animation: none; }
 }
 .compare li.tr::after { content: " *"; color: #66665f; }

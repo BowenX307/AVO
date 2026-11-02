@@ -218,8 +218,8 @@
     io.observe(box);
   }
 
-  // ---- clips: a caption in time with each (media/captions.json; the same lines are a WebVTT track) ----
-  async function clips() {
+  // ---- clips: with reduced motion, no autoplaying loops (the WebVTT tracks carry the captions) ----
+  function clips() {
     const figs = [...document.querySelectorAll("figure.clip[data-clip]")];
     if (!figs.length) return;
     for (const f of figs) {
@@ -230,31 +230,6 @@
         v.pause();
         v.controls = true;
       }
-    }
-    let cues = {};
-    try {
-      cues = await (await fetch("media/captions.json", { cache: "no-cache" })).json();
-    } catch {
-      return;
-    }
-    for (const f of figs) {
-      const v = f.querySelector("video"), tag = f.querySelector(".captag"), list = cues[f.dataset.clip];
-      if (!v || !tag || !list) continue;
-      let shown = -1;
-      const show = () => {
-        let k = -1;
-        list.forEach((c, i) => { if (v.currentTime >= c.t) k = i; });
-        if (k === shown) return;
-        shown = k;
-        tag.classList.remove("on");
-        setTimeout(() => {
-          tag.textContent = k >= 0 ? list[k].text : "";
-          tag.classList.toggle("on", k >= 0);
-        }, reduced ? 0 : 150);
-      };
-      v.addEventListener("timeupdate", show);
-      v.addEventListener("seeked", show);
-      show();
     }
   }
 
