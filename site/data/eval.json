@@ -1,0 +1,22 @@
+{
+  "_note": "Every evaluation number on the site. Edit here, then run: node scripts/render-eval.mjs",
+  "e1": {
+    "tasks": 8, "avo_right": 8, "vc_right": 2,
+    "demo_tasks": 5, "demo_avo_right": 5, "demo_vc_right": 2,
+    "new_tasks": 3, "new_avo_right": 3, "new_vc_right": 0,
+    "said_avo_median": 2, "said_vc_median": 4.5,
+    "mail_vc_said": 13, "mail_avo_said": 3,
+    "testers": 1, "runs_per_task": 1
+  },
+  "e2": {
+    "button_px": 12, "tremor_px": 8, "tries": 30,
+    "sizes": "12, 18, 24, 32 and 44", "tremors": "0, 4, 8 and 12", "sam_calls": 600,
+    "avo_pct": 100, "alone_pct": 33, "sam_pct": 47,
+    "worse_button_px": 32, "worse_alone_pct": 93, "worse_sam_pct": 80
+  },
+  "e3": {
+    "tasks": 3, "runs_per_setup": 9, "runs_per_task": 3,
+    "avo_wrong": 0, "irr_wrong": 5, "bare_wrong": 7,
+    "avo_pct": 0, "irr_pct": 56, "bare_pct": 78
+  }
+}

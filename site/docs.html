@@ -9,9 +9,9 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="brand/tokens.css" />
-    <link rel="stylesheet" href="assets/site.css?v=202611021613" />
+    <link rel="stylesheet" href="assets/site.css?v=202611021703" />
     <script src="brand/logo-animated.js" defer></script>
-    <script src="assets/site.js?v=202611021613" defer></script>
+    <script src="assets/site.js?v=202611021703" defer></script>
   </head>
   <body>
     <header class="nav">
@@ -40,6 +40,7 @@
         <a href="#privacy">Privacy &amp; safety</a>
         <a href="#troubleshooting">Troubleshooting</a>
         <a href="#cost">Cost</a>
+        <a href="#remote">AVO Remote</a>
       </aside>
 
       <article class="doc">
@@ -206,6 +207,24 @@ cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay 
             </table>
           </div>
           <p>Measured on the demo tasks (October 31, from each run’s <code>summary.json</code>): replying to Professor Smith $0.049 (5 steps, 14 calls), booking a study room $0.050 (5 steps), downloading the week 3 handout $0.018 (2 steps). Every run writes its own calls, tokens, time and cost to <code>runs/&lt;time&gt;/summary.json</code>.</p>
+        </section>
+
+        <section id="remote">
+          <h2><span class="mono">10</span>AVO Remote (preview)</h2>
+          <p>Drive AVO from your phone, on the same Wi‑Fi. Off by default.</p>
+          <ol>
+            <li>On the Mac, press <kbd>⌃⌥R</kbd> (Control‑Option‑R). The island shows a QR code; while Remote is on, the island is marked “Remote”.</li>
+            <li>Scan it with the phone’s camera. The code works once: the phone trades it for a session that lasts 12 hours, or until you turn Remote off.</li>
+            <li>Type the task on the phone, or use the keyboard’s dictation. The phone shows what AVO is doing.</li>
+            <li>When AVO asks, the phone gets only the part of the screen it’s asking about, circled and numbered. Anything irreversible needs your “Yes”. Stop is always at the bottom.</li>
+          </ol>
+          <h3>Limits</h3>
+          <ul>
+            <li>Same Wi‑Fi only; private network addresses only. One phone at a time: a new phone takes over.</li>
+            <li>If the phone disconnects mid-task, AVO pauses until you press Resume.</li>
+            <li>It uses plain HTTP on your local network, so another device on the same network could in principle read the session token. Use it on a network you trust, such as your home Wi‑Fi.</li>
+            <li>A preview: pairing has been tested on an iPhone; the full flow has had less testing than the Mac.</li>
+          </ul>
         </section>
       </article>
     </div>

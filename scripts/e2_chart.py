@@ -104,7 +104,7 @@ def draw_main(rows: list[dict], res: dict, sigma: int = 8, dark: bool = True) ->
     x = lambda size: x0 + sizes.index(size) * (x1 - x0) / (len(sizes) - 1)
     y = lambda rate: T2 + (1 - rate) * ph
     at = {r["size"]: r for r in rows if r["sigma"] == sigma}
-    series = [("alone", "Clicking alone", "alone", 3, ""), ("avo_sam", "AVO, SAM only (no name)", "sam", 2, ' stroke-dasharray="6 5"'),
+    series = [("alone", "Clicking alone", "alone", 3, ""), ("avo_sam", "AVO, aiming with SAM 3.1 only", "sam", 2, ' stroke-dasharray="6 5"'),
               ("avo_name", "AVO", "avo", 3, "")]
     out = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W2} {H2}" width="{W2}" height="{H2}" role="img" '
@@ -138,7 +138,15 @@ def draw_main(rows: list[dict], res: dict, sigma: int = 8, dark: bool = True) ->
                    + f'" fill="none" stroke-width="{width}"{dash} stroke-linejoin="round" stroke-linecap="round"/>')
         for a, b in pts:
             out.append(f'<circle class="d-{c}" cx="{a:.1f}" cy="{b:.1f}" r="{5 if width == 3 else 4}"/>')
-        out.append(f'<text class="ink v" x="{x(sizes[0]) - 12:.1f}" y="{y(at[sizes[0]][key]) + 5:.1f}" text-anchor="end">'
-                   f'{round(at[sizes[0]][key] * 100)}%</text>')
+    # The value at the smallest size, right of its point, pushed apart so no two overlap
+    # (they used to sit left of the points, on top of the axis labels and of each other).
+    labels = sorted(((y(at[sizes[0]][key]), key) for key, *_ in series))
+    placed = []
+    for ly, key in labels:
+        if placed and ly - placed[-1][0] < 20:
+            ly = placed[-1][0] + 20
+        placed.append((ly, key))
+    for ly, key in placed:
+        out.append(f'<text class="ink v" x="{x(sizes[0]) + 12:.1f}" y="{ly + 5:.1f}">{round(at[sizes[0]][key] * 100)}%</text>')
     out.append("</svg>")
     return "\n".join(out)
