@@ -73,7 +73,7 @@
 
       <div class="help">
         <h2>Voice Control (System Settings → Accessibility → Voice Control)</h2>
-        Turn it on before the Voice Control column and off before the AVO column, so the two don't hear each other.
+        Quit AVO's overlay before the Voice Control column (with it running, Voice Control doesn't respond), and turn Voice Control off before the AVO column. At most 5 minutes a task, then Gave up.
         Useful commands: <code>show numbers</code> then <code>click 12</code> · <code>click Reply</code> ·
         <code>show grid</code> then <code>3</code>, <code>5</code> · <code>scroll down</code> · <code>type I'll be ten minutes late</code> ·
         <code>press return</code> · <code>open Google Chrome</code> · <code>drag that</code> / <code>drop that</code> (after moving to a spot with a grid number).
@@ -88,6 +88,7 @@
       const TOOL_NAMES = { "voice-control": "Voice Control", avo: "AVO" };
       let data = { tasks: [], results: [] };
       let running = null, ticker = null;
+      const LIMIT_S = 300; // at most 5 minutes a task (docs/eval.md)
 
       async function refresh() {
         data = await (await fetch("/e1/state")).json();
@@ -193,7 +194,12 @@
         $("#mic").textContent = "recording";
         $("#done").disabled = $("#gaveup").disabled = false;
         clearInterval(ticker);
-        ticker = setInterval(() => ($("#clock").textContent = fmt((Date.now() - running.t0) / 1000)), 250);
+        ticker = setInterval(() => {
+          const s = (Date.now() - running.t0) / 1000;
+          $("#clock").textContent = fmt(s);
+          $("#clock").style.color = s >= LIMIT_S ? "var(--bad)" : "";
+          $("#mic").textContent = s >= LIMIT_S ? "5 minutes up: press Gave up" : "recording";
+        }, 250);
         draw();
         window.scrollTo(0, 0);
       }

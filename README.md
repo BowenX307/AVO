@@ -51,6 +51,7 @@ Give the terminal you start it from Screen Recording, Accessibility and Input Mo
 - Turn on Do Not Disturb before a task: a notification that pops up lands in AVO's screenshots and can get in the way.
 - Best in the browser; desktop apps such as Finder are harder for it.
 - Each task stops at 20 steps or $0.50 of API calls (`--max-steps`, `--max-usd`).
+- Doesn't run alongside macOS Voice Control yet: with AVO's overlay open, Voice Control stops responding. Quit one before using the other.
 
 ## Written for the hackathon
 

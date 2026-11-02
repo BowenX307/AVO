@@ -85,6 +85,8 @@ The tasks name exactly what is meant (David, Rivera, the corrected handout), so 
 
 **How.** `uv run scripts/e1.py` serves a timer page. Each task is done twice, once with macOS Voice Control and once with AVO, by speaking only. Tasks 1–4 go Voice Control first, 5–8 AVO first, so that having seen a task once helps each tool equally. Voice Control is off during AVO tasks and AVO is idle during Voice Control tasks.
 
+**Rules for both tools.** At most 5 minutes a task; past that, or if the person gives up, the task counts as not done. Voice Control is used the efficient way (`show numbers` then `click N`, `click <name>`, `type …`), not by trial and error. AVO's overlay is quit during Voice Control tasks: with it running, Voice Control didn't respond to commands at all (found on 11/01 while setting up; listed in the README's known limits until fixed).
+
 **Measures.**
 - **Done:** checked by the page, the disk, or the answer; for task 7, by the person. Giving up counts as not done.
 - **Time:** from Start to the page's own report (the send, the booking, the file arriving) when there is one, otherwise to the Done click.
