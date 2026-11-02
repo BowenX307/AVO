@@ -22,7 +22,7 @@ Computer-use models don't say how sure they are, so AVO checks each step before 
 
 It also stops a click that already did nothing from running again, makes a fresh plan when it gets stuck, and asks when it wanders into your mail or messages for a task that doesn't mention them. Say "stop", or tap right ⌥, any time.
 
-Measured so far — simulated tremor on buttons of five sizes (E2): a 12 px button with 12 px of tremor is hit 23% of the time clicking alone, 40% with a rough box and SAM 3.1, 100% with a rough box and the button's name ([details](eval/e2/), [chart](docs/images/e2-tremor.svg)). On three demo tasks with a real ambiguity (E3, 9 runs per setup), the agent alone finished wrong without asking in 7 of 9 runs, asking only before send/book in 5 of 9, AVO in 0 of 9: a small sample, a direction. The Voice Control comparison (E1) is in progress; see [docs/eval.md](docs/eval.md).
+Measured so far — simulated tremor on buttons of five sizes (E2): a 12 px button with 12 px of tremor is hit 23% of the time clicking alone, 40% with a rough box and SAM 3.1, 100% with a rough box and the button's name ([details](eval/e2/), [chart](docs/images/e2-tremor.svg)). On three demo tasks with a real ambiguity (E3, 9 runs per setup), the agent alone finished wrong without asking in 7 of 9 runs, asking only before send/book in 5 of 9, AVO in 0 of 9: a small sample, a direction. On eight everyday tasks done by voice (E1, once each), AVO got 8 right and macOS Voice Control 2, with a median of 2 things said against 4.5; AVO wasn't faster. One tester, the author, new to Voice Control, and AVO's side run by script: see [docs/eval.md](docs/eval.md).
 
 ## Privacy & safety
 

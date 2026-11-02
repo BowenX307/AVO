@@ -66,7 +66,32 @@ The room run above used the old wording, "this Friday"; it must be re-run with "
 
 ## E1 · What it takes: Voice Control vs AVO
 
-*Set up on 11/01, not run yet.* The method below was written before any data, and won't change to suit the results.
+*Run on 11/01.* The method below was written before any data. One change made while running it: the AVO column was run by script (`scripts/e1_avo.py`) instead of by the person speaking; see "How the AVO column was run".
+
+**Results** (`eval/e1/results.json`; one run per task and tool):
+
+| # | Task | Voice Control | AVO |
+|---|---|---|---|
+| 1 | Reply to David Smith | ✗ sent, but the dictated text came out wrong · 76 s · 13 said | ✓ 60 s · 3 said · $0.10 |
+| 2 | Book a room, Nov 13, 2 pm | ✓ 32 s · 5 said | ✓ 27 s · 2 said · $0.05 |
+| 3 | Download the corrected handout | ✗ also downloaded the old handout and another file · 18 s · 3 said | ✓ 11 s · 2 said · $0.02 |
+| 4 | Expense form from the receipt | ✗ date and amount wrong (dictation) · 51 s · 10 said | ✓ 75 s · 3 said · $0.12 |
+| 5 | Assign the budget card to Alex Rivera | ✓ 9 s · 2 said | ✓ 35 s · 1 said · $0.06 |
+| 6 | Wikipedia: year the Golden Gate Bridge opened | ✗ couldn't find it · 48 s · 6 said | ✓ 1937 · 16 s · 1 said · $0.02 |
+| 7 | Meta Careers: search SWE internships | ✗ couldn't get further · 28 s · 4 said | ✓ 33 s · 1 said · $0.04 |
+| 8 | Finder: move a file into a folder | ✗ gave up: couldn't drag · 37 s · 3 said | ✓ 39 s · 2 said · $0.05 |
+| | **Done right** | **2/8** (tasks 1–5: 2/5; new tasks 6–8: 0/3) | **8/8** (5/5; 3/3) |
+| | Things said, median | 4.5 | 2 |
+| | Time, median | 35 s (mostly to a wrong result or giving up) | 34 s |
+
+What it shows, and what it doesn't:
+- AVO finished every task correctly; Voice Control, used by a first-time user, finished 2. Its failures were dictated text coming out wrong (2), clicking the wrong thing without noticing (1), and not being able to do a step by voice at all (3: finding text on a page, a search box, a drag).
+- AVO is not faster. Where both succeeded, Voice Control was as fast or faster (the board card: 9 s against 35 s). What AVO saves is the saying: one sentence for the task, plus a yes before sending.
+- Voice Control's times are short partly because the failures ended early.
+
+**How the AVO column was run.** By script, for time: the task text stands in for the spoken task, and `avo/scripted.py` answers AVO's questions from the words the task names. "Things said" for AVO is its own count of the task and each answer. A person speaking would add a few seconds to say the task. One person, the author, ran Voice Control for the first time, after a few minutes of practice. One run per task. This is a first look at the effort, not a user study.
+
+The method, as written before the run:
 
 **Tasks** (`eval/e1/tasks.json`, 8 for now; more if there's time). Tasks 1–5 run on the demo pages AVO was built and tuned on (other tasks on them shaped its prompts and checks), which favours AVO; tasks 6–8 are new to it. Results are reported for both groups separately.
 

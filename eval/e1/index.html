@@ -113,9 +113,9 @@
             if (r) {
               const res = document.createElement("span");
               res.className = "res " + (r.ok ? "ok" : "bad");
-              res.textContent = `${fmt(r.seconds)}` + (r.said != null ? ` · ${r.said} said` : "") + (r.mistakes ? ` · ${r.mistakes} mistakes` : "");
+              res.textContent = `${fmt(r.seconds)}` + (r.said != null ? ` · ${r.said} said` : "") + (r.mistakes ? ` · ${r.mistakes} mistakes` : "") + (r.by === "script" ? " · by script" : "");
               res.title = r.check;
-              if (!r.audio_s) res.textContent += " · no audio recorded!";
+              if (!r.audio_s && r.by !== "script") res.textContent += " · no audio recorded!";
               const redo = document.createElement("button");
               redo.className = "link";
               redo.textContent = "discard and redo";

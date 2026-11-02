@@ -198,10 +198,13 @@ def serve(state: State) -> ThreadingHTTPServer:
                     "ok": bool(ok) and msg.get("outcome") == "done", "check": what, "answer": msg.get("answer", ""),
                     "mistakes": msg.get("mistakes"), "note": msg.get("note", ""),
                     "avo": latest_avo_run(cur["t0"]) if cur["tool"] == "avo" else None,
-                    "said": None,  # filled in by --count
+                    "by": msg.get("by", "person"),
+                    "said": None,  # filled in by --count (by a script: AVO's own count of the task and answers)
                     "audio_s": round((AUDIO / cur["audio"]).stat().st_size / 48000, 1) if (AUDIO / cur["audio"]).exists() else 0,
                     "at": datetime.fromtimestamp(cur["t0"]).isoformat(timespec="seconds"),
                 }
+                if row["by"] == "script":
+                    row["said"] = (row["avo"] or {}).get("utterances")
                 rows = load() + [row]
                 RESULTS.write_text(json.dumps(rows, ensure_ascii=False, indent=2))
                 if spec["start"] == "finder":

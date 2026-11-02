@@ -53,7 +53,7 @@
           <h1><span class="dim">Say what you want done.</span> AVO handles the clicks — and asks when it isn’t sure.</h1>
           <div class="row">
             <p class="lede">For people who find using a mouse or trackpad difficult.</p>
-            <!-- After E1: <p class="hero-stat">Same task: N things said with AVO, M commands with Voice Control.</p> -->
+            <p class="hero-stat">Eight everyday tasks by voice: AVO got all 8 right; macOS Voice Control, 2 <a href="#results">(one tester, new to Voice Control)</a>.</p>
             <div class="ctas">
               <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
               <a class="btn line" href="docs.html#install">Install for macOS</a>
@@ -277,10 +277,12 @@
           </div>
           <p class="aside-note">The rows on the test page sit further apart than in most apps, which makes finding a button by name easy. SAM alone sometimes does worse than clicking (a 32 px button at 8 px of tremor: 93% alone, 80% with SAM). Clicking alone is computed, so it doesn’t count the time a click takes. <a href="https://github.com/BowenX307/AVO/tree/main/eval/e2">Data and scripts</a>.</p>
           <div class="pending">
-            <div class="ph" role="img" aria-label="Placeholder for a chart">
-              <b>E1 · Coming</b>
-              <span>What it takes to finish 12 everyday tasks: Voice Control commands vs things said to AVO</span>
-            </div>
+            <figure class="e3" aria-label="E1: eight everyday tasks done by voice. Voice Control finished 2 of 8 correctly; AVO finished 8 of 8.">
+              <b>E1 · Done right, by voice</b>
+              <div class="bar"><span>macOS Voice Control</span><i style="--w: 25%"></i><em>2 / 8</em><small>4.5 said</small></div>
+              <div class="bar"><span>AVO</span><i style="--w: 100%"></i><em>8 / 8</em><small>2 said</small></div>
+              <figcaption>Eight everyday tasks (reply to an email, book a room, fill a form, search a real site, move a file), once each. Voice Control’s misses: dictated text that came out wrong, a wrong click nobody noticed, and steps it couldn’t do by voice (a drag, finding text on a page). AVO wasn’t faster (median 34 s vs 35 s); it needed fewer things said (median). One person, the author, new to Voice Control; AVO’s side run by script. <a href="https://github.com/BowenX307/AVO/blob/main/docs/eval.md">Method and every result</a>.</figcaption>
+            </figure>
             <figure class="e3" aria-label="E3: how often each setup finished the task wrong without asking. The agent alone: 7 of 9 runs, 78%. Asking only before irreversible steps: 5 of 9, 56%. AVO: 0 of 9, 0%.">
               <b>E3 · Wrong, and didn’t ask</b>
               <div class="bar"><span>The agent alone</span><i style="--w: 78%"></i><em>78%</em><small>7 of 9</small></div>

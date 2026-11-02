@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 
-from avo.overlay import Overlay
+from avo.overlay import OVERLAY_URL, Overlay
 
 
 def _score(label: str, means: list[str]) -> int:
@@ -33,8 +33,10 @@ def _score(label: str, means: list[str]) -> int:
 class ScriptedUser(Overlay):
     answerer = "script"
 
-    def __init__(self, means: list[str]):
-        super().__init__(url=None)
+    def __init__(self, means: list[str], show: bool = False):
+        # show: also draw AVO's pointer and status on the real overlay, if it's
+        # running (E1), while the script still answers every question itself.
+        super().__init__(url=OVERLAY_URL if show else None)
         self.means = means
         self.asked: list[dict] = []
 
@@ -43,7 +45,7 @@ class ScriptedUser(Overlay):
         return True
 
     def send(self, type: str, **fields) -> None:
-        pass
+        super().send(type, **fields)  # a no-op unless show connected to the overlay
 
     def pick(self, labels: list[str]) -> int | None:
         scores = [_score(label, self.means) for label in labels]
