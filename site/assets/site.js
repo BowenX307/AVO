@@ -203,30 +203,77 @@
     items.forEach((el) => io.observe(el));
   }
 
-  // ---- Voice Control vs AVO: the steps appear one by one, each side at its own pace, and the counts tick up ----
+  // ---- Voice Control vs AVO: the commands arrive one by one when the block comes into view.
+  // Nothing is hidden before that, and the counts are written in the HTML, so a screenshot,
+  // a reader without JS or with reduced motion sees the final numbers.
   function compare() {
     const box = document.querySelector(".compare.anim");
-    if (!box) return;
-    const sides = [...box.children].map((side, i) => ({
-      items: [...side.querySelectorAll("li")],
-      tally: side.querySelector("[data-tally]"),
-      every: i === 0 ? 520 : 260, // commands come slowly; AVO's three sentences quickly
-    }));
-    const show = (side, n) => {
-      side.items.forEach((li, k) => li.classList.toggle("in", k < n));
-      if (side.tally) side.tally.textContent = n;
-    };
-    if (reduced || !("IntersectionObserver" in window)) return sides.forEach((side) => show(side, side.items.length));
-    sides.forEach((side) => show(side, 0));
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        for (const side of sides) side.items.forEach((_, k) => setTimeout(() => show(side, k + 1), 200 + k * side.every));
-      },
-      { rootMargin: "0px 0px -25% 0px" },
-    );
+    if (!box || reduced || !("IntersectionObserver" in window)) return;
+    box.querySelectorAll("ol").forEach((ol) => [...ol.children].forEach((li, k) => li.style.setProperty("--i", k)));
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      box.classList.add("play");
+    }, { rootMargin: "0px 0px -25% 0px" });
     io.observe(box);
+  }
+
+  // ---- clips: a caption in time with each (media/captions.json; the same lines are a WebVTT track) ----
+  async function clips() {
+    const figs = [...document.querySelectorAll("figure.clip[data-clip]")];
+    if (!figs.length) return;
+    for (const f of figs) {
+      const v = f.querySelector("video");
+      if (reduced && v) {
+        // Reduced motion: no autoplaying loops; the poster shows, and the clip plays on request.
+        v.removeAttribute("autoplay");
+        v.pause();
+        v.controls = true;
+      }
+    }
+    let cues = {};
+    try {
+      cues = await (await fetch("media/captions.json", { cache: "no-cache" })).json();
+    } catch {
+      return;
+    }
+    for (const f of figs) {
+      const v = f.querySelector("video"), tag = f.querySelector(".captag"), list = cues[f.dataset.clip];
+      if (!v || !tag || !list) continue;
+      let shown = -1;
+      const show = () => {
+        let k = -1;
+        list.forEach((c, i) => { if (v.currentTime >= c.t) k = i; });
+        if (k === shown) return;
+        shown = k;
+        tag.classList.remove("on");
+        setTimeout(() => {
+          tag.textContent = k >= 0 ? list[k].text : "";
+          tag.classList.toggle("on", k >= 0);
+        }, reduced ? 0 : 150);
+      };
+      v.addEventListener("timeupdate", show);
+      v.addEventListener("seeked", show);
+      show();
+    }
+  }
+
+  // ---- tips and fold-outs ----
+  function tips() {
+    // A tip opens on hover where there is a mouse; focus + Enter and a tap work everywhere (it's a <details>).
+    if (matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      for (const t of document.querySelectorAll("details.tip")) {
+        t.addEventListener("mouseenter", () => (t.open = true));
+        t.addEventListener("mouseleave", () => (t.open = false));
+      }
+    }
+    // "Details", "How we measured": open the fold-out they point at.
+    const open = (id) => {
+      const d = document.getElementById(id);
+      if (d && d.tagName === "DETAILS") d.open = true;
+    };
+    for (const a of document.querySelectorAll("a[data-open]")) a.addEventListener("click", () => open(a.dataset.open));
+    if (location.hash) open(location.hash.slice(1));
   }
 
   // ---- docs: mark the section being read in the side list ----
@@ -254,5 +301,7 @@
   secondCursor();
   reveals();
   compare();
+  clips();
+  tips();
   toc();
 })();

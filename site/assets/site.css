@@ -410,14 +410,12 @@ section.tight { padding: 56px 0 72px; }
 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 28px; }
 .strip a { display: block; text-decoration: none; color: inherit; border-top: 1px solid var(--avo-ink); padding-top: 22px; }
 .strip b { display: block; font: 500 clamp(34px, 3.8vw, 52px)/1 var(--avo-font-sans); letter-spacing: -0.035em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.strip b i { font-style: normal; font-size: 0.45em; color: var(--avo-gray-3); vertical-align: 0.45em; letter-spacing: 0; }
+.strip b i { font-style: normal; font-size: 0.45em; color: #66665f; vertical-align: 0.45em; letter-spacing: 0; }
 .strip span { display: block; margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--avo-gray-2); }
 .strip em { display: inline-block; margin-top: 14px; font: 500 12px var(--avo-font-mono); font-style: normal; color: var(--avo-ink); }
 .strip a:hover em { text-decoration: underline; }
 .tally { margin-top: 22px; font: 500 13px var(--avo-font-mono); color: var(--avo-gray-2); }
 .tally b { font: 500 30px var(--avo-font-mono); color: var(--avo-ink); margin-right: 6px; vertical-align: -3px; }
-.js .compare.anim li { opacity: 0; transform: translateY(6px); transition: opacity 280ms var(--avo-ease), transform 280ms var(--avo-ease); }
-.js .compare.anim li.in { opacity: 1; transform: none; }
 .bars#e1 { margin-top: 48px; max-width: 760px; }
 .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 72px; }
 .trio div { border-top: 1px solid var(--avo-gray-4); padding-top: 20px; }
@@ -453,3 +451,81 @@ section.tight { padding: 56px 0 72px; }
 .hero-grid .footnote, .hero-clip .clipnote { margin: 14px 0 0; font-size: 13px; line-height: 1.5; color: var(--avo-gray-2); }
 .hero-grid .row .footnote { margin-top: -10px; white-space: nowrap; }
 @media (max-width: 900px) { .hero-grid .row .footnote { white-space: normal; } }
+
+/* ---- v3: two layers. What shows; the rest opens on hover, focus or tap ---- */
+.strip > div { border-top: 1px solid var(--avo-ink); padding-top: 22px; }
+.strip small.vs { display: block; margin-top: 8px; font: 500 12px var(--avo-font-mono); color: #66665f; }
+.strip > div > span { color: var(--avo-ink); font-size: 16px; margin-top: 10px; }
+.strip > div > a { display: inline-block; margin-top: 10px; font: 500 12px var(--avo-font-mono); color: var(--avo-gray-2); text-decoration: none; }
+.strip > div > a:hover { color: var(--avo-ink); text-decoration: underline; }
+
+/* the caption over a clip, in time with it (captions.json; the same lines are a WebVTT track) */
+.clip { position: relative; }
+.captag {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  max-width: calc(100% - 40px); margin: 0; padding: 9px 16px; border-radius: 12px;
+  background: rgba(10, 10, 10, 0.8); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: #fff; font: 500 clamp(14px, 1.35vw, 18px)/1.35 var(--avo-font-sans); text-align: center;
+  opacity: 0; transition: opacity 150ms var(--avo-ease); pointer-events: none;
+}
+.captag.on { opacity: 1; }
+.captag:empty { display: none; }
+
+/* tips: a <details> that opens on hover (fine pointers), focus + Enter, or a tap */
+.tip > summary { list-style: none; cursor: pointer; }
+.tip > summary::-webkit-details-marker { display: none; }
+.diagram-wrap { position: relative; }
+.hotspots { position: absolute; inset: 0; pointer-events: none; }
+.hotspots .tip { position: absolute; left: 72.3%; width: 27.7%; top: var(--top); height: 21.4%; pointer-events: auto; }
+.hotspots .tip > summary { display: block; width: 100%; height: 100%; border-radius: 10px; cursor: help; }
+.hotspots .tip > summary:focus-visible { outline: 2px solid var(--avo-ink); outline-offset: 3px; }
+.hotspots .tip > p {
+  position: absolute; right: calc(100% + 14px); top: 50%; transform: translateY(-50%); z-index: 5; width: 300px; margin: 0;
+  padding: 12px 14px; border-radius: 12px; background: var(--avo-ink); color: var(--avo-paper); font-size: 14.5px; line-height: 1.45;
+}
+.outcomes { display: none; margin: 0 0 40px; padding: 0; list-style: none; }
+.outcomes li { padding: 10px 0; border-bottom: 1px solid var(--avo-gray-4); font-size: 16px; }
+.outcomes b { font-weight: 600; margin-right: 6px; }
+
+.models { grid-template-columns: repeat(4, 1fr); }
+.models .model { padding: 22px 24px 0 0; }
+.models .model > summary b { display: block; font: 500 13px var(--avo-font-mono); letter-spacing: 0.02em; }
+.models .model > summary span { display: block; margin-top: 6px; font-size: 16px; color: var(--avo-ink); }
+.models .model > summary span::after { content: " +"; color: #66665f; }
+.models .model[open] > summary span::after { content: " −"; }
+.models .model > p { margin: 8px 0 0; font-size: 14.5px; line-height: 1.45; color: var(--avo-gray-2); }
+.models .model > summary:focus-visible { outline: 1.5px solid var(--avo-ink); outline-offset: 4px; border-radius: 4px; }
+.oneline { margin-top: 40px; font-size: 17px; }
+.oneline a { color: var(--avo-gray-2); }
+
+.more { margin-top: 8px; }
+.more > summary { display: inline-block; cursor: pointer; font: 500 12.5px var(--avo-font-mono); color: var(--avo-gray-2); list-style: none; }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::before { content: "+ "; }
+.more[open] > summary::before { content: "− "; }
+.more > p { margin-top: 8px !important; font-size: 15px; color: var(--avo-gray-2); }
+
+.three p b { font-weight: 600; }
+.three small { display: block; margin-top: 6px; font-size: 14px; color: var(--avo-gray-2); }
+
+.compare ol.long { gap: 6px; }
+.compare ol.long li { font-size: 15.5px; color: var(--avo-gray-2); }
+.compare ol.long li i { margin-left: 4px; font-size: 13px; color: #66665f; }
+.compare .tally { margin-top: 20px; }
+/* the commands arrive one by one; everything is visible before and after, so a screenshot or no-JS view shows it all */
+.compare.play ol li { animation: arrive 420ms var(--avo-ease) both; animation-delay: calc(var(--i, 0) * var(--step, 160ms)); }
+.compare.play > div:last-child { --step: 520ms; }
+@keyframes arrive { from { opacity: 0.15; transform: translateY(4px); } }
+#method details { scroll-margin-top: 90px; }
+#method .chart { margin-top: 14px; }
+
+@media (max-width: 860px) {
+  .hotspots { display: none; }
+  .outcomes { display: block; }
+  .models { grid-template-columns: 1fr 1fr; gap: 0 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .captag { transition: none; }
+  .compare.play ol li { animation: none; }
+}
+.clip video[controls] ~ .captag { bottom: 64px; } /* reduced motion: the clip has controls; keep the caption clear of them */

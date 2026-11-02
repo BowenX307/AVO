@@ -1,0 +1,17 @@
+{
+  "smith": [
+    { "t": 0.0, "text": "“Reply to Professor Smith, say I’ll be ten minutes late.”" },
+    { "t": 4.6, "text": "AVO: Which Smith?" },
+    { "t": 6.3, "text": "“Two.”" },
+    { "t": 9.1, "text": "AVO: Send this reply? — “Yes.”" },
+    { "t": 11.2, "text": "Sent ✓" }
+  ],
+  "say": [
+    { "t": 0.0, "text": "Tap right ⌥, then say it" },
+    { "t": 2.4, "text": "“Reply to Professor Smith, say I’ll be ten minutes late.”" }
+  ],
+  "points": [
+    { "t": 0.0, "text": "AVO: Which Smith?" },
+    { "t": 2.0, "text": "“Two.”" }
+  ]
+}

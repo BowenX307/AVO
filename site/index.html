@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="brand/tokens.css" />
-    <link rel="stylesheet" href="assets/site.css?v=202611020039" />
+    <link rel="stylesheet" href="assets/site.css?v=202611021224" />
     <script>
       // Play the opening once per visit, and never with "reduce motion" on.
       // The failsafe drops it if the scripts below never run.
@@ -24,7 +24,7 @@
       })();
     </script>
     <script src="brand/logo-animated.js" defer></script>
-    <script src="assets/site.js?v=202611020039" defer></script>
+    <script src="assets/site.js?v=202611021224" defer></script>
   </head>
   <body>
     <div id="intro" aria-hidden="true"></div>
@@ -52,178 +52,55 @@
         <div class="wrap">
           <h1><span class="dim">Say what you want done.</span><br />AVO handles the clicks.</h1>
           <div class="hero-grid">
-          <div class="row">
-            <p class="lede">For people who find using a mouse or trackpad difficult.</p>
-            <a class="hero-num" href="#e1" aria-label="Everyday tasks done right by voice: AVO 8 of 8, macOS Voice Control 2 of 8. Details.">
-              <span class="fig us"><b>8<i>/8</i></b><small>AVO</small></span>
-              <span class="fig"><b>2<i>/8</i></b><small>macOS Voice Control</small></span>
-              <span class="cap">everyday tasks done right, by voice<sup>1</sup></span>
-            </a>
-            <div class="ctas">
-              <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
-              <a class="btn line" href="docs.html#install">Install for macOS</a>
-              <a class="btn line" href="https://github.com/BowenX307/AVO">GitHub</a>
+            <div class="row">
+              <p class="lede">For people who find using a mouse or trackpad difficult.</p>
+              <a class="hero-num" href="#m-e1" data-open="m-e1">
+                <span class="fig us"><b>8<i>/8</i></b><small>AVO</small></span>
+                <span class="fig"><b>2<i>/8</i></b><small>macOS Voice Control</small></span>
+                <span class="cap">everyday tasks done right, by voice<sup>1</sup></span>
+              </a>
+              <div class="ctas">
+                <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
+                <a class="btn line" href="docs.html#install">Install for macOS</a>
+                <a class="btn line" href="https://github.com/BowenX307/AVO">GitHub</a>
+              </div>
             </div>
-            <p class="footnote"><sup>1</sup> One tester, the author, new to Voice Control; AVO run by script. <a href="#method">Details</a></p>
+            <div class="hero-clip">
+              <figure class="media clip" id="demo" data-clip="smith">
+                <i class="corners"></i>
+                <video autoplay muted loop playsinline preload="metadata" poster="media/smith.jpg" width="1600" height="1002" aria-label="AVO, run by voice: “Reply to Professor Smith, say I’ll be ten minutes late.” It rings the two Professor Smiths and asks which; “two”. It shows the reply before sending; “yes”. Sent.">
+                  <source src="media/smith.mp4" type="video/mp4" />
+                  <track kind="captions" srclang="en" label="English" src="media/smith.vtt" />
+                </video>
+                <p class="captag" aria-hidden="true"></p>
+              </figure>
+              <p class="clipnote">Recorded live, by voice; the waits are cut.</p>
+            </div>
           </div>
-          <div class="hero-clip">
-          <figure class="media" id="demo">
-            <i class="corners"></i>
-            <video autoplay muted loop playsinline preload="metadata" poster="media/smith.jpg" width="1600" height="1002" aria-label="AVO, run by voice: “Reply to Professor Smith, say I’ll be ten minutes late.” It rings the two Professor Smiths and asks which; “two”. It writes the reply, shows it before sending; “yes”. Reply sent.">
-              <source src="media/smith.mp4" type="video/mp4" />
-            </video>
-          </figure>
-          <p class="clipnote">Recorded live on the demo inbox, said aloud; the waits are cut.</p>
-          </div>
-          </div>
-
         </div>
       </section>
 
       <!-- ② The evidence, in one row -->
       <section id="evidence" class="tight">
         <div class="wrap">
-          <span class="label">The evidence</span>
           <div class="strip">
-            <a href="#e1"><b>8/8 <i>vs</i> 2/8</b><span>everyday tasks done right by voice, AVO vs macOS Voice Control</span><em>Details →</em></a>
-            <a href="#e3"><b>0% <i>vs</i> 78%</b><span>tasks finished wrong without asking, AVO vs the agent alone</span><em>Details →</em></a>
-            <a href="#e2"><b>33% → 100%</b><span>a small button hit with a simulated tremor, clicking alone vs AVO</span><em>Details →</em></a>
+            <div><b>8/8 <i>vs</i> 2/8</b><small class="vs">AVO · Voice Control</small><span>Done right by voice</span><a href="#m-e1" data-open="m-e1">Details →</a></div>
+            <div><b>0% <i>vs</i> 78%</b><small class="vs">AVO · the agent alone</small><span>Wrong, and didn’t ask</span><a href="#m-e3" data-open="m-e3">Details →</a></div>
+            <div><b>33% → 100%</b><small class="vs">clicking alone · AVO</small><span>Tiny button, shaky hand</span><a href="#m-e2" data-open="m-e2">Details →</a></div>
           </div>
         </div>
       </section>
 
-      <!-- ③ Who it's for -->
-      <section id="who">
-        <div class="wrap">
-          <div class="head">
-            <span class="label">Who it’s for</span>
-            <h2 data-reveal>Every click costs something. AVO makes you pay less of it.</h2>
-            <p class="lede">AVO is for people who can speak clearly, but for whom every precise hand movement is impossible, inaccurate, painful, tiring, or slow.</p>
-          </div>
-          <div class="three">
-            <div><span class="mono">01 · Hardly able to use the hands</span><p class="who-eg">For example, after a high spinal cord injury.</p><p>One sentence replaces dozens of step-by-step commands.</p></div>
-            <div><span class="mono">02 · Able to, but not precisely</span><p class="who-eg">For example, with a tremor or muscle spasms.</p><p>A rough box around the thing is enough. SAM&nbsp;3.1 finds the exact button inside it.</p></div>
-            <div><span class="mono">03 · It hurts, or tires</span><p class="who-eg">For example, wrist strain, arthritis, or a broken arm while it heals.</p><p>One sentence does several steps, with far fewer clicks.</p></div>
-          </div>
-          <p class="aside-note">This first version is built mainly for the first two groups.</p>
-          <div class="notfor">
-            <b>Not the right tool if…</b>
-            <ul>
-              <li>Speaking is hard for you. AVO’s main input is your voice.</li>
-              <li>You rely on a screen reader. AVO asks by drawing rings on the screen, and screen-reader users need a different kind of interaction.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ④ Two moments -->
-      <section>
-        <div class="wrap">
-          <div class="head">
-            <span class="label">Two moments</span>
-            <h2 data-reveal>You say it. It points back.</h2>
-          </div>
-          <div class="pair">
-            <div class="moment">
-              <figure class="media" style="margin: 0">
-                <i class="corners"></i>
-                <video autoplay muted loop playsinline preload="metadata" poster="media/metajobs.jpg" width="1600" height="1002" aria-label="Said aloud on a real website: “Find the software engineer internship of machine learning at Meta.” The words appear in large type at the top; AVO opens the matching job on Meta Careers.">
-                  <source src="media/metajobs.mp4" type="video/mp4" />
-                </video>
-              </figure>
-              <h3><span class="mono">01</span>You say it.</h3>
-              <p>Tap right <kbd>⌥</kbd> — a tap, not a hold — and say the task. The words appear in large type as you speak, and names on your screen help AVO hear “Smith” as Smith. Typing works too.</p>
-            </div>
-            <div class="moment">
-              <figure class="media" style="margin: 0">
-                <i class="corners"></i>
-                <div class="ph" role="img" aria-label="Placeholder for a screen recording">
-                  <b>Clip needed · 5–10 s loop</b>
-                  <span>Both Professor Smiths ringed and numbered; the user says “two”; AVO carries on</span>
-                </div>
-              </figure>
-              <h3><span class="mono">02</span>It points back.</h3>
-              <p>When more than one thing fits, AVO rings each on screen with a number and asks. Answer with a word — “two”, “the physics one”, “none of these” — or a number key.</p>
-            </div>
-          </div>
-          <p class="thesis" data-reveal><span class="dim">You say what you want.</span> AVO does the clicking, and checks with you only when it matters.</p>
-        </div>
-      </section>
-
-      <!-- ⑤ Why not Voice Control -->
-      <section id="voice-control">
-        <div class="wrap">
-          <div class="head">
-            <span class="label">Why not Voice Control</span>
-            <h2 data-reveal>Voice Control takes commands. AVO takes what you mean.</h2>
-            <p class="lede">With macOS Voice Control you still have to know every step, and say it. With AVO you say the outcome, and it works out the steps.</p>
-          </div>
-          <div class="compare anim">
-            <div>
-              <span class="mono">Voice Control · you drive each step</span>
-              <ol>
-                <li>“Show numbers”</li>
-                <li>“Click 7” <i>the email</i></li>
-                <li>“Click Reply”</li>
-                <li>Dictate the reply, then fix it by voice</li>
-                <li>“Click Send”</li>
-              </ol>
-              <p class="tally"><b data-tally>5</b> commands, and you must know each one</p>
-            </div>
-            <div>
-              <span class="mono">AVO · you say the outcome</span>
-              <ol>
-                <li>“Reply to Professor Smith, say I’ll be ten minutes late.”</li>
-                <li>AVO: <i>Which Smith?</i> — “Two.”</li>
-                <li>AVO shows the reply: <i>Send — OK?</i> — “Yes.”</li>
-              </ol>
-              <p class="tally"><b data-tally>3</b> things said</p>
-            </div>
-          </div>
-          <figure class="bars" id="e1" aria-label="E1: eight everyday tasks done by voice. Voice Control got 2 of 8 right; AVO got 8 of 8.">
-            <b>E1 · Eight everyday tasks, done right by voice</b>
-            <div class="bar"><span>macOS Voice Control</span><i style="--w: 25%"></i><em>2 / 8</em><small>4.5 said per task</small></div>
-            <div class="bar"><span>AVO</span><i style="--w: 100%"></i><em>8 / 8</em><small>2 said per task</small></div>
-            <figcaption>Measured, on this very task: Voice Control took 13 things said and the dictated reply still came out wrong; AVO took 3. Voice Control’s other misses: a wrong click nobody noticed, and steps it couldn’t do by voice at all (a drag, finding a fact on a page). <a href="#method">How we measured</a></figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <!-- ⑥ Why it asks -->
-      <section>
-        <div class="wrap">
-          <div class="split">
-            <figure class="media" style="margin: 0">
-              <i class="corners"></i>
-              <div class="ph" role="img" aria-label="Placeholder for a screen recording">
-                <b>Clip needed · 5–10 s loop</b>
-                <span>A plain agent (AVO off) replies to the wrong Professor Smith, then reports Done ✓</span>
-              </div>
-            </figure>
-            <div>
-              <div class="done-tag">Agent: <s>Done ✓</s></div>
-              <p class="quote" data-reveal>Agents ask for permission. AVO asks for understanding.</p>
-              <p>A reply to the wrong professor sets off no permission prompt — it isn’t “sensitive”, it’s just wrong. And fixing it by hand is exactly what costs the most. So AVO asks a one-word question first: “Which Smith?” — “Two.”</p>
-            </div>
-          </div>
-          <div class="trio" id="e3" role="img" aria-label="E3: finished the task wrong without asking. The agent alone: 78%, 7 of 9 runs. Asking only before send or book: 56%, 5 of 9. AVO: 0%, 0 of 9.">
-            <div><b>78%</b><i style="--w: 78%"></i><span>the agent alone</span></div>
-            <div><b>56%</b><i style="--w: 56%"></i><span>asks only before send / book</span></div>
-            <div class="us"><b>0%</b><i style="--w: 0%"></i><span>AVO</span></div>
-          </div>
-          <p class="aside-note">E3 · finished wrong, and didn’t ask: three tasks, each with a real ambiguity (two Professor Smiths, “next Friday”, two near-identical handouts), 9 runs per setup. AVO asked about one more thing per task. <a href="#method">How we measured</a></p>
-        </div>
-      </section>
-
-      <!-- ⑦ How it works -->
+      <!-- ③ How it works -->
       <section id="how">
         <div class="wrap">
           <div class="head">
             <span class="label">How it works</span>
             <h2 data-reveal>One sentence in. Checked before every step.</h2>
-            <p class="lede">Computer-use models don’t say how sure they are. AVO checks each step before it happens, and asks you only when it should.</p>
+            <p class="lede">Computer-use models don’t say how sure they are. AVO checks every step before it happens.</p>
           </div>
-          <figure class="diagram" style="margin-left: 0; margin-right: 0" aria-label="You say the task (or box it roughly); Muse Spark plans and acts, and Muse Wonder makes a fresh plan when it gets stuck; before each step AVO checks whether several things fit, whether the target is clear (SAM 3.1), and whether the step can be undone. Three outcomes: several fit, so it rings each and asks which; an ordinary step, so it rings the target and counts down a second; a step that can't be undone, so it shows it and waits for yes. Your answer goes back in.">
+          <div class="diagram-wrap">
+            <figure class="diagram" aria-label="You say the task (or box it roughly); Muse Spark plans and acts, and Muse Wonder makes a fresh plan when it gets stuck; before each step AVO checks whether several things fit, whether the target is clear (SAM 3.1), and whether the step can be undone. Three outcomes: several fit, so it rings each and asks which; an ordinary step, so it rings the target and counts down a second; a step that can't be undone, so it shows it and waits for yes. Your answer goes back in.">
             <svg class="h" viewBox="0 0 1160 300" role="img" aria-hidden="true">
               <defs><marker id="tip" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#0A0A0A" stroke-width="1" /></marker></defs>
               <rect class="box" x="0.5" y="104" width="200" height="84" rx="10" />
@@ -275,33 +152,168 @@
               <text class="s" x="170" y="628" text-anchor="middle">your answer goes back to Muse Spark</text>
             </svg>
           </figure>
-          <div class="three asks">
-            <div><span class="mono">Several things fit</span><p>Two professors named Smith, two handouts with the same name: AVO rings each one and asks which.</p></div>
-            <div><span class="mono">An ordinary step</span><p>AVO rings what it’s about to click and counts down one second. Say “no” to stop it.</p></div>
-            <div><span class="mono">Can’t be undone</span><p>Send, submit, delete, pay, book: AVO shows what will happen — the reply it wrote, say — and waits for your “yes”.</p></div>
-          </div>
-          <div class="models four">
-            <div><b>Muse Voice Transcribe</b><span>hears you, with the names on screen as hints.</span><i>Without it, “Smith” is heard as “Smyth”, and you’re back to typing.</i></div>
-            <div><b>Muse Spark</b><span>plans, acts, and checks every step before it happens.</span><i>Without it, nobody notices that two people fit the task.</i></div>
-            <div><b>Muse Wonder</b><span>makes a fresh plan when AVO gets stuck.</span><i>Without it, a dead end means clicking the same thing again.</i></div>
-            <div><b>SAM&nbsp;3.1</b><span>finds the exact target inside a rough box.</span><i>Without it, a rough box is just a rough box.</i></div>
-          </div>
-          <div class="ev" id="e2">
-            <h3 class="ev-head">A rough box is enough. <span class="dim">SAM&nbsp;3.1 and the button’s name do the aiming.</span></h3>
-            <figure class="chart">
-              <a href="images/e2-tremor-8px-light.svg" aria-label="Open the chart full size"><img src="images/e2-tremor-8px-light.svg" width="960" height="460" loading="lazy" alt="Line chart of hit rate by button size (12 to 44 px) with a simulated 8 px tremor. Clicking alone: 33% at 12 px rising to 100% at 44 px. AVO with a rough box and the button's name: 100% at every size. AVO with SAM 3.1 only: 47% at 12 px." /></a>
-              <figcaption>E2 · simulated tremor of 8 px. <a href="#method">How we measured</a> · <a href="images/e2-tremor-light.svg">every tremor level</a></figcaption>
-            </figure>
-            <div class="stats">
-              <div class="stat"><b>33% → 100%</b><span>A 12 px button with 8 px of simulated tremor, hit when clicking alone vs with AVO, which finds the button by its name.</span></div>
-              <div class="stat"><b>33% → 47%</b><span>The same with SAM&nbsp;3.1 alone, for buttons without a name.</span></div>
+            <div class="hotspots">
+              <details class="tip" style="--top: 4%"><summary aria-label="Several fit: what AVO does"></summary><p>Two professors named Smith, two handouts with the same name: AVO rings each one and asks which.</p></details>
+              <details class="tip" style="--top: 38%"><summary aria-label="An ordinary step: what AVO does"></summary><p>AVO rings what it’s about to click and counts down one second. Say “no” to stop it.</p></details>
+              <details class="tip" style="--top: 72%"><summary aria-label="Can’t be undone: what AVO does"></summary><p>Send, submit, delete, pay, book: AVO shows what will happen (the reply it wrote, say) and waits for your “yes”.</p></details>
             </div>
           </div>
-          <p class="claim" data-reveal>AVO isn’t another agent. It’s the layer between you and your computer.</p>
+          <ul class="outcomes">
+            <li><b>Several fit</b> rings each, asks which.</li>
+            <li><b>Ordinary step</b> rings it, counts down 1 s; say “no” to stop.</li>
+            <li><b>Can’t be undone</b> shows it, waits for “yes”.</li>
+          </ul>
+          <div class="models">
+            <details class="tip model"><summary><b>Muse Voice Transcribe</b><span>Hears you</span></summary><p>Without it, “Smith” is heard as “Smyth”. The names on your screen help it hear.</p></details>
+            <details class="tip model"><summary><b>Muse Spark</b><span>Plans and acts</span></summary><p>Without it, nobody notices two people fit the task. It also checks every step before it happens.</p></details>
+            <details class="tip model"><summary><b>Muse Wonder</b><span>Re-plans when stuck</span></summary><p>Without it, a dead end means clicking the same thing again.</p></details>
+            <details class="tip model"><summary><b>SAM&nbsp;3.1</b><span>Finds the exact target</span></summary><p>Without it, a rough box is just a rough box. It finds the exact button inside it.</p></details>
+          </div>
+          <p class="oneline">A rough box is enough. <a href="#m-e2" data-open="m-e2">See the tremor test →</a></p>
         </div>
       </section>
 
-      <!-- ⑧ Known limits -->
+      <!-- ④ Two moments -->
+      <section id="moments">
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Two moments</span>
+            <h2 data-reveal>You say it. It points back.</h2>
+          </div>
+          <div class="pair">
+            <div class="moment">
+              <figure class="media clip" data-clip="say" style="margin: 0">
+                <i class="corners"></i>
+                <video autoplay muted loop playsinline preload="metadata" poster="media/say.jpg" width="1280" height="801" aria-label="Right Option tapped; the spoken task appears in large type at the top of the screen as it is heard.">
+                  <source src="media/say.mp4" type="video/mp4" />
+                  <track kind="captions" srclang="en" label="English" src="media/say.vtt" />
+                </video>
+                <p class="captag" aria-hidden="true"></p>
+              </figure>
+              <h3><span class="mono">01</span>You say it.</h3>
+              <p>Tap right <kbd>⌥</kbd> and say what you want. Typing works too.</p>
+              <details class="more"><summary>More</summary><p>A tap, not a hold. The words appear in large type as you speak, and the names on your screen help AVO hear “Smith” as Smith. Click the island to type instead.</p></details>
+            </div>
+            <div class="moment">
+              <figure class="media clip" data-clip="points" style="margin: 0">
+                <i class="corners"></i>
+                <video autoplay muted loop playsinline preload="metadata" poster="media/points.jpg" width="1280" height="801" aria-label="Both Professor Smiths are ringed and numbered; the user says “two”, and AVO opens David Smith’s email.">
+                  <source src="media/points.mp4" type="video/mp4" />
+                  <track kind="captions" srclang="en" label="English" src="media/points.vtt" />
+                </video>
+                <p class="captag" aria-hidden="true"></p>
+              </figure>
+              <h3><span class="mono">02</span>It points back.</h3>
+              <p>When two things fit, AVO rings both and asks. Answer with one word.</p>
+              <details class="more"><summary>More</summary><p>Each one gets a ring and a number. Answer with a word (“two”, “the physics one”, “none of these”) or press a number key.</p></details>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑤ Who it's for -->
+      <section id="who">
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Who it’s for</span>
+            <h2 data-reveal>Every click costs something.</h2>
+            <p class="lede">For people who can speak clearly, but for whom every precise hand movement is hard.</p>
+          </div>
+          <div class="three">
+            <div><span class="mono">01 · Hardly able to use the hands</span><p><b>One sentence, not twenty commands.</b></p><small>e.g. a high spinal cord injury</small></div>
+            <div><span class="mono">02 · Able to, but not precisely</span><p><b>A rough box is enough.</b></p><small>e.g. tremor, spasms</small></div>
+            <div><span class="mono">03 · It hurts, or tires</span><p><b>Far fewer clicks.</b></p><small>e.g. wrist strain, arthritis</small></div>
+          </div>
+          <p class="aside-note">Built first for 01 and 02.</p>
+        </div>
+      </section>
+
+      <!-- ⑥ Why not Voice Control -->
+      <section id="voice-control">
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Why not Voice Control</span>
+            <h2 data-reveal>Voice Control takes commands. AVO takes what you mean.</h2>
+            <p class="lede">With Voice Control you must know every step and say it. With AVO you say the outcome.</p>
+          </div>
+          <div class="compare anim">
+            <div>
+              <span class="mono">macOS Voice Control · replying to Professor Smith</span>
+              <ol class="long">
+                <li>“uh okay click number fifty one”</li>
+                <li>“click number fifty one”</li>
+                <li>“click number fifty one”</li>
+                <li lang="zh">“显示数字” <i lang="en">show numbers</i></li>
+                <li lang="zh">“点击五十一。” <i lang="en">click 51</i></li>
+                <li lang="zh">“点击五十三。” <i lang="en">click 53</i></li>
+                <li lang="zh">“再” <i lang="en">again</i></li>
+                <li>“delete.”</li>
+                <li lang="zh">“删除。” <i lang="en">delete</i></li>
+                <li lang="zh">“我会晚十分钟。” <i lang="en">I'll be ten minutes late</i></li>
+                <li lang="zh">“五十八。” <i lang="en">58</i></li>
+                <li lang="zh">“五十八。” <i lang="en">58</i></li>
+                <li lang="zh">“点击五十八。” <i lang="en">click 58</i></li>
+              </ol>
+              <p class="tally"><b>13</b> things said</p>
+            </div>
+            <div>
+              <span class="mono">AVO · the same reply</span>
+              <ol>
+                <li>“Reply to Professor Smith, say I’ll be ten minutes late.”</li>
+                <li>“Two.”</li>
+                <li>“Yes.”</li>
+              </ol>
+              <p class="tally"><b>3</b> things said</p>
+            </div>
+          </div>
+          <p class="aside-note">Left: everything said in E1, transcribed. Over 8 tasks: 8/8 vs 2/8 done right. <a href="#m-e1" data-open="m-e1">Details</a></p>
+        </div>
+      </section>
+
+      <!-- ⑦ Why it asks -->
+      <section id="asks">
+        <div class="wrap">
+          <div class="head">
+            <span class="label">Asks for understanding</span>
+            <h2 data-reveal>Agents ask for permission. AVO asks for understanding.</h2>
+            <p class="lede">A reply to the wrong professor triggers no permission prompt. It isn’t “sensitive”, it’s just wrong.</p>
+          </div>
+          <!-- Clip D (a plain agent replies to the wrong Professor Smith, then Done ✓) goes here once recorded. -->
+          <div class="trio" id="e3" role="img" aria-label="Finished the task wrong without asking. The agent alone: 78%, 7 of 9 runs. Asking only before send or book: 56%, 5 of 9. AVO: 0%, 0 of 9.">
+            <div><b>78%</b><i style="--w: 78%"></i><span>the agent alone</span></div>
+            <div><b>56%</b><i style="--w: 56%"></i><span>asks only before send / book</span></div>
+            <div class="us"><b>0%</b><i style="--w: 0%"></i><span>AVO</span></div>
+          </div>
+          <p class="aside-note">Finished wrong without asking · 3 ambiguous tasks · 9 runs each. <a href="#m-e3" data-open="m-e3">How we measured</a></p>
+        </div>
+      </section>
+
+      <!-- ⑧ AVO Remote: hidden until clip E (the phone answering) is recorded and Remote is tested end to end -->
+      <section id="remote" hidden>
+        <div class="wrap">
+          <div class="head">
+            <span class="label">AVO Remote</span>
+            <h2 data-reveal>It works from across the room.</h2>
+            <p class="lede">Hands busy, or the computer’s across the room? Tell AVO from your phone. When it needs you, the part of the screen it’s asking about comes to you.</p>
+          </div>
+          <p class="aside-note">Same Wi‑Fi only · pair with a QR code. <a href="docs.html#remote">How it works</a></p>
+          <p class="thesis">Built for people for whom every click costs. Useful to anyone whose hands are busy.</p>
+        </div>
+      </section>
+
+      <!-- ⑨ Why I built AVO: hidden until Bowen writes it. TODO(Bowen): two or three sentences in the first person, a photo (optional). Nothing here is to be made up. -->
+      <section id="why" hidden>
+        <div class="wrap why">
+          <figure class="why-photo"></figure>
+          <div>
+            <h2 data-reveal>Why I built AVO</h2>
+            <p>TODO: Bowen’s words.</p>
+            <p class="sign">— Bowen</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑩ Known limits -->
       <section id="limits">
         <div class="wrap">
           <div class="head">
@@ -309,30 +321,32 @@
             <h2 data-reveal>What AVO can’t do yet.</h2>
           </div>
           <ul class="limit-list">
-            <li>Not yet tried by the people it’s for. When it has been, this page will say what they said.</li>
-            <li>Relies on your voice; typing works as a fallback.</li>
-            <li>Needs a network connection and the Meta Model API.</li>
-            <li>macOS only, on the main display, and best in the browser: desktop apps are harder for it.</li>
+            <li>Speaking is hard for you: voice is the main input (typing works too).</li>
+            <li>You use a screen reader: AVO asks with rings on the screen.</li>
+            <li>Not yet tried by the people it’s for.</li>
+            <li>Needs a network and the Meta Model API.</li>
+            <li>macOS only, main display, best in the browser.</li>
           </ul>
         </div>
       </section>
 
-      <!-- ⑨ Privacy and safety -->
-      <section>
+      <!-- ⑪ Privacy and safety -->
+      <section id="privacy">
         <div class="wrap">
           <div class="head">
             <span class="label">Privacy &amp; safety</span>
             <h2 data-reveal>Your screen, your call.</h2>
           </div>
           <div class="three">
-            <div><span class="mono">01 · Data</span><p>Screenshots, and your voice while AVO shows it’s listening, go to the Meta Model API. AVO calls Muse in Standard mode, where your content isn’t used to train Meta’s models.</p></div>
-            <div><span class="mono">02 · Safety checks</span><p>Before each step AVO rings what it’s about to act on and counts down a second — say “no” to call it off. Anything that can’t be undone (send, submit, delete, pay), and any other warning from Meta, waits for your “yes”.</p></div>
-            <div><span class="mono">03 · Control</span><p>Say “stop” or tap right ⌥ any time. A spoken task ignores a stray nudge of the mouse and pauses only on a click; a typed one pauses when you touch the mouse or keyboard. Fling the pointer into a screen corner to stop at once.</p></div>
+            <div><span class="mono">01 · Data</span><p>Screenshots and voice go only to Meta’s API, in Standard mode.</p></div>
+            <div><span class="mono">02 · Safety checks</span><p>Each step is ringed first; what can’t be undone waits for “yes”.</p></div>
+            <div><span class="mono">03 · Control</span><p>Say “stop”, tap right ⌥, or fling the pointer to a corner.</p></div>
           </div>
           <p style="margin-top: 36px"><a href="docs.html#privacy" class="muted">More in the docs →</a></p>
         </div>
       </section>
-      <!-- ⑩ How we measured -->
+
+      <!-- ⑫ How we measured -->
       <section id="method">
         <div class="wrap">
           <div class="head">
@@ -340,21 +354,36 @@
             <h2 data-reveal>Every number, with its limits.</h2>
             <p class="lede">Small samples, run by the author. Each says what it can and can’t show. Full tables in <a href="https://github.com/BowenX307/AVO/blob/main/docs/eval.md">docs/eval.md</a>.</p>
           </div>
-          <details>
+          <details id="m-e1">
             <summary>E1 · Voice Control vs AVO, eight everyday tasks</summary>
+            <p><sup>1</sup> <b>One tester, the author, new to Voice Control; AVO’s side run by script.</b> Read the numbers with that in mind.</p>
             <p>Each task done once with macOS Voice Control and once with AVO, by voice: five on the demo pages AVO was built on (reply to an email, book a room, download a handout, fill an expense form, assign a card) and three new to it (a fact on Wikipedia, a search on Meta Careers, moving a file in Finder). Success was checked by the page itself, the disk, or the answer, not by eye.</p>
             <p>On the five demo pages Voice Control got 2 right and AVO 5; on the three new tasks, 0 and 3. “Said” is the median number of things said per task, counted from the audio with Meta’s speech recognition.</p>
             <p>Limits: one tester, the author, who has no motor impairment and was new to Voice Control. AVO’s side was run by script, with the task text standing in for speech and a script answering its questions. One run per task. A first look at the effort, not a user study.</p>
+          
+            <p>Voice Control’s misses: dictated text that came out wrong (the reply to Professor Smith, the expense form), a wrong click nobody noticed (an extra, older handout downloaded), and steps it couldn’t do by voice at all (finding a fact on a page, a search box, a drag). On the reply to Professor Smith it took 13 things said and the reply still came out wrong; AVO took 3.</p>
+            <p>The Voice Control column on this page lists everything said in that task, transcribed from the recording by Meta’s speech recognition; the Chinese commands are shown with an English gloss. AVO’s three lines are from the recording at the top of the page.</p>
+          
+            <p>Median things said per task: AVO 2, Voice Control 4.5.</p>
           </details>
-          <details>
+          <details id="m-e2">
             <summary>E2 · Simulated tremor on small buttons</summary>
             <p>Rows of 8 buttons at 12, 18, 24, 32 and 44 px, with tremor of 0, 4, 8 and 12 px; 30 tries per combination, 600 SAM&nbsp;3.1 calls in all, on screenshots of <code>demo/targets.html</code>. Clicking alone is the button’s centre plus random shake. AVO gets a shaky rough box: with SAM alone it clicks the centre of what SAM finds; with the button’s name it looks for that name near the box. The settings were fixed before the one run.</p>
             <p>Limits: the rows on the test page sit further apart than in most apps, which makes finding a button by name easy. SAM alone sometimes does worse than clicking (a 32 px button at 8 px of tremor: 93% alone, 80% with SAM). Clicking alone is computed, so it doesn’t count the time a click takes. <a href="https://github.com/BowenX307/AVO/tree/main/eval/e2">Data and scripts</a>.</p>
+          
+            <figure class="chart"><a href="images/e2-tremor-8px-light.svg" aria-label="Open the chart full size"><img src="images/e2-tremor-8px-light.svg" width="960" height="460" loading="lazy" alt="Line chart of hit rate by button size (12 to 44 px) with a simulated 8 px tremor. Clicking alone: 33% at 12 px rising to 100% at 44 px. AVO with a rough box and the button's name: 100% at every size. AVO with SAM 3.1 only: 47% at 12 px." /></a><figcaption>Simulated tremor of 8 px. <a href="images/e2-tremor-light.svg">Every tremor level</a></figcaption></figure>
+            <p><b>33% → 100%:</b> a 12 px button with 8 px of simulated tremor, hit when clicking alone vs with AVO, which finds the button by its name. When the app names its buttons (most do), AVO doesn’t need to aim at all: you box roughly and say the name. <b>33% → 47%:</b> the same with SAM&nbsp;3.1 alone, for buttons without a name.</p>
           </details>
-          <details>
+          <details id="m-e3">
             <summary>E3 · Finished wrong without asking</summary>
             <p>Three demo tasks, each with a real ambiguity: two Professor Smiths, “next Friday” said on a Saturday, two near-identical handouts. Three setups, 3 runs each per task: AVO as built; an agent that asks only before sending or booking; the agent alone. A script answered for the user, the way the task meant it. A run counts when it ends with the wrong result and reports it as done, without having asked anything.</p>
             <p>Limits: 9 runs per setup, so a direction, not a rate. All three setups plan first, and the plan sometimes asks a question, so “the agent alone” isn’t completely silent. The tasks were chosen to contain an ambiguity.</p>
+          
+            <p>Why it matters: a reply to the wrong professor sets off no permission prompt, and fixing it by hand is exactly what costs the most. So AVO asks a one-word question first (“Which Smith?” “Two.”). Across these runs AVO asked about one more thing per task.</p>
+          </details>
+          <details id="m-limits">
+            <summary>Known limits, in full</summary>
+            <p>Speaking is hard for you: AVO’s main input is your voice. You rely on a screen reader: AVO asks by drawing rings on the screen, and screen-reader users need a different kind of interaction. Not yet tried by the people it’s for; when it has been, this page will say what they said. Relies on your voice; typing works as a fallback (click the island). Needs a network connection and the Meta Model API. macOS only, on the main display, and best in the browser: desktop apps such as Finder are harder for it. Each task stops at 20 steps or $0.50 of API calls.</p>
           </details>
         </div>
       </section>
