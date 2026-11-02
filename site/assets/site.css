@@ -462,14 +462,13 @@ section.tight { padding: 56px 0 72px; }
 /* the caption over a clip, in time with it (captions.json; the same lines are a WebVTT track) */
 .clip { position: relative; }
 .captag {
-  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
-  max-width: calc(100% - 40px); margin: 0; padding: 9px 16px; border-radius: 12px;
-  background: rgba(10, 10, 10, 0.8); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  color: #fff; font: 500 clamp(14px, 1.35vw, 18px)/1.35 var(--avo-font-sans); text-align: center;
-  opacity: 0; transition: opacity 150ms var(--avo-ease); pointer-events: none;
+  display: block; width: fit-content; max-width: 100%; min-height: 2.9em; margin: 14px auto 0; padding: 9px 16px;
+  border-radius: 12px; background: var(--avo-ink); color: #fff;
+  font: 500 clamp(14px, 1.3vw, 17px)/1.35 var(--avo-font-sans); text-align: center;
+  opacity: 0; transition: opacity 150ms var(--avo-ease);
 }
 .captag.on { opacity: 1; }
-.captag:empty { display: none; }
+.captag:empty { visibility: hidden; } /* keep its height, so nothing jumps between lines */
 
 /* tips: a <details> that opens on hover (fine pointers), focus + Enter, or a tap */
 .tip > summary { list-style: none; cursor: pointer; }
@@ -528,4 +527,5 @@ section.tight { padding: 56px 0 72px; }
   .captag { transition: none; }
   .compare.play ol li { animation: none; }
 }
-.clip video[controls] ~ .captag { bottom: 64px; } /* reduced motion: the clip has controls; keep the caption clear of them */
+.compare li.tr::after { content: " *"; color: #66665f; }
+.trnote { margin-top: 6px; font-size: 13px; color: #66665f; }

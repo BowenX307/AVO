@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="brand/tokens.css" />
-    <link rel="stylesheet" href="assets/site.css?v=202611021224" />
+    <link rel="stylesheet" href="assets/site.css?v=202611021232" />
     <script>
       // Play the opening once per visit, and never with "reduce motion" on.
       // The failsafe drops it if the scripts below never run.
@@ -24,7 +24,7 @@
       })();
     </script>
     <script src="brand/logo-animated.js" defer></script>
-    <script src="assets/site.js?v=202611021224" defer></script>
+    <script src="assets/site.js?v=202611021232" defer></script>
   </head>
   <body>
     <div id="intro" aria-hidden="true"></div>
@@ -72,7 +72,7 @@
                   <source src="media/smith.mp4" type="video/mp4" />
                   <track kind="captions" srclang="en" label="English" src="media/smith.vtt" />
                 </video>
-                <p class="captag" aria-hidden="true"></p>
+                <div class="captag" aria-hidden="true"></div>
               </figure>
               <p class="clipnote">Recorded live, by voice; the waits are cut.</p>
             </div>
@@ -188,7 +188,7 @@
                   <source src="media/say.mp4" type="video/mp4" />
                   <track kind="captions" srclang="en" label="English" src="media/say.vtt" />
                 </video>
-                <p class="captag" aria-hidden="true"></p>
+                <div class="captag" aria-hidden="true"></div>
               </figure>
               <h3><span class="mono">01</span>You say it.</h3>
               <p>Tap right <kbd>⌥</kbd> and say what you want. Typing works too.</p>
@@ -201,7 +201,7 @@
                   <source src="media/points.mp4" type="video/mp4" />
                   <track kind="captions" srclang="en" label="English" src="media/points.vtt" />
                 </video>
-                <p class="captag" aria-hidden="true"></p>
+                <div class="captag" aria-hidden="true"></div>
               </figure>
               <h3><span class="mono">02</span>It points back.</h3>
               <p>When two things fit, AVO rings both and asks. Answer with one word.</p>
@@ -240,21 +240,22 @@
             <div>
               <span class="mono">macOS Voice Control · replying to Professor Smith</span>
               <ol class="long">
-                <li>“uh okay click number fifty one”</li>
-                <li>“click number fifty one”</li>
-                <li>“click number fifty one”</li>
-                <li lang="zh">“显示数字” <i lang="en">show numbers</i></li>
-                <li lang="zh">“点击五十一。” <i lang="en">click 51</i></li>
-                <li lang="zh">“点击五十三。” <i lang="en">click 53</i></li>
-                <li lang="zh">“再” <i lang="en">again</i></li>
-                <li>“delete.”</li>
-                <li lang="zh">“删除。” <i lang="en">delete</i></li>
-                <li lang="zh">“我会晚十分钟。” <i lang="en">I'll be ten minutes late</i></li>
-                <li lang="zh">“五十八。” <i lang="en">58</i></li>
-                <li lang="zh">“五十八。” <i lang="en">58</i></li>
-                <li lang="zh">“点击五十八。” <i lang="en">click 58</i></li>
+                <li>“Uh okay, click number fifty-one”</li>
+                <li>“Click number fifty-one”</li>
+                <li>“Click number fifty-one”</li>
+                <li class="tr">“Show numbers”</li>
+                <li class="tr">“Click 51”</li>
+                <li class="tr">“Click 53”</li>
+                <li class="tr">“Again”</li>
+                <li>“Delete.”</li>
+                <li class="tr">“Delete”</li>
+                <li class="tr">“I'll be ten minutes late”</li>
+                <li class="tr">“58”</li>
+                <li class="tr">“58”</li>
+                <li class="tr">“Click 58”</li>
               </ol>
               <p class="tally"><b>13</b> things said</p>
+              <p class="trnote">* said in Chinese, translated</p>
             </div>
             <div>
               <span class="mono">AVO · the same reply</span>
