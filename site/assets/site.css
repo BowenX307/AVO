@@ -444,3 +444,9 @@ section.tight { padding: 72px 0; }
 }
 .clipnote { margin-top: 10px; font-size: 13px; color: var(--avo-gray-2); }
 .media video { display: block; height: auto; aspect-ratio: auto; background: var(--avo-gray-4); }
+
+/* Hero: the words and figures beside a smaller clip */
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 32px 56px; align-items: center; margin-top: 40px; }
+.hero-grid .row { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 28px; margin-top: 0; }
+.hero-grid .media { margin: 0; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }

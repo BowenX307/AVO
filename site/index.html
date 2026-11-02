@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="brand/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="brand/tokens.css" />
-    <link rel="stylesheet" href="assets/site.css?v=202611012347" />
+    <link rel="stylesheet" href="assets/site.css?v=202611020028" />
     <script>
       // Play the opening once per visit, and never with "reduce motion" on.
       // The failsafe drops it if the scripts below never run.
@@ -24,7 +24,7 @@
       })();
     </script>
     <script src="brand/logo-animated.js" defer></script>
-    <script src="assets/site.js?v=202611012347" defer></script>
+    <script src="assets/site.js?v=202611020028" defer></script>
   </head>
   <body>
     <div id="intro" aria-hidden="true"></div>
@@ -51,6 +51,7 @@
       <section class="hero">
         <div class="wrap">
           <h1><span class="dim">Say what you want done.</span><br />AVO handles the clicks.</h1>
+          <div class="hero-grid">
           <div class="row">
             <p class="lede">For people who find using a mouse or trackpad difficult.</p>
             <a class="hero-num" href="#e1" aria-label="Everyday tasks done right by voice: AVO 8 of 8, macOS Voice Control 2 of 8. Details.">
@@ -64,13 +65,14 @@
               <a class="btn line" href="https://github.com/BowenX307/AVO">GitHub</a>
             </div>
           </div>
-          <figure class="media" id="demo" style="margin: 64px 0 0">
+          <figure class="media" id="demo">
             <i class="corners"></i>
-            <video autoplay muted loop playsinline preload="metadata" poster="media/smith.jpg" width="1600" height="1040" aria-label="AVO, run by voice: “Reply to Professor Smith, say I’ll be ten minutes late.” It rings the two Professor Smiths and asks which; “two”. It writes the reply, shows it before sending; “yes”. Reply sent.">
+            <video autoplay muted loop playsinline preload="metadata" poster="media/smith.jpg" width="1600" height="1002" aria-label="AVO, run by voice: “Reply to Professor Smith, say I’ll be ten minutes late.” It rings the two Professor Smiths and asks which; “two”. It writes the reply, shows it before sending; “yes”. Reply sent.">
               <source src="media/smith.mp4" type="video/mp4" />
             </video>
             <figcaption class="clipnote">Recorded live on the demo inbox, said aloud; the waits are cut.</figcaption>
           </figure>
+          </div>
           <p class="footnote"><sup>1</sup> One tester, the author, new to Voice Control; AVO’s side run by script. <a href="#method">How we measured</a></p>
         </div>
       </section>
@@ -122,10 +124,9 @@
             <div class="moment">
               <figure class="media" style="margin: 0">
                 <i class="corners"></i>
-                <div class="ph" role="img" aria-label="Placeholder for a screen recording">
-                  <b>Clip needed · 5–10 s loop</b>
-                  <span>Tap right ⌥ and speak: the sentence appears in large type at the top of the screen</span>
-                </div>
+                <video autoplay muted loop playsinline preload="metadata" poster="media/metajobs.jpg" width="1600" height="1002" aria-label="Said aloud on a real website: “Find the software engineer internship of machine learning at Meta.” The words appear in large type at the top; AVO opens the matching job on Meta Careers.">
+                  <source src="media/metajobs.mp4" type="video/mp4" />
+                </video>
               </figure>
               <h3><span class="mono">01</span>You say it.</h3>
               <p>Tap right <kbd>⌥</kbd> — a tap, not a hold — and say the task. The words appear in large type as you speak, and names on your screen help AVO hear “Smith” as Smith. Typing works too.</p>
