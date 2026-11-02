@@ -241,6 +241,12 @@
       body.picking .row .no, body.picking .row .yes, body.correcting .row .no, body.correcting .row .yes { display: none; }
       body.safety .row .no, body.notice .row .no { display: none; }
       body.notice .row .yes { min-width: 120px; }
+      /* AVO Remote: the QR card, and a tag while Remote is on */
+      body.remote .loupe { width: 180px; height: 180px; margin: 4px auto 0; border-radius: 10px; background: #fff; padding: 6px; box-sizing: content-box; }
+      #remotetag { display: none; flex: none; margin-right: 8px; padding: 2px 6px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45); font: 500 10.5px var(--avo-font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: #fff; }
+      html.remote body:is(.step, .busy, .countdown, .paused, .done, .warn, .error, .info) #remotetag { display: inline-block; }
+      html.remote #pill { position: relative; }
+      html.remote body.idle #pill::after { content: ""; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px #0a0a0a; }
       body.safety .row .yes { min-width: 84px; }
       body.confirming .row .yes { min-width: 84px; }
 
@@ -256,6 +262,7 @@
       <div id="pill">
         <span id="icon"></span>
         <span id="micdot" title="AVO is listening"></span>
+        <span id="remotetag" title="A phone can control AVO (Control-Option-R turns it off)">Remote</span>
         <span id="text"></span>
         <input id="ask" placeholder="Tell AVO what to do" spellcheck="false" />
         <span class="hint send"><b class="glyph">⏎</b> send · esc cancel</span>
@@ -484,6 +491,20 @@
         setState("ask", "", { cls: "notice" });
       }
 
+      // AVO Remote is on: the QR code to scan, the address, Hide and Turn off.
+      function showRemoteCard(m) {
+        $(".choices").replaceChildren();
+        $(".preview").textContent = "";
+        $(".q").textContent = "AVO Remote is on";
+        $(".intent").textContent = "Scan with your phone's camera, on the same Wi-Fi. Anyone who scans it can control this Mac.";
+        $(".under").textContent = m.url || "";
+        $(".reason").textContent = $(".note").textContent = "";
+        $(".loupe").src = m.qr;
+        $(".row .yes").textContent = "Hide";
+        $(".row .stop").textContent = "Turn off";
+        setState("ask", "", { cls: "notice remote" });
+      }
+
       // Before an ordinary step: "Clicking “Reply”", the line running out.
       function showCountdown(m) {
         document.documentElement.style.setProperty("--secs", `${m.seconds || 1}s`);
@@ -567,6 +588,12 @@
           case "notice":
             showNotice(m);
             break;
+          case "remote":
+            document.documentElement.classList.toggle("remote", !!m.on);
+            break;
+          case "remote-card":
+            showRemoteCard(m);
+            break;
           case "heard-partial": // the words AVO is hearing, while a card waits for an answer
             if (body.classList.contains("ask") || body.classList.contains("countdown")) {
               const line = body.classList.contains("ask") ? $(".note") : null;
@@ -623,9 +650,11 @@
         b.addEventListener("click", () => window.avo.send("island-control", { cmd: b.dataset.cmd }));
       }
       $(".row .yes").addEventListener("click", () =>
-        body.classList.contains("notice") ? window.avo.send("island-control", { cmd: "open-settings" }) : window.avo.send("bubble-choice", { choice: "yes" }));
+        body.classList.contains("remote") ? window.avo.send("island-control", { cmd: "remote-hide" })
+          : body.classList.contains("notice") ? window.avo.send("island-control", { cmd: "open-settings" }) : window.avo.send("bubble-choice", { choice: "yes" }));
       $(".row .stop").addEventListener("click", () =>
-        body.classList.contains("notice") ? window.avo.send("island-control", { cmd: "dismiss-notice" }) : window.avo.send("bubble-choice", { choice: "stop" }));
+        body.classList.contains("remote") ? window.avo.send("island-control", { cmd: "remote-off" })
+          : body.classList.contains("notice") ? window.avo.send("island-control", { cmd: "dismiss-notice" }) : window.avo.send("bubble-choice", { choice: "stop" }));
       $(".row .no").addEventListener("click", () => {
         if (body.classList.contains("confirming")) return window.avo.send("bubble-choice", { choice: "decline" });
         body.classList.add("correcting");

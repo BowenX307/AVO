@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <title>AVO Remote</title>
+    <link rel="stylesheet" href="/brand/tokens.css" />
+    <link rel="stylesheet" href="/remote.css" />
+  </head>
+  <body data-view="connecting">
+    <header>
+      <svg class="logo" viewBox="0 0 340 100" fill="none" stroke="currentColor" stroke-width="13" stroke-linejoin="miter" stroke-linecap="square" aria-label="AVO"><path d="M10 90 L50 10 L90 90" /><path d="M126 10 L166 90 L206 10" /><path d="M261.01 21.01 A41 41 0 1 1 318.99 78.99 A41 41 0 1 1 261.01 21.01 Z" /></svg>
+      <span class="link" id="link">Remote</span>
+    </header>
+
+    <main>
+      <!-- Not paired, or the session ended -->
+      <section data-for="unpaired">
+        <h1>Scan the code on your Mac</h1>
+        <p class="muted">On the Mac, press Control‑Option‑R to turn on AVO Remote, then scan the code it shows with this phone's camera. Both need to be on the same Wi‑Fi.</p>
+        <p class="error" id="pairError"></p>
+      </section>
+
+      <section data-for="connecting">
+        <h1>Reconnecting…</h1>
+        <p class="muted">Looking for AVO on your Mac.</p>
+      </section>
+
+      <!-- Waiting for a task -->
+      <section data-for="idle">
+        <form id="taskForm">
+          <label for="taskText" class="label">What should AVO do?</label>
+          <textarea id="taskText" rows="3" placeholder="Reply to Professor Smith, say I'll be ten minutes late." enterkeyhint="send"></textarea>
+          <p class="muted hint">Tap the mic on your keyboard to speak.</p>
+          <button class="primary" type="submit">Send to AVO</button>
+        </form>
+        <div id="recent"></div>
+      </section>
+
+      <!-- Working: planning, a step, the countdown before a step -->
+      <section data-for="working">
+        <p class="label" id="stepLabel"></p>
+        <h1 id="workText"></h1>
+        <div class="bar"><i id="barFill"></i></div>
+        <p class="muted" id="taskEcho"></p>
+        <div id="countdown" hidden>
+          <p class="about" id="aboutText"></p>
+          <div class="run"><i id="runOut"></i></div>
+          <button class="secondary" id="cancelStep">No, don't do this</button>
+        </div>
+      </section>
+
+      <!-- A question: which one, OK to click, a choice before starting, a safety check -->
+      <section data-for="ask">
+        <h1 id="askTitle"></h1>
+        <p class="muted" id="askText"></p>
+        <img id="askShot" alt="The part of the Mac's screen AVO is asking about, with numbered rings" hidden />
+        <div class="choices" id="choices"></div>
+        <div id="noneBox" hidden>
+          <label for="noneText" class="label">What did you mean?</label>
+          <input id="noneText" placeholder="e.g. the physics one" />
+          <button class="primary" id="noneSend">Send</button>
+        </div>
+      </section>
+
+      <!-- Can't be undone: the preview, then Yes or No -->
+      <section data-for="confirm">
+        <h1 id="confirmTitle"></h1>
+        <p class="muted" id="confirmText"></p>
+        <pre class="preview" id="preview"></pre>
+        <div class="choices">
+          <button class="primary" id="confirmYes">Yes</button>
+          <button class="secondary" id="confirmNo">No</button>
+        </div>
+      </section>
+
+      <section data-for="paused">
+        <h1 id="pausedText">Paused</h1>
+        <p class="muted">AVO is waiting. Resume to carry on from where it is.</p>
+        <button class="primary" id="resume">Resume</button>
+      </section>
+
+      <section data-for="done">
+        <svg class="check" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 L21 34 L37 15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" /></svg>
+        <h1 id="doneText"></h1>
+      </section>
+
+      <section data-for="failed">
+        <h1>Couldn't finish</h1>
+        <p id="failText"></p>
+        <button class="primary" id="retry">Retry</button>
+      </section>
+    </main>
+
+    <footer>
+      <button class="stop" id="stop">Stop</button>
+    </footer>
+    <script src="/app.js"></script>
+  </body>
+</html>

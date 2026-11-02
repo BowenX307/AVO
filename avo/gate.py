@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from openai import OpenAI
 from PIL import Image, ImageDraw
 
+from avo import remote
 from avo.confidence import repeats, review
 from avo.driver import MacDriver
 from avo.llm import data_url
@@ -253,10 +254,12 @@ def ask_user(
         r, b = driver.to_screen(a.box[2], a.box[3])
         box = [l, t, r, b]
     print(f"asking ok: {(a.review or {}).get('element_under_click', '')} @({x},{y})", flush=True)
+    shot_box = list(a.box) if a.box else [a.target[0] - 28, a.target[1] - 18, a.target[0] + 28, a.target[1] + 18]
     answer = overlay.ask(
         x=x,
         y=y,
         box=box,
+        crop=remote.crop(png, [shot_box], numbered=False) if remote.on() else None,
         intent=note,
         under=(a.review or {}).get("element_under_click", ""),
         reason=" ".join(a.plain),
@@ -330,10 +333,14 @@ def _ask_which(
     px, py = driver.to_screen(*a.target)
     guess = min(range(len(shown)), key=lambda i: (shown[i]["x"] - px) ** 2 + (shown[i]["y"] - py) ** 2)
     shown[guess]["guess"] = True
+    crop = None
+    if remote.on():  # the phone sees just this part of the screen, ringed and numbered like the overlay
+        crop = remote.crop(png, [[*driver.to_shot(c["box"][0], c["box"][1]), *driver.to_shot(c["box"][2], c["box"][3])] for c in shown])
     answer = overlay.ask(
         x=shown[guess]["x"],
         y=shown[guess]["y"],
         candidates=shown,
+        crop=crop,
         intent=a.plain[0],  # the ambiguity; other doubts don't matter once the user picks
         reason="",
     )

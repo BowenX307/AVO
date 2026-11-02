@@ -26,7 +26,7 @@ from avo.effect import (
 from avo.gate import ask_user, assess, correct, first_gated, named_fix
 from avo.helper import front_title, screen_text
 from avo.human import AUTO_RESUME_S, HumanGuard
-from avo import moves
+from avo import moves, remote
 from avo.llm import MODEL, NoKey, data_url, describe, friendly, make_client
 from avo.meter import Meter
 from avo.overlay import Overlay
@@ -1076,6 +1076,7 @@ def run(
         spent["other"] = max(0.0, elapsed - sum(v for k, v in spent.items() if k != "other"))
         log.save("summary.json", {
             "task": task, "result": result, "ok": ok, "steps": step, "elapsed_s": round(elapsed, 1),
+            "source": remote.source(),  # "remote": sent from the paired phone (AVO Remote)
             "time_s": {k: round(v, 1) for k, v in sorted(spent.items(), key=lambda kv: -kv[1])},
             "api": api,
             "counts": {

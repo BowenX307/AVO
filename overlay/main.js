@@ -39,6 +39,13 @@ const CARD_GAP = 14; // px between a target and the card, when the card must sit
 const SUMMON_KEY = "Alt+Space";
 const SCALE_KEY = "Control+Alt+="; // cycle the UI size: 1x -> 1.5x -> 2x -> 1x
 const SCALES = [1, 1.5, 2];
+// AVO Remote (overlay/remote.js): a phone on the same Wi-Fi drives AVO. The
+// feature switch: false removes it entirely (no shortcut, no server). Even when
+// true, Remote starts off every launch; Control-Option-R turns it on or off.
+const REMOTE_FEATURE = process.env.AVO_REMOTE_FEATURE !== "0";
+const REMOTE_KEY = "Control+Alt+R";
+// Island messages a paired phone mirrors (remote/app.js shows the same states).
+const PHONE_TYPES = new Set(["status", "confirm", "paused", "done", "answered", "cancel", "idle", "hide", "notice"]);
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 let pointer = null;
@@ -46,6 +53,7 @@ let island = null;
 const clients = new Set(); // connected agents
 let pendingAsk = null; // the confirm request being answered: { id, rect }
 let task = null; // the agent process started from the island, if any
+let remote = null; // the AVO Remote server while Remote is on
 let lastRun = null; // { text, regions, app } of the last task started from the island, for Retry
 let returnTo = null; // bundle id of the app to refocus after typing a task
 
@@ -248,6 +256,8 @@ ipcMain.on("island-control", (_e, { cmd }) => {
     if (notice?.url) shell.openExternal(notice.url);
     return;
   }
+  if (cmd === "remote-off") return stopRemote();
+  if (cmd === "remote-hide") return island.webContents.send("avo", { type: "idle" });
   if (cmd === "dismiss-notice") {
     notice = null;
     return island.webContents.send("avo", { type: "idle" });
@@ -362,6 +372,7 @@ let quitting = false;
 app.on("will-quit", () => {
   quitting = true;
   task?.kill("SIGTERM"); // a running agent doesn't outlive the overlay
+  remote?.stop();
   frontWatch?.kill();
   helper?.kill();
   stopListening();
@@ -440,7 +451,7 @@ function findUv() {
 // Run the agent on a typed task, in the app the user was in. Its events (status,
 // confirm, done) come back over the WebSocket like any other run; this only
 // watches for a silent crash.
-function runTask({ text, regions: chosen = [], app: workApp, voice: spoken = false }) {
+function runTask({ text, regions: chosen = [], app: workApp, voice: spoken = false, fromPhone = false }) {
   fs.mkdirSync(path.join(ROOT, "runs"), { recursive: true });
   const log = fs.openSync(path.join(ROOT, "runs", "island.log"), "a");
   fs.writeSync(log, `\n=== ${new Date().toISOString()} ${text}  (in ${workApp || "the front app"})\n`);
@@ -449,7 +460,10 @@ function runTask({ text, regions: chosen = [], app: workApp, voice: spoken = fal
   for (const r of chosen) args.push("--region", `${r.label}=${r.box.map(Math.round).join(",")}`);
   if (workApp) args.push("--app", workApp);
   if (spoken) args.push("--voice");
-  task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log], env: { ...process.env, PYTHONUNBUFFERED: "1" } });
+  const env = { ...process.env, PYTHONUNBUFFERED: "1" };
+  if (remote?.on) env.AVO_REMOTE = "1"; // crops for the phone, a 2 s countdown (avo/remote.py)
+  if (fromPhone) env.AVO_SOURCE = "remote";
+  task = spawn(findUv(), args, { cwd: ROOT, stdio: ["ignore", log, log], env });
   task.sawDone = () => (finished = true);
   task.on("exit", (code) => {
     fs.closeSync(log);
@@ -974,6 +988,97 @@ function heardDuringTask(text, partial = false) {
   return false;
 }
 
+// ---- AVO Remote ----
+// Everything the island shows is mirrored to the paired phone, so the two stay
+// in step; a question answered on either side is answered once (answer() drops
+// the second), and both close.
+
+function mirrorIslandToPhone() {
+  const send = island.webContents.send.bind(island.webContents);
+  island.webContents.send = (channel, msg) => {
+    send(channel, msg);
+    if (channel === "avo" && remote?.connected && msg && PHONE_TYPES.has(msg.type)) remote.send(msg);
+  };
+}
+
+async function toggleRemote() {
+  if (remote?.on) return stopRemote();
+  remote = new (require("./remote").Remote)({
+    log: vlog,
+    onMessage: fromPhone,
+    onPaired: (replaced) => {
+      if (!task && !clients.size) {
+        island.webContents.send("avo", { type: "done", ok: true, text: replaced ? "A new phone took over Remote" : "Phone connected", ms: 2500 });
+      }
+    },
+    onDisconnect: phoneGone,
+  });
+  try {
+    const { url, qr } = await remote.start();
+    island.webContents.send("avo", { type: "remote", on: true });
+    island.webContents.send("avo", { type: "remote-card", qr, url });
+  } catch (e) {
+    remote = null;
+    island.webContents.send("avo", { type: "done", ok: false, text: `Remote: ${e.message}`, ms: 3500 });
+  }
+}
+
+function stopRemote() {
+  remote?.stop();
+  remote = null;
+  island.webContents.send("avo", { type: "remote", on: false });
+  if (!task && !clients.size) island.webContents.send("avo", { type: "done", ok: true, text: "Remote is off", ms: 1500 });
+}
+
+// The phone went away mid-task: pause, and wait for Resume (from the phone or the Mac).
+function phoneGone() {
+  if (!(task || clients.size) || paused) return;
+  pauseText = "Phone disconnected";
+  if (pendingAsk) answer({ choice: "pause" }); // withdraws the question; that step is dropped
+  else tellAgents({ type: "pause" });
+  paused = true;
+  island.webContents.send("avo", { type: "paused", text: pauseText });
+}
+
+// The only things a phone can ask for (remote.js drops anything else).
+function fromPhone(msg) {
+  switch (msg.type) {
+    case "hello":
+      if (!task && !clients.size && !remote.last) remote.send({ type: "idle" });
+      return;
+    case "task": {
+      const text = String(msg.text || "").trim().slice(0, 500);
+      if (!text) return;
+      if (task || clients.size) return remote.send({ type: "busy", text: "AVO is already working on a task" }, false);
+      if (!permissionsOk()) return remote.send({ type: "done", ok: false, text: "The Mac needs a permission first: see its screen" });
+      lastRun = { text, regions: [], app: userApp };
+      island.webContents.send("avo", { type: "status", text: "Starting…", busy: true, task: text });
+      if (userApp) execFile("open", ["-b", userApp]);
+      setTimeout(() => runTask({ ...lastRun, fromPhone: true }), 400);
+      return;
+    }
+    case "answer": {
+      if (!pendingAsk) return;
+      if (!["yes", "no", "pick", "none", "stop"].includes(msg.choice)) return;
+      const fields = { choice: msg.choice, how: "remote" };
+      if (msg.choice === "pick") fields.index = Number(msg.index);
+      if (msg.choice === "none") fields.said = String(msg.said || "").slice(0, 300);
+      answer(fields);
+      return;
+    }
+    case "resume":
+      if (paused) togglePause();
+      return;
+    case "stop":
+      if (paused && !pendingAsk) {
+        paused = false;
+        tellAgents({ type: "stop" });
+      }
+      if (task || clients.size || pendingStart) stopByVoice();
+      return;
+  }
+}
+
 function startServer() {
   const wss = new WebSocketServer({ host: "127.0.0.1", port: PORT });
   wss.on("connection", (ws) => {
@@ -1012,9 +1117,11 @@ app.whenReady().then(() => {
   watchFrontApp();
   createPointer();
   createIsland();
+  mirrorIslandToPhone();
   startServer();
   startHelper();
   if (!globalShortcut.register(SUMMON_KEY, summon)) console.log(`could not register ${SUMMON_KEY}`);
   if (!globalShortcut.register(SCALE_KEY, cycleScale)) console.log(`could not register ${SCALE_KEY}`);
+  if (REMOTE_FEATURE && !globalShortcut.register(REMOTE_KEY, toggleRemote)) console.log(`could not register ${REMOTE_KEY}`);
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());

@@ -28,6 +28,7 @@ import termios
 import time
 from dataclasses import asdict, dataclass, field
 
+from avo import remote
 from avo.desktop import frontmost_app
 from avo.overlay import Overlay
 from avo.snap import Target, clickable_at, focused
@@ -159,7 +160,7 @@ def before(
     if not other and not final and overlay.active and box:
         c.method = "countdown"
         answer = overlay.ask(kind="countdown", box=box, x=point[0], y=point[1], text=saying(actions, target),
-                             seconds=COUNTDOWN_S)
+                             seconds=remote.REMOTE_COUNTDOWN_S if remote.on() else COUNTDOWN_S)
         if answer is not None and answer.get("shown"):
             return _apply(c, answer)
         if answer is not None and answer.get("choice") in ("no", "stop", "pause"):
