@@ -203,6 +203,32 @@
     items.forEach((el) => io.observe(el));
   }
 
+  // ---- Voice Control vs AVO: the steps appear one by one, each side at its own pace, and the counts tick up ----
+  function compare() {
+    const box = document.querySelector(".compare.anim");
+    if (!box) return;
+    const sides = [...box.children].map((side, i) => ({
+      items: [...side.querySelectorAll("li")],
+      tally: side.querySelector("[data-tally]"),
+      every: i === 0 ? 520 : 260, // commands come slowly; AVO's three sentences quickly
+    }));
+    const show = (side, n) => {
+      side.items.forEach((li, k) => li.classList.toggle("in", k < n));
+      if (side.tally) side.tally.textContent = n;
+    };
+    if (reduced || !("IntersectionObserver" in window)) return sides.forEach((side) => show(side, side.items.length));
+    sides.forEach((side) => show(side, 0));
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        for (const side of sides) side.items.forEach((_, k) => setTimeout(() => show(side, k + 1), 200 + k * side.every));
+      },
+      { rootMargin: "0px 0px -25% 0px" },
+    );
+    io.observe(box);
+  }
+
   // ---- docs: mark the section being read in the side list ----
   function toc() {
     const links = [...document.querySelectorAll(".toc a")];
@@ -227,5 +253,6 @@
   opening();
   secondCursor();
   reveals();
+  compare();
   toc();
 })();
