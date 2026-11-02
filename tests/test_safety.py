@@ -86,7 +86,7 @@ class ConfirmTest(unittest.TestCase):
     def test_the_reviewer_naming_a_submit_button_counts(self):
         c = before(overlay=FakeOverlay({"choice": "yes"}), under=None,
                    review={"element_under_click": "Submit order button"})
-        self.assertEqual(c.irreversible, "Submit order button")
+        self.assertEqual(c.irreversible, "Submit")  # the action, not the review's description
 
     def test_cmd_enter_is_a_send(self):
         c = before(actions=[{"type": "keypress", "keys": ["cmd", "Enter"]}], overlay=FakeOverlay({"choice": "yes"}))

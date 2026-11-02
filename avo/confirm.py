@@ -86,9 +86,13 @@ def irreversible(actions: list[dict], target: Target | None, review: dict | None
     """The name of what makes this batch irreversible, or None."""
     clicks = [a for a in actions if a["type"] in ("click", "double_click")]
     if clicks:
-        for name in ((target.label if target else ""), (review or {}).get("element_under_click", "")):
-            if name and IRREVERSIBLE.search(name):
-                return name
+        if target and target.label and IRREVERSIBLE.search(target.label):
+            return target.label
+        # The review's words describe the spot ("empty space below Send button"):
+        # name the action, not the description (11/01: the card read "empty
+        # space below Send button — OK?" in a demo recording).
+        if m := IRREVERSIBLE.search((review or {}).get("element_under_click", "")):
+            return m.group(1).capitalize()
     for a in actions:
         if a["type"] == "keypress" and {k.lower() for k in a.get("keys") or []} in SEND_KEYS:
             return "⌘Enter (send)"
