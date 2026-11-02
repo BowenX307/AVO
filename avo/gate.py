@@ -76,6 +76,8 @@ class Assessment:
     candidates: list[dict] = field(default_factory=list)  # ambiguous click: [{label, x, y}], screenshot px
     plain: list[str] = field(default_factory=list)  # the reasons, in words for the user
     seconds: float = 0.0
+    controls: list[dict] = field(default_factory=list)  # controls near a stray click 1: [{label, x, y}], screenshot px
+    meant: dict | None = None  # the one of them the review says click 1 meant: click its center instead
 
     def to_log(self) -> dict:
         return {
@@ -90,6 +92,8 @@ class Assessment:
             "places": self.places,
             "clear": self.clear,
             "candidates": self.candidates,
+            "controls": [{k: c[k] for k in ("label", "x", "y")} for c in self.controls],
+            "meant": {k: self.meant[k] for k in ("label", "x", "y")} if self.meant else None,
             "seconds": round(self.seconds, 1),
         }
 
@@ -115,11 +119,15 @@ def assess(
     note: str,
     screen_size: tuple[int, int],
     where: Callable[[int, int], str | None] | None = None,
+    near: Callable[[int, int], list[dict]] | None = None,
 ) -> Assessment | None:
     """Score a batch; None if it has no click or drag to check.
 
     where: the accessibility verdict for a click point in screenshot px ("on",
     "gap" or None, see avo/snap.py location); None to go on SAM alone.
+    near: the named controls around a point ({label, x, y}, screenshot px). When
+    click 1 isn't on a control, the review is shown them and says which one the
+    agent meant; the click then goes to that control's center (Assessment.meant).
     """
     i = first_gated(actions)
     if i is None:
@@ -127,8 +135,15 @@ def assess(
     target = _point(actions[i])
     points = [p for a in actions if a["type"] in GATED_KINDS and (p := _point(a))]
     t0 = time.time()
+    controls = []
+    if near and where:
+        try:
+            if where(*target) != "on":
+                controls = near(*target)
+        except Exception as e:
+            print(f"accessibility check failed: {type(e).__name__}: {e}")
     pool = ThreadPoolExecutor(1 + len(points))
-    f_review = pool.submit(review, client, task, past, png, actions, note)
+    f_review = pool.submit(review, client, task, past, png, actions, note, controls=controls or None)
     f_sams = [pool.submit(segment, client, png, points=[p]) for p in points]
     places = []
     for p in points:  # meanwhile: tens of ms, no API call
@@ -178,10 +193,17 @@ def assess(
     elif len({" ".join(c["label"].lower().split()) for c in candidates}) < len(candidates):
         # "2:00 PM or 2:00 PM" (10/31, two rooms): nobody can answer that, so it isn't a question.
         candidates = []
+    meant = None
+    k = (rev or {}).get("meant_control") or 0
+    if controls and 1 <= k <= len(controls):
+        meant = controls[k - 1]
     reasons, plain = [], []
+    others_clear = all(clear_at(p, seg, place) for p, seg, place in list(zip(points, best, places))[1:])
     if candidates:
         reasons.append("More than one fits: " + " or ".join(c["label"] for c in candidates))
         plain.append("Your task fits more than one of these.")
+    elif not clear and meant and others_clear:
+        pass  # click 1 missed, but the review names the control it meant: AVO clicks that (agent.py)
     elif not clear:
         # The location is in doubt: the review breaks the tie. Without a review, ask.
         if rev is None or not rev.get("hits_intended_target", True):
@@ -206,6 +228,8 @@ def assess(
         candidates=candidates,
         plain=plain,
         seconds=time.time() - t0,
+        controls=controls,
+        meant=meant if (meant and not clear and not candidates) else None,
     )
 
 

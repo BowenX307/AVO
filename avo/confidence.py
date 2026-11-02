@@ -59,6 +59,7 @@ Judge strictly, as three separate questions:
    every option that fits as candidates (label: just the option's visible text, e.g. "Alex Chen";
    and its center x, y in image 1),
    including the one the agent picked. Otherwise ambiguous is false and candidates is empty.
+4. Meant control: {controls}
 Then give your confidence (0 to 1) that executing this batch now is correct, and say what
 the screen should show right after it. Keep element_under_click and expected_after short
 (English, at most 8 words each)."""
@@ -73,6 +74,7 @@ REVIEW_SCHEMA = {
         "confidence": {"type": "number"},
         "expected_after": {"type": "string"},
         "ambiguous": {"type": "boolean"},
+        "meant_control": {"type": "integer"},
         "candidates": {
             "type": "array",
             "items": {
@@ -94,9 +96,25 @@ REVIEW_SCHEMA = {
         "confidence",
         "expected_after",
         "ambiguous",
+        "meant_control",
         "candidates",
     ],
 }
+
+NO_CONTROLS = "(no list for this step) Set meant_control to 0."
+CONTROLS_INTRO = (
+    "Click 1 is not on a control. These are the controls near it, from the screen's accessibility "
+    "info (center x, y in image 1):\n{rows}\nWhich one does the agent mean to click, given what it says "
+    "and the task? Set meant_control to its number, or 0 if none of them."
+)
+
+
+def controls_text(controls: list[dict] | None) -> str:
+    """The "meant control" question: the controls near click 1, numbered from 1."""
+    if not controls:
+        return NO_CONTROLS
+    rows = "\n".join(f'{i}. "{c["label"]}" at ({c["x"]}, {c["y"]})' for i, c in enumerate(controls, 1))
+    return CONTROLS_INTRO.format(rows=rows)
 
 
 def _png(img: Image.Image) -> bytes:
@@ -139,14 +157,22 @@ def review(
     actions: list[dict],
     note: str = "",
     effort: str | None = "minimal",
+    controls: list[dict] | None = None,
 ) -> dict:
-    """Ask the model whether this batch is right. Returns the parsed review dict."""
+    """Ask the model whether this batch is right. Returns the parsed review dict.
+
+    controls: the controls near click 1 when it isn't on one ({label, x, y} in
+    screenshot px). The model is far better at naming the control it meant
+    than at its pixel coordinates (11/02: it kept aiming at the gap between two
+    "2:00 PM" buttons), so the review picks one and the click goes to its center.
+    """
     full, crop = mark_clicks(png, actions)
     prompt = REVIEW_PROMPT.format(
         task=task,
         past="\n".join(past) or "(none)",
         note=note or "(nothing)",
         actions=describe(actions),
+        controls=controls_text(controls),
     )
     content = [{"type": "input_text", "text": prompt}, {"type": "input_image", "image_url": data_url(full)}]
     if crop:

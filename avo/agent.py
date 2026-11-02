@@ -35,7 +35,7 @@ from avo.permissions import missing as missing_permissions
 from avo.planner import REPLAN_MODEL, Plan, make_plan
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
-from avo.snap import location, snap, warm_up
+from avo.snap import location, nearby, snap, warm_up
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
 
@@ -157,6 +157,20 @@ def as_action(fn: dict) -> dict | None:
     except json.JSONDecodeError:
         args = {}
     return {"type": fn["name"], **args}
+
+
+NEAR_PT = 56  # how far around a stray click to look for the control it meant, in points
+NEAR_MAX = 8
+
+
+def controls_near(driver: MacDriver, x: int, y: int) -> list[dict]:
+    """The named controls around a screenshot point, nearest first: [{label, x, y}] at their centers, screenshot px."""
+    out = []
+    for t in nearby(*driver.to_screen(x, y), NEAR_PT):
+        if t.label.strip():
+            cx, cy = driver.to_shot(*t.center)
+            out.append({"label": t.label.strip()[:60], "x": round(cx), "y": round(cy)})
+    return out[:NEAR_MAX]
 
 
 def snap_clicks(driver: MacDriver, actions: list[dict]) -> list[dict]:
@@ -740,7 +754,8 @@ def run(
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
                     a = assess(client, checked_task(), past, done, png, actions, note, driver.geometry.shot_size,
-                               where=(lambda x, y: location(*driver.to_screen(x, y))) if snap_to_controls else None)
+                               where=(lambda x, y: location(*driver.to_screen(x, y))) if snap_to_controls else None,
+                               near=(lambda x, y: controls_near(driver, x, y)) if snap_to_controls else None)
                 stop = interrupted()  # the user may have taken over during the check
                 if a and not stop:
                     print(f"[{step}] gate: {'FLAG ' + '; '.join(a.reasons) if a.flagged else 'ok'} ({a.seconds:.1f}s)")
@@ -754,7 +769,16 @@ def run(
                         entry["user"] = {"choice": "pick", "answer": {"label": prior, "how": "earlier"}, "actions": actions}
                         a.flagged = False
                         answered = True
-                    if a.flagged and snap_to_controls and (fix := named_fix(a, driver)):
+                    if a.meant:
+                        # Click 1 missed; the review picked, from the named controls around
+                        # it, the one the agent meant: click its center (11/02, "2:00 PM").
+                        sx, sy = a.meant["x"], a.meant["y"]
+                        actions = correct(actions, (sx, sy))
+                        i = first_gated(actions)
+                        actions[i] = {**actions[i], "_snap": {"from": list(a.target), "role": "control", "label": a.meant["label"]}}
+                        print(f"[{step}] gate: aimed at {a.meant['label']!r} -> ({sx},{sy})")
+                        snaps += 1
+                    elif a.flagged and snap_to_controls and (fix := named_fix(a, driver)):
                         # The review names the control the click just missed: click it, don't ask.
                         (fx, fy), t = fix
                         sx, sy = driver.to_shot(fx, fy)

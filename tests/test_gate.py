@@ -27,8 +27,10 @@ class Seg:
         return self.on
 
 
-def assess(sam_conf, rev=OK_REVIEW, slow=0.2, place=None, repeat=False):
-    def review(*_a, **_k):
+def assess(sam_conf, rev=OK_REVIEW, slow=0.2, place=None, repeat=False, near=None, seen=None):
+    def review(*_a, **k):
+        if seen is not None:
+            seen.append(k.get("controls"))
         time.sleep(slow)
         if rev is None:
             raise TimeoutError("review timed out")
@@ -37,7 +39,7 @@ def assess(sam_conf, rev=OK_REVIEW, slow=0.2, place=None, repeat=False):
     with mock.patch.object(gate, "review", review), mock.patch.object(
         gate, "segment", lambda *_a, **_k: ([Seg(sam_conf)], "")
     ), mock.patch.object(gate, "repeats", lambda *_: repeat):
-        return gate.assess(None, "task", [], [], b"", CLICK, "note", (1280, 832), where=lambda x, y: place)
+        return gate.assess(None, "task", [], [], b"", CLICK, "note", (1280, 832), where=lambda x, y: place, near=near)
 
 
 class GateTest(unittest.TestCase):
@@ -180,6 +182,35 @@ class TableGapTest(unittest.TestCase):
         with mock.patch.object(snap.AX, "AXUIElementCopyElementAtPosition", lambda *a: (0, labelled)), \
                 mock.patch.object(snap, "_attr", lambda el, name: el.get(name)):
             self.assertFalse(snap.on_blank(848, 323))  # a cell with text is content, not a gap
+
+
+class MeantControlTest(unittest.TestCase):
+    """11/02: the model kept aiming at the gap between two "2:00 PM" buttons."""
+
+    SLOTS = [{"label": "Room 204, 2:00 PM", "x": 852, "y": 305}, {"label": "Room 210, 2:00 PM", "x": 852, "y": 352}]
+
+    def test_a_stray_click_goes_to_the_control_the_review_names(self):
+        seen = []
+        a = assess(0.3, rev=MISS | {"meant_control": 1}, place="gap", near=lambda x, y: self.SLOTS, seen=seen)
+        self.assertEqual(seen, [self.SLOTS])  # the review was shown the controls
+        self.assertFalse(a.flagged)
+        self.assertEqual(a.meant["label"], "Room 204, 2:00 PM")
+
+    def test_no_pick_still_asks(self):
+        a = assess(0.3, rev=MISS | {"meant_control": 0}, place="gap", near=lambda x, y: self.SLOTS)
+        self.assertTrue(a.flagged)
+        self.assertIsNone(a.meant)
+
+    def test_on_a_control_nothing_is_listed(self):
+        seen = []
+        a = assess(0.9, rev=OK_REVIEW | {"meant_control": 0}, place="on", near=lambda x, y: self.SLOTS, seen=seen)
+        self.assertEqual(seen, [None])
+        self.assertIsNone(a.meant)
+
+    def test_a_question_of_which_one_wins(self):
+        a = assess(0.3, rev=AMBIGUOUS | {"meant_control": 1}, place="gap", near=lambda x, y: self.SLOTS)
+        self.assertTrue(a.flagged)
+        self.assertIsNone(a.meant)
 
 
 if __name__ == "__main__":
