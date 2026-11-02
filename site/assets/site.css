@@ -238,7 +238,7 @@ footer a:hover { color: var(--avo-ink); }
 
 /* ---- the opening: the logo draws, the cursor clicks O, O opens into the page ---- */
 #intro, #intro-logo, .intro-cursor { display: none; }
-html.intro { overflow: hidden; background: var(--avo-ink); } /* the kept scrollbar strip stays black under the opening */
+html.intro { overflow: hidden; background: var(--avo-paper); } /* the opening's black is the #intro veil on top; behind it stays light, so a resize or a side panel opening mid-intro never shows a black block */
 html.intro #intro {
   display: block;
   position: fixed;
