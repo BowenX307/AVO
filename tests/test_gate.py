@@ -167,5 +167,20 @@ class ChromeTabTest(unittest.TestCase):
             self.assertIsNone(snap.snap(215, 130))  # not moved onto the address bar
 
 
+class TableGapTest(unittest.TestCase):
+    def test_an_empty_table_cell_is_blank_space(self):
+        # 11/02, room demo: between two "2:00 PM" buttons the hit-test lands on the <td>.
+        from avo import snap
+
+        cell = {"AXRole": "AXCell"}
+        with mock.patch.object(snap.AX, "AXUIElementCopyElementAtPosition", lambda *a: (0, cell)), \
+                mock.patch.object(snap, "_attr", lambda el, name: el.get(name)):
+            self.assertTrue(snap.on_blank(848, 323))
+        labelled = {"AXRole": "AXCell", "AXTitle": "Room 204"}
+        with mock.patch.object(snap.AX, "AXUIElementCopyElementAtPosition", lambda *a: (0, labelled)), \
+                mock.patch.object(snap, "_attr", lambda el, name: el.get(name)):
+            self.assertFalse(snap.on_blank(848, 323))  # a cell with text is content, not a gap
+
+
 if __name__ == "__main__":
     unittest.main()
