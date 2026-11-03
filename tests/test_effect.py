@@ -175,5 +175,13 @@ class DesktopAreaTest(unittest.TestCase):
         self.assertFalse(d.on_desktop())
 
 
+class OffScreenAreaTest(unittest.TestCase):
+    def test_an_area_off_the_screen_compares_the_whole_screen(self):
+        from PIL import Image
+        from avo.effect import changed_pixels
+        a = Image.new("RGB", (200, 100), (240, 240, 240))
+        self.assertEqual(changed_pixels(a, a.copy(), (500, 500, 900, 900)), 0)  # was 20000: "all changed"
+
+
 if __name__ == "__main__":
     unittest.main()

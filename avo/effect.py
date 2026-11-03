@@ -77,12 +77,19 @@ def _changes(before: bytes | Image.Image, after: bytes | Image.Image, area: Box 
 def changed_pixels(before: bytes | Image.Image, after: bytes | Image.Image, area: Box | None = None) -> int:
     """How many pixels differ between two screenshots (within `area`), menu bar left out."""
     mask = _changes(before, after, area)
+    if mask is None and area is not None:
+        # The area fell off the screen or came out empty (11/03: the front window's
+        # bounds were nonsense and every batch read as "the whole screen changed", so
+        # repeated dead clicks were never caught). Compare the whole screen instead.
+        mask = _changes(before, after, None)
     return mask.histogram()[255] if mask else _image(after).size[0] * _image(after).size[1]
 
 
 def still(before: bytes | Image.Image, after: bytes | Image.Image, area: Box | None = None) -> bool:
     """Has the screen (within `area`) stopped changing between these two frames, a blinking caret aside?"""
     mask = _changes(before, after, area)
+    if mask is None and area is not None:
+        mask = _changes(before, after, None)
     if mask is None:
         return False
     if mask.histogram()[255] < STILL_PX:
