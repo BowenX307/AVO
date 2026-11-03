@@ -138,7 +138,10 @@ def assess(
     controls = []
     if near and where:
         try:
-            if where(*target) != "on":
+            # Only a click accessibility places in the empty gap between controls: a click
+            # on content it can't name (an email row, a card) is not a miss, and listing
+            # buttons then talked the review into a different target.
+            if where(*target) == "gap":
                 controls = near(*target)
         except Exception as e:
             print(f"accessibility check failed: {type(e).__name__}: {e}")

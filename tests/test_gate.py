@@ -201,6 +201,13 @@ class MeantControlTest(unittest.TestCase):
         self.assertTrue(a.flagged)
         self.assertIsNone(a.meant)
 
+    def test_on_content_accessibility_cant_name_nothing_is_listed(self):
+        # An email row or a card: not a control, but not a gap either. No list, no retarget.
+        seen = []
+        a = assess(0.3, rev=MISS | {"meant_control": 1}, place=None, near=lambda x, y: self.SLOTS, seen=seen)
+        self.assertEqual(seen, [None])
+        self.assertIsNone(a.meant)
+
     def test_on_a_control_nothing_is_listed(self):
         seen = []
         a = assess(0.9, rev=OK_REVIEW | {"meant_control": 0}, place="on", near=lambda x, y: self.SLOTS, seen=seen)

@@ -30,11 +30,11 @@ RADIUS = 36  # how far to look for a target, in points
 GRID = 6  # hit-test spacing, in points
 ANCESTORS = 3  # a link's text is a child of the link: look this far up
 # Roles that are just layout: a click on one of these, with no text of its own, hit nothing.
-# Table parts count too: a grid of buttons laid out in a <table> (11/02, the room
+# Empty table cells count too: a grid of buttons laid out in a <table> (11/02, the room
 # demo: a click between two "2:00 PM" buttons landed on an empty AXCell, so it
 # wasn't snapped and AVO asked "OK to click here?").
 BLANK = {"AXGroup", "AXWebArea", "AXScrollArea", "AXLayoutArea", "AXSplitGroup", "AXUnknown", "AXGenericElement",
-         "AXCell", "AXRow", "AXColumn", "AXTable"}
+         "AXCell"}  # not rows: a row's text is in its cells, so every row would look empty
 AMBIGUOUS = 0.8  # don't snap unless the nearest is clearly nearer than the runner-up
 INSET = 4  # keep the snapped point this far inside the element's edge
 DESCEND, MAX_KIDS = 3, 40  # how many parents, and children each, to look through past an empty element
