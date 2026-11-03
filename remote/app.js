@@ -179,11 +179,11 @@
     } else if (m.kind === "clarify") {
       $("#askTitle").textContent = m.question || "Which did you mean?";
       $("#askText").textContent = m.intent || "";
-      (m.options || []).forEach((o, i) => list.append(choice(o, "primary", () => answer({ choice: "pick", index: i }), i + 1)));
+      (m.options || []).forEach((o, i) => list.append(choice(o, "pick", () => answer({ choice: "pick", index: i }), i + 1)));
     } else if (m.candidates) {
       $("#askTitle").textContent = "Which one did you mean?";
       $("#askText").textContent = m.intent || "";
-      m.candidates.forEach((c, i) => list.append(choice(c.label, "primary", () => answer({ choice: "pick", index: i }), i + 1)));
+      m.candidates.forEach((c, i) => list.append(choice(c.label, "pick", () => answer({ choice: "pick", index: i }), i + 1)));
       list.append(choice("None of these", "secondary", () => {
         $("#noneBox").hidden = false;
         $("#noneText").focus();
