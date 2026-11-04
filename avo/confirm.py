@@ -198,7 +198,7 @@ def before(
     return c
 
 
-HEADER_FIELDS = re.compile(r"^(to|cc|bcc|subject|recipients?)$", re.I)
+HEADER_FIELDS = re.compile(r"^(to|cc|bcc|subject|recipients?|attached|attachments?)$", re.I)
 
 
 def preview(draft: str, app: str | None) -> str:
