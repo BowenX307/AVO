@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" />
+    <title>Corner Market</title>
+    <!-- Demo for AVO Remote: hands busy in the kitchen, the order goes in from the phone.
+         Two oat milks fit "oat milk", so AVO asks which; "Place order" can't be undone,
+         so AVO asks for a yes. All products and prices are made up. -->
+    <style>
+      :root { --ink: #1d2433; --muted: #6b7380; --line: #e3e6eb; --accent: #2f6f4f; --bg: #f6f7f8; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+      header { display: flex; align-items: baseline; gap: 14px; padding: 16px 28px; background: #fff; border-bottom: 1px solid var(--line); }
+      header b { font-size: 20px; }
+      header span { color: var(--muted); font-size: 13px; }
+      main { display: grid; grid-template-columns: 1fr 320px; gap: 24px; padding: 24px 28px; max-width: 1200px; }
+      h2 { margin: 0 0 12px; font-size: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+      .item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+      .pic { height: 74px; border-radius: 8px; display: grid; place-items: center; font-size: 34px; background: #f1f3f5; }
+      .item b { font-size: 15px; }
+      .item small { color: var(--muted); }
+      .row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+      .price { font-weight: 600; }
+      .add { padding: 9px 18px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: 600 14px -apple-system, sans-serif; cursor: pointer; }
+      .add.in { background: #e7f3ec; color: var(--accent); }
+      aside { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; align-self: start; }
+      aside ul { list-style: none; margin: 0; padding: 0; }
+      aside li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+      .empty { color: var(--muted); padding: 8px 0; }
+      .total { display: flex; justify-content: space-between; margin: 12px 0; font-weight: 600; }
+      #place { width: 100%; padding: 14px; border: 0; border-radius: 10px; background: var(--ink); color: #fff; font: 600 16px -apple-system, sans-serif; cursor: pointer; }
+      #place:disabled { opacity: 0.35; cursor: default; }
+      .done { display: none; margin-top: 12px; padding: 12px; border-radius: 10px; background: #e7f3ec; color: #1f5a3c; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <header><b>Corner Market</b><span>Demo · all products and prices are made up</span><span style="margin-left:auto">Delivery to Jamie Lee · today 6–7 pm</span></header>
+    <main>
+      <section>
+        <h2>Your usuals</h2>
+        <div class="grid" id="grid"></div>
+      </section>
+      <aside>
+        <h2>Cart</h2>
+        <ul id="cart"></ul>
+        <div class="total"><span>Total</span><span id="total">$0.00</span></div>
+        <button id="place" disabled>Place order</button>
+        <div class="done" id="done"></div>
+      </aside>
+    </main>
+    <script>
+      const ITEMS = [
+        { id: "oat-original", name: "Oat milk, original", note: "32 oz carton", price: 3.99, pic: "🥛" },
+        { id: "eggs", name: "Large eggs", note: "a dozen", price: 4.49, pic: "🥚" },
+        { id: "bread", name: "Sourdough loaf", note: "baked today", price: 5.25, pic: "🍞" },
+        { id: "oat-barista", name: "Oat milk, barista", note: "64 oz, for coffee", price: 6.49, pic: "🥛" },
+        { id: "spinach", name: "Baby spinach", note: "5 oz bag", price: 3.29, pic: "🥬" },
+        { id: "tomatoes", name: "Cherry tomatoes", note: "1 pint", price: 3.79, pic: "🍅" },
+      ];
+      const cart = new Map();
+      const grid = document.getElementById("grid");
+      for (const it of ITEMS) {
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `<div class="pic">${it.pic}</div><b></b><small></small><div class="row"><span class="price">$${it.price.toFixed(2)}</span><button class="add" aria-label="Add ${it.name}, ${it.note}">Add</button></div>`;
+        el.querySelector("b").textContent = it.name;
+        el.querySelector("small").textContent = it.note;
+        const b = el.querySelector(".add");
+        b.onclick = () => { cart.set(it.id, it); b.textContent = "Added ✓"; b.classList.add("in"); draw(); };
+        grid.append(el);
+      }
+      function draw() {
+        const ul = document.getElementById("cart");
+        ul.innerHTML = cart.size ? "" : '<li class="empty">Nothing yet</li>';
+        let sum = 0;
+        for (const it of cart.values()) {
+          sum += it.price;
+          const li = document.createElement("li");
+          li.innerHTML = `<span></span><span>$${it.price.toFixed(2)}</span>`;
+          li.firstChild.textContent = `${it.name} (${it.note})`;
+          ul.append(li);
+        }
+        document.getElementById("total").textContent = `$${sum.toFixed(2)}`;
+        document.getElementById("place").disabled = !cart.size;
+      }
+      document.getElementById("place").onclick = () => {
+        const done = document.getElementById("done");
+        done.textContent = `Order placed: ${[...cart.values()].map((i) => i.name).join(", ")}. Arriving 6–7 pm.`;
+        done.style.display = "block";
+        document.getElementById("place").disabled = true;
+        report({ ordered: [...cart.keys()] });
+      };
+      draw();
+      // For scripted runs: the result, sent to the harness when it serves the page.
+      function report(state) {
+        document.body.dataset.state = JSON.stringify(state);
+        if (location.protocol.startsWith("http")) fetch("/report", { method: "POST", body: JSON.stringify(state) }).catch(() => {});
+      }
+    </script>
+  </body>
+</html>
