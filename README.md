@@ -2,7 +2,7 @@
 
 **Say what you want done. AVO handles the clicks—and asks when your meaning is unclear.**
 
-[Watch the 3-minute demo](https://bowenx307.github.io/AVO/#demo) · [Try the interaction, no key needed](https://bowenx307.github.io/AVO/try.html) · [Install on Mac](https://bowenx307.github.io/AVO/docs.html#install) · [Evaluation](docs/eval.md)
+[Watch the 3-minute demo on YouTube](https://www.youtube.com/watch?v=u7045Y1N5V0) · [Website](https://bowenx307.github.io/AVO/) · [Install on Mac](https://bowenx307.github.io/AVO/docs.html#install) · [Evaluation](docs/eval.md)
 
 I broke my hand while climbing during a summer software engineering internship at Lenovo. I still needed to use my computer. AVO began with that experience: a Mac app for people who can speak clearly but find precise mouse or trackpad use difficult.
 
@@ -16,9 +16,8 @@ AVO Remote brings this exchange to a paired phone on the same Wi-Fi. Send a task
 
 ## Review in three minutes
 
-1. Watch the [submitted demo](https://bowenx307.github.io/AVO/#demo).
-2. Explore the [no-install interaction walkthrough](https://bowenx307.github.io/AVO/try.html). It is an explicitly scripted illustration, not a live agent or benchmark.
-3. Inspect the [27 E3 run records](eval/e3/results.json) and [methodology](docs/eval.md). To run the actual agent, use the setup guide below.
+1. Watch the [submitted demo on YouTube](https://www.youtube.com/watch?v=u7045Y1N5V0).
+2. Inspect the [27 E3 run records](eval/e3/results.json) and [methodology](docs/eval.md). To run the actual agent, use the setup guide below.
 
 ## How it is built
 
@@ -65,7 +64,7 @@ Setup installs the locked dependencies and prompts once for your key without ech
 
 Grant Screen Recording, Accessibility and Input Monitoring to the terminal you launch from, then quit and reopen that terminal. Microphone permission is requested when speaking. Tap right Option to speak, or click the top capsule to type. Start with `demo/mail.html` in Chrome and the Smith task above. Use fictional data while trying it. [Permissions, shortcuts and troubleshooting](https://bowenx307.github.io/AVO/docs.html).
 
-**Actual computer control requires a key.** The browser walkthrough needs none because it runs no model and controls no computer. An author-funded live trial would require a separately hosted, authenticated, quota-limited service; no shared key is embedded in this repository.
+**Actual computer control requires a key.** An author-funded live trial would require a separately hosted, authenticated, quota-limited service; no shared key is embedded in this repository.
 
 ## Current limits
 

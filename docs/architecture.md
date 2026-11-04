@@ -40,4 +40,4 @@ Screenshots and task text leave the Mac for Meta inference; microphone audio is 
 
 ## Scope
 
-No remote shell, hosted desktop, public relay or distributed API key is included. General desktop reliability and testing with intended users remain future work. The static browser walkthrough demonstrates the interaction with scripted data; it is not the live architecture above.
+No remote shell, hosted desktop, public relay or distributed API key is included. General desktop reliability and testing with intended users remain future work.

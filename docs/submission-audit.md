@@ -6,7 +6,7 @@ Reviewed the task loop, pre-action gate, confirmation policy, macOS permissions,
 
 - 142 Python unit tests passed on the development Mac. Model responses and execution are mocked in these tests.
 - Remote integration tests passed: pairing, expired/replaced sessions, allowed messages, state replay, disconnect and shutdown. Added a regression for malformed Unicode tokens.
-- Three website pages passed local asset, link and fragment checks. The scripted browser walkthrough was manually exercised.
+- The homepage and setup guide passed local asset, link and fragment checks. The optional scripted walkthrough was removed before submission; the real demo is the primary review entry point.
 - All 27 E3 exported run records reproduce the reported 78%, 56% and 0% figures. The definition excludes final-action approvals from clarification questions.
 - The submission film is 179.72 seconds. A web-compressed copy preserves its full duration and audio; the original recording is unchanged.
 
@@ -24,7 +24,7 @@ Reviewed the task loop, pre-action gate, confirmation policy, macOS permissions,
 
 The last attempted Finder press-kit workflow looped between folders and was stopped. The final source fixes have not had a new end-to-end desktop run, and the November 1 benchmark must not be represented as measuring the final revision. No tests with intended users have been conducted.
 
-The browser walkthrough is a scripted explanation only. Live computer use still needs the reviewer's Meta API key and macOS permissions. Removing that requirement would need a hosted inference gateway with authentication, rate and spending limits, expiry, and speech support. The current local spending meter is not suitable as the only protection for an author-funded public trial. No shared key or hosted trial is advertised.
+Live computer use still needs the reviewer's Meta API key and macOS permissions. Removing that requirement would need a hosted inference gateway with authentication, rate and spending limits, expiry, and speech support. The current local spending meter is not suitable as the only protection for an author-funded public trial. No shared key or hosted trial is advertised.
 
 Remote is intended only for a trusted private LAN and is not encrypted. Irreversible-action detection is heuristic. Voice Control and AVO should not run simultaneously. Dependency and source review do not establish clinical benefit, broad accessibility compatibility or production security.
 
