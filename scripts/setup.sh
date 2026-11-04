@@ -7,5 +7,9 @@ for dependency in uv node npm; do
 done
 uv sync --frozen
 npm ci --prefix overlay
-uv run python scripts/configure_key.py
+if [[ "${1:-}" == "--reviewer" ]]; then
+  uv run python scripts/configure_reviewer.py
+else
+  uv run python scripts/configure_key.py
+fi
 printf '\nSetup complete. Grant macOS permissions to this terminal, then run ./scripts/start.sh\n'

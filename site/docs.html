@@ -51,7 +51,7 @@
           <h2><span class="mono">01</span>Requirements</h2>
           <ul>
             <li><b>macOS 15 (Sequoia)</b> on Apple silicon. That’s what AVO is built and tested on (15.5); older versions are untested.</li>
-            <li><b>A Meta Model API key</b> from <a href="https://dev.meta.ai/">dev.meta.ai</a>.</li>
+            <li><b>A Meta Model API key</b> from <a href="https://dev.meta.ai/">dev.meta.ai</a>, or the reviewer invitation supplied with the submission.</li>
             <li><b>Python 3.11+</b> with <a href="https://docs.astral.sh/uv/">uv</a>, and <b>Node.js</b> (tested with 24) for the on-screen overlay.</li>
             <li>Four macOS permissions, for the app you start AVO from (Terminal, iTerm, VS Code…):
               <ul>
@@ -66,11 +66,12 @@
 
         <section id="install">
           <h2><span class="mono">02</span>Install</h2>
-          <div class="note"><b>Watch first</b><a href="https://www.youtube.com/watch?v=u7045Y1N5V0">Watch the three-minute demo on YouTube</a>. To run AVO on your Mac, follow the source setup below. A Meta API key is currently required; no shared key is included. A packaged DMG is not available yet.</div>
+          <div class="note"><b>Watch first</b><a href="https://www.youtube.com/watch?v=u7045Y1N5V0">Watch the three-minute demo on YouTube</a>. To run AVO on your Mac, follow the source setup below. Invited reviewers can use the funded trial below without a Meta API key. A packaged DMG is not available yet.</div>
           <h3>From source</h3>
 <pre><code>git clone https://github.com/BowenX307/AVO.git
 cd AVO
 ./scripts/setup.sh</code></pre>
+          <div class="note"><b>Invited reviewers: no Meta API key needed</b>Use <code>./scripts/setup.sh --reviewer</code> instead of the setup command above, then paste the invitation supplied with the submission. This runs real AVO on your Mac. All four models, including speech, use a funded gateway with shared limits, available through November 18, 2026. Installation and macOS permissions are still required. <a href="https://github.com/BowenX307/AVO/blob/main/docs/reviewer-trial.md">Trial details</a>.</div>
           <p>Setup installs locked dependencies and asks for your key once, without displaying it. It is saved in the git-ignored <code>.env</code> on your Mac. An existing <code>MODEL_API_KEY</code> environment variable also works. Run the following commands from the repository root.</p>
         </section>
 
@@ -152,10 +153,11 @@ cd AVO
             <li>When you speak to AVO, your voice — only while the island shows it’s listening — and names read from the front window (button labels, names on the page, which help recognition) go to Meta’s speech recognition, <code>muse-voice-transcribe-1.0</code>.</li>
             <li>Turn on Do Not Disturb before a task: a notification that pops up gets into the screenshots.</li>
           </ul>
+          <p>With reviewer access, requests, screenshots and speech pass through the author-funded gateway before reaching Meta. The gateway stores quota records, not request content. Use fictional or non-sensitive tasks. Direct-key mode connects directly to Meta.</p>
           <h3>What stays on your Mac</h3>
           <ul>
             <li>Each run is logged to <code>runs/&lt;time&gt;/</code>: the screenshots, the model’s steps and your answers. Delete the folder any time.</li>
-            <li>Your API key, in <code>.env</code> or the environment.</li>
+            <li>Your API key or reviewer invitation, in <code>.env</code> or the environment.</li>
           </ul>
           <h3>Safety checks</h3>
           <p>The model can attach safety checks to an action. Meta attaches a routine one, <code>computer_action_requires_confirmation</code>, to almost every action. AVO doesn’t acknowledge it silently: before the action it rings the target on screen and counts down one second, and saying “no” (or pressing Cancel) calls it off. The countdown stands in for your review only if the ring was really drawn — when there is nothing to ring, or the overlay isn’t running, AVO asks for a yes instead (in the terminal, without the overlay).</p>

@@ -902,6 +902,7 @@ function openSession(state, key, keywords, { onPartial, onFinal, onEnded }) {
   let error = null;
   const session = new voice.Session({
     key,
+    url: voice.apiURL(ROOT),
     keywords,
     onPartial,
     onFinal,

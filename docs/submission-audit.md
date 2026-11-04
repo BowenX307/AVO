@@ -24,7 +24,7 @@ Reviewed the task loop, pre-action gate, confirmation policy, macOS permissions,
 
 The last attempted Finder press-kit workflow looped between folders and was stopped. The final source fixes have not had a new end-to-end desktop run, and the November 1 benchmark must not be represented as measuring the final revision. No tests with intended users have been conducted.
 
-Live computer use still needs the reviewer's Meta API key and macOS permissions. Removing that requirement would need a hosted inference gateway with authentication, rate and spending limits, expiry, and speech support. The current local spending meter is not suitable as the only protection for an author-funded public trial. No shared key or hosted trial is advertised.
+Invited reviewers can now use an author-funded gateway without a Meta API key. Source installation and macOS permissions remain necessary. The gateway has invitation authentication, a persistent shared $80 inference allowance, conservative reservations before every call, endpoint/model restrictions, four simultaneous requests, 60 admissions per minute and expiry after November 18. The remaining $20 of the authorized $100 is unallocated. These limits cover gateway requests, not unrelated use of the author's Meta account. See [trial architecture and verification](reviewer-trial.md).
 
 Remote is intended only for a trusted private LAN and is not encrypted. Irreversible-action detection is heuristic. Voice Control and AVO should not run simultaneously. Dependency and source review do not establish clinical benefit, broad accessibility compatibility or production security.
 

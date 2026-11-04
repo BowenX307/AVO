@@ -48,7 +48,7 @@ E2 measures simulated pointing offsets, not human tremor: 30 trials per conditio
 
 ## Run on your Mac
 
-Tested on macOS 15.5, Apple silicon; Python 3.11+, uv, Node.js 24 and a Meta Model API key are required. There is no packaged DMG yet.
+Tested on macOS 15.5, Apple silicon; Python 3.11+, uv, Node.js 24 and either a Meta Model API key or a reviewer invitation are required. There is no packaged DMG yet.
 
 ```sh
 git clone https://github.com/BowenX307/AVO.git
@@ -64,7 +64,7 @@ Setup installs the locked dependencies and prompts once for your key without ech
 
 Grant Screen Recording, Accessibility and Input Monitoring to the terminal you launch from, then quit and reopen that terminal. Microphone permission is requested when speaking. Tap right Option to speak, or click the top capsule to type. Start with `demo/mail.html` in Chrome and the Smith task above. Use fictional data while trying it. [Permissions, shortcuts and troubleshooting](https://bowenx307.github.io/AVO/docs.html).
 
-**Actual computer control requires a key.** An author-funded live trial would require a separately hosted, authenticated, quota-limited service; no shared key is embedded in this repository.
+**Invited reviewers do not need a Meta API key.** Run `./scripts/setup.sh --reviewer` instead and paste the invitation supplied privately with the submission. The funded trial supports all four models, including speech, through an authenticated gateway. It has a shared spending limit and expires November 18, 2026. Mac installation and permissions are still required. Screenshots, requests and speech pass through the gateway to Meta; use non-sensitive tasks. [Reviewer setup and limits](docs/reviewer-trial.md).
 
 ## Current limits
 

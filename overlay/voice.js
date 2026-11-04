@@ -17,22 +17,25 @@ const MAX_KEYWORD = 30;
 // Always among the keywords: what people say to AVO mid-task.
 const CONTROL_WORDS = ["AVO", "stop", "yes", "no", "one", "two", "three", "four", "none of these", "resume", "cancel"];
 
-function apiKey(root) {
-  if (process.env.MODEL_API_KEY) return process.env.MODEL_API_KEY;
+function envValue(root, name) {
+  if (process.env[name]) return process.env[name];
   try {
-    const env = fs.readFileSync(path.join(root, ".env"), "utf8");
-    return /^\s*MODEL_API_KEY\s*=\s*"?([^"\n]+?)"?\s*$/m.exec(env)?.[1] || null;
-  } catch {
-    return null;
-  }
+    const source = fs.readFileSync(path.join(root, ".env"), "utf8");
+    const raw = new RegExp("^\\s*" + name + "\\s*=\\s*(.*?)\\s*$", "m").exec(source)?.[1];
+    if (!raw) return null;
+    if (raw.startsWith('"')) return JSON.parse(raw);
+    return raw.replace(/^'|'$/g, "");
+  } catch { return null; }
 }
+function apiKey(root) { return envValue(root, "AVO_TRIAL_TOKEN") || envValue(root, "MODEL_API_KEY"); }
+function apiURL(root) { return envValue(root, "AVO_TRIAL_TOKEN") ? "wss://avo-reviewer-gateway.springycairn2.chatgpt.site/v1/asr/realtime" : URL; }
 
 // One recognition session. Audio sent before the socket opens is buffered.
 class Session {
-  constructor({ key, keywords = [], onPartial, onFinal, onClose, onError }) {
+  constructor({ key, url = URL, keywords = [], onPartial, onFinal, onClose, onError }) {
     this.queue = [];
     this.closed = false;
-    this.ws = new WebSocket(URL);
+    this.ws = new WebSocket(url, url === URL ? {} : { headers: { Authorization: `Bearer ${key}` } });
     this.ws.on("open", () => {
       this.ws.send(
         JSON.stringify({
@@ -155,4 +158,4 @@ function understand(text) {
   return out;
 }
 
-module.exports = { Session, apiKey, understand, labelIndex, distinct, CONTROL_WORDS, MAX_KEYWORD };
+module.exports = { apiURL, Session, apiKey, understand, labelIndex, distinct, CONTROL_WORDS, MAX_KEYWORD };

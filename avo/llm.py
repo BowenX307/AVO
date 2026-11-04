@@ -11,6 +11,7 @@ from openai import OpenAI, Timeout
 
 MODEL = "muse-spark-1.3"
 BASE_URL = "https://api.meta.ai/v1"
+TRIAL_BASE_URL = "https://avo-reviewer-gateway.springycairn2.chatgpt.site/v1"
 
 # A turn normally takes 3-17 s; one call once hung for 125 s. Give up on a call
 # after TIMEOUT_S and retry it once (the SDK retries timeouts), instead of the
@@ -31,13 +32,13 @@ def friendly(e: BaseException) -> str:
     if isinstance(e, NoKey):
         return "No Meta API key: put MODEL_API_KEY=... in the .env file"
     if isinstance(e, (openai.AuthenticationError, openai.PermissionDeniedError)):
-        return "The Meta API key was rejected: check MODEL_API_KEY in .env"
+        return "Access was rejected: check your Meta key or reviewer invitation in .env"
     if isinstance(e, openai.APITimeoutError):
         return "The Meta API didn't answer in time: try again"
     if isinstance(e, openai.APIConnectionError):
         return "Can't reach the Meta API: check your internet connection, then try again"
     if isinstance(e, openai.RateLimitError):
-        return "The Meta API is rate-limiting: wait a minute, then try again"
+        return "Rate or reviewer trial limit reached: wait a minute, or configure your own Meta key"
     if isinstance(e, openai.APIStatusError):
         return f"The Meta API returned an error ({e.status_code}): try again"
     return f"{type(e).__name__}: {e}"
@@ -45,11 +46,12 @@ def friendly(e: BaseException) -> str:
 
 def make_client() -> OpenAI:
     load_dotenv()
-    key = os.environ.get("MODEL_API_KEY")
+    trial = os.environ.get("AVO_TRIAL_TOKEN")
+    key = trial or os.environ.get("MODEL_API_KEY")
     if not key:
         raise NoKey("MODEL_API_KEY is not set (put it in .env or the environment)")
     return OpenAI(
-        base_url=BASE_URL, api_key=key,
+        base_url=TRIAL_BASE_URL if trial else BASE_URL, api_key=key,
         timeout=Timeout(TIMEOUT_S, connect=CONNECT_TIMEOUT_S), max_retries=RETRIES,
     )
 
