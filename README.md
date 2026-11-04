@@ -1,71 +1,91 @@
 # AVO
 
-**Website:** https://bowenx307.github.io/AVO/ · **Demo video (3 min):** *coming soon*
+**Say what you want done. AVO handles the clicks—and asks when your meaning is unclear.**
 
-**Say what you want done. AVO handles the clicks.**
+[Watch the 3-minute demo](https://bowenx307.github.io/AVO/#demo) · [Try the interaction, no key needed](https://bowenx307.github.io/AVO/try.html) · [Install on Mac](https://bowenx307.github.io/AVO/docs.html#install) · [Evaluation](docs/eval.md)
 
-For people who find using a mouse or trackpad difficult: who can speak clearly, but pay a price for every precise move of the hand (it can't be done, can't be done accurately, hurts, tires, or takes long). Tap right ⌥, say the task — *"Reply to Professor Smith, say I'll be ten minutes late"* — and a computer-use agent does the clicking. When more than one thing fits (two Professor Smiths), AVO rings each on screen with a number and you answer with a word: *"two"*. Before anything that can't be undone, it shows what it will do and waits for *"yes"*.
+I broke my hand while climbing during a summer software engineering internship at Lenovo. I still needed to use my computer. AVO began with that experience: a Mac app for people who can speak clearly but find precise mouse or trackpad use difficult.
 
-Agents ask for permission. AVO asks for understanding.
+## The interaction
 
-Not the right tool if speaking is hard for you (AVO's main input is your voice), or if you rely on a screen reader (AVO asks by drawing on the screen).
+Say “Reply to Professor Smith, say I’ll be ten minutes late.” If two Smiths fit, AVO rings both and asks. Say “the physics one,” and it continues. Before a detected send or other irreversible action, it shows a preview and asks for explicit approval.
 
-Built solo for the Meta Global AI Developer Hackathon 2026 (Indie track), on Meta's models: Muse Voice Transcribe hears you, Muse Spark plans, acts and checks each step, Muse Wonder re-plans when AVO gets stuck, SAM 3.1 finds the exact target inside a rough box.
+**“Which person do you mean?” and “Can I send this?” are different questions. AVO is designed to ask both.**
 
-## How it works
+AVO Remote brings this exchange to a paired phone on the same Wi-Fi. Send a task to your Mac, receive a question with a cropped, numbered view of the relevant screen area, and answer without returning to the desk. Remote is off by default; Control–Option–R opens pairing. Losing the phone connection pauses the task.
 
-Computer-use models don't say how sure they are, so AVO checks each step before it happens:
+## Review in three minutes
 
-- **Several things fit?** Muse Spark reviews the planned click; if it picks one of several options that all match the task, AVO rings them all and asks which.
-- **A clear target?** macOS accessibility says whether a control is under the click; where it can't tell, SAM 3.1 must be sure the point is on one clearly bounded element. If neither is sure, the review decides whether to ask "OK to click here?".
-- **Can it be undone?** An ordinary step gets a ring on its target and a one-second countdown (say "no" to stop it). Send, submit, delete, pay, book: a preview, and nothing happens until you say "yes".
+1. Watch the [submitted demo](https://bowenx307.github.io/AVO/#demo).
+2. Explore the [no-install interaction walkthrough](https://bowenx307.github.io/AVO/try.html). It is an explicitly scripted illustration, not a live agent or benchmark.
+3. Inspect the [27 E3 run records](eval/e3/results.json) and [methodology](docs/eval.md). To run the actual agent, use the setup guide below.
 
-It also stops a click that already did nothing from running again, makes a fresh plan when it gets stuck, and asks when it wanders into your mail or messages for a task that doesn't mention them. Say "stop", or tap right ⌥, any time.
+## How it is built
 
-Measured so far — simulated tremor on buttons of five sizes (E2): a 12 px button with 12 px of tremor is hit 23% of the time clicking alone, 40% with a rough box and SAM 3.1, 100% with a rough box and the button's name ([details](eval/e2/), [chart](docs/images/e2-tremor.svg)). On three demo tasks with a real ambiguity (E3, 9 runs per setup), the agent alone finished wrong without asking in 7 of 9 runs, asking only before send/book in 5 of 9, AVO in 0 of 9: a small sample, a direction. On eight everyday tasks done by voice (E1, once each), AVO got 8 right and macOS Voice Control 2, with a median of 2 things said against 4.5: with Voice Control you still work out and say every step, while AVO works out the steps from the outcome you ask for. One tester, the author, new to Voice Control, and AVO's side run by script: see [docs/eval.md](docs/eval.md).
+| Component | Role |
+| --- | --- |
+| Muse Spark 1.3 | Plans tasks and proposes computer-use actions; a separate structured-output call reviews proposed pointer batches for ambiguity and target location. |
+| SAM 3.1 | Segments targets from points or rough boxes and supplies screen regions for highlights. |
+| macOS accessibility | Reads control names and bounds, checks locations, and snaps near-miss clicks when the nearest target is unambiguous. |
+| Muse Wonder 1.0 | Replans after repeated actions fail to change the screen. |
+| Muse Voice Transcribe 1.0 | Realtime speech recognition, biased with visible names and the current answer choices. |
+| Python + Electron | Local execution, visual questions, interruption handling, and the paired phone interface. |
 
-## Privacy & safety
+All runtime AI calls use Meta models. Spark, Wonder and SAM use Meta’s Responses API; speech uses its realtime ASR endpoint. The OpenAI Python package is the API-compatible client, not an OpenAI model dependency. [Architecture and design decisions](docs/architecture.md).
 
-- Screenshots, your task and the boxes you draw go to the Meta Model API, in Standard mode. When you speak to AVO, your voice (only while it shows it's listening) and names read from the front window go to Meta's speech recognition.
-- Meta attaches a routine safety check, `computer_action_requires_confirmation`, to almost every action. AVO doesn't acknowledge it silently: it rings the target on screen and counts down one second, and you can say "no" to call it off. That counts only if the ring was really shown; otherwise AVO asks for a yes.
-- Actions that can't be undone (send, submit, delete, pay, book) and every other safety check show a preview and wait for your "yes". Every confirmation is logged in `runs/<time>/`.
+## Evidence, with limits
 
-## Run it
+E3 tested three deliberately ambiguous tasks, three times per setup. A silent error means a wrong result reported as completed without a clarification or target-check question. A yes/no send or booking confirmation is not counted as clarification.
 
-macOS 15 on Apple silicon, Python 3.11+ with [uv](https://docs.astral.sh/uv/), Node.js, and a Meta Model API key.
+| Setup | Silent errors | Correct outcomes |
+| --- | --- | --- |
+| Agent alone | 7/9 (78%) | 1/9 |
+| Confirmation before irreversible actions only | 5/9 (56%) | 3/9 |
+| Full AVO | 0/9 (0%) | 9/9 |
+
+These are small controlled tests on fictional pages with scripted answers, not a user study or a general reliability estimate. All setups include the initial planner. Results were collected November 1; later fixes have not been re-benchmarked. [Raw results](eval/e3/results.json).
+
+E2 measures simulated pointing offsets, not human tremor: 30 trials per condition. At 12 px targets and an 8 px offset standard deviation, direct pointing hit 33%, rough-box SAM 47%, and SAM plus name/known-target matching 100%. The last result depends on correctly recognized names and available target bounds; it is not SAM-only performance. E1 is an exploratory comparison with a first-time Voice Control user and scripted AVO answers; it does not establish superiority over experienced Voice Control users. [Full methods and limitations](docs/eval.md).
+
+## Run on your Mac
+
+Tested on macOS 15.5, Apple silicon; Python 3.11+, uv, Node.js 24 and a Meta Model API key are required. There is no packaged DMG yet.
 
 ```sh
-uv sync
-cp .env.example .env              # put your key after MODEL_API_KEY=
-cd overlay && npm install && npm start
+git clone https://github.com/BowenX307/AVO.git
+cd AVO
+./scripts/setup.sh
 ```
 
-Give the terminal you start it from Screen Recording, Accessibility and Input Monitoring permission (macOS asks for the Microphone the first time you speak). Then tap right ⌥ and say a task — or click the capsule at the top of the screen and type it, or press ⌥ Space to box something first. `demo/mail.html` is a safe place to start. Full guide: [site/docs.html](site/docs.html).
+Setup installs the locked dependencies and prompts once for your key without echoing it. The key stays in your git-ignored `.env`; never share it. To launch later:
 
-## Known limits
+```sh
+./scripts/start.sh
+```
 
-- Not yet tried by the people it's for. When it has been, this will say what they said.
-- Relies on your voice; typing works as a fallback (click the capsule).
-- Needs a network connection and the Meta Model API.
-- macOS only, on the main display only: a second monitor isn't supported yet.
-- Turn on Do Not Disturb before a task: a notification that pops up lands in AVO's screenshots and can get in the way.
-- Best in the browser; desktop apps such as Finder are harder for it.
-- Each task stops at 20 steps or $0.50 of API calls (`--max-steps`, `--max-usd`).
-- Doesn't run alongside macOS Voice Control yet: with AVO's overlay open, Voice Control stops responding. Quit one before using the other.
+Grant Screen Recording, Accessibility and Input Monitoring to the terminal you launch from, then quit and reopen that terminal. Microphone permission is requested when speaking. Tap right Option to speak, or click the top capsule to type. Start with `demo/mail.html` in Chrome and the Smith task above. Use fictional data while trying it. [Permissions, shortcuts and troubleshooting](https://bowenx307.github.io/AVO/docs.html).
 
-## Written for the hackathon
+**Actual computer control requires a key.** The browser walkthrough needs none because it runs no model and controls no computer. An author-funded live trial would require a separately hosted, authenticated, quota-limited service; no shared key is embedded in this repository.
 
-All code here was written during the hackathon window (it opened October 26, 2026; the first commit is from October 28): the git history is the record. The fonts (Geist, SIL OFL) are the only third-party assets, and every demo page uses made-up data.
+## Current limits
 
-## Layout
+- Working prototype; not yet evaluated with the intended users and not a screen-reader interface.
+- Browser tasks are more reliable than complex Finder workflows. A November 4 file-packaging rehearsal navigated in circles and was stopped; it is not presented as a success.
+- Main display only. Keep the working app visible and avoid moving windows during execution.
+- Requires internet and Meta API access. Default task limits are 20 turns and approximately $0.50; an in-flight batch may exceed the spending threshold, and realtime speech is not included in that meter.
+- Irreversible-action detection uses control labels, keyboard shortcuts and review output; it is not a guarantee. Supervise consequential actions.
+- Remote uses local HTTP/WebSocket, not encrypted transport. Use only a trusted private network; do not port-forward it. Phone dictation uses the phone keyboard, not AVO’s Mac speech endpoint.
+- macOS Voice Control currently conflicts with the overlay; do not run both together.
 
-| Path | What's there |
-| --- | --- |
-| `avo/` | the agent: model loop, confidence check, input, screen capture |
-| `overlay/` | the on-screen layer (Electron): cursor, selection, rings, status island |
-| `brand/` | design tokens, fonts (Geist, SIL OFL), the logo and its drawing animation |
-| `site/` | the website (static); preview with `python3 -m http.server -d site 8000` |
-| `demo/` | practice pages with made-up data |
-| `scripts/`, `eval/`, `tests/` | running tasks, the baseline and its labels, unit tests |
+## Validation and provenance
 
-All demo data is fictional.
+```sh
+uv run python -m unittest discover -s tests
+(cd overlay && node test-remote.js)
+python3 scripts/check_site.py
+python3 scripts/check_evidence.py
+```
+
+Unit tests mock model responses and do not prove live model reliability. Remote tests require a private-network interface. See the [submission audit](docs/submission-audit.md) for the final checks and remaining gaps.
+
+Built by Bowen for the Meta Global AI Developer Hackathon 2026, Indie track / Build for Your World. Development began October 28 within the event window; commit dates are preserved. [MIT license](LICENSE); bundled Geist fonts retain their [SIL OFL license](brand/fonts/OFL.txt).

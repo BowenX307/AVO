@@ -1,7 +1,7 @@
 [project]
 name = "avo"
 version = "0.1.0"
-description = "Share one screen with an agent: box what to work on, confirm what it is unsure about."
+description = "A voice-first Mac interface that acts, asks for clarification, and keeps you involved from your phone."
 authors = [
     { name = "BowenX307", email = "xiaobowenlyf@gmail.com" }
 ]

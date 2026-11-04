@@ -31,13 +31,13 @@ CHECKS = {
 
 
 def missing() -> list[dict]:
-    """The permissions AVO doesn't have, essential ones first. A check that errors counts as granted."""
+    """The permissions AVO doesn't have, essential ones first. An unavailable check counts as missing."""
     out = []
     for pid, name, pane, why, essential in PERMISSIONS:
         try:
             ok = CHECKS[pid]()
         except Exception:
-            ok = True
+            ok = False
         if not ok:
             out.append({"id": pid, "name": name, "why": why, "essential": essential,
                         "url": SETTINGS_URL.format(pane=pane)})

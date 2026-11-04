@@ -42,6 +42,8 @@ RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
 SYSTEM_PROMPT = """\
 You are operating a macOS computer through screenshots of its main display.
 - Use macOS shortcuts: Command (cmd) instead of Ctrl, e.g. cmd+L to focus the browser address bar.
+- In Finder, cmd+shift+N creates a folder; cmd+N opens another window. Use cmd+shift+G to open a known path.
+- Keep track of source and destination when copying files. Navigating to the destination is progress, not a wrong-folder error.
 - Coordinates are pixels in the most recent screenshot.
 - Do only what the task asks. Do not close windows, quit apps, or change settings unless asked.
 - Work without asking the user questions. When the task is done, stop calling the computer \

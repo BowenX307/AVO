@@ -74,7 +74,7 @@ class Remote {
     if (!this.address) throw new Error("No local network: connect the Mac to Wi-Fi first");
     this.pairCode = code();
     this.server = http.createServer((req, res) => this.http(req, res));
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
     this.server.on("upgrade", (req, socket, head) => this.upgrade(req, socket, head));
     await new Promise((resolve, reject) => {
       this.server.once("error", reject);
@@ -158,7 +158,9 @@ class Remote {
       this.session = null;
       return false;
     }
-    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(s.token));
+    const supplied = Buffer.from(token);
+    const expected = Buffer.from(s.token);
+    return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
   }
 
   upgrade(req, socket, head) {

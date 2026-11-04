@@ -221,17 +221,25 @@
 
   // ---- clips: with reduced motion, no autoplaying loops (the WebVTT tracks carry the captions) ----
   function clips() {
-    const figs = [...document.querySelectorAll("figure.clip[data-clip]")];
-    if (!figs.length) return;
-    for (const f of figs) {
-      const v = f.querySelector("video");
-      if (reduced && v) {
-        // Reduced motion: no autoplaying loops; the poster shows, and the clip plays on request.
-        v.removeAttribute("autoplay");
-        v.pause();
-        v.controls = true;
-      }
-    }
+    const videos = [...document.querySelectorAll('figure.clip[data-clip] video')];
+    const visible = new Set();
+    const sync = () => videos.forEach(v => {
+      if (!reduced && !document.hidden && visible.has(v)) v.play().catch(() => {});
+      else v.pause();
+    });
+    videos.forEach(v => {
+      v.removeAttribute('autoplay');
+      v.pause();
+      if (reduced) v.controls = true;
+    });
+    if (!reduced && 'IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(({target, isIntersecting}) => isIntersecting ? visible.add(target) : visible.delete(target));
+        sync();
+      }, {threshold: 0.1});
+      videos.forEach(v => observer.observe(v));
+    } else videos.forEach(v => { v.controls = true; });
+    document.addEventListener('visibilitychange', sync);
   }
 
   // ---- tips and fold-outs ----

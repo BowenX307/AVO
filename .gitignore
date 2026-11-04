@@ -10,3 +10,10 @@ node_modules.nosync/
 eval/e1/audio/
 site/media/raw/
 video/out/
+# Local collaboration notes and rehearsal-only utilities
+CLAUDE.md
+STATUS.md
+PRODUCT.md
+docs/HANDOFF.md
+docs/remote-finder-demo.md
+scripts/prepare_remote_demo.py

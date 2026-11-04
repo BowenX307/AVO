@@ -1,0 +1,688 @@
+[
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "sent to david.smith@physics.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. David Smith (Physics 212) that I will be ten minutes late to the 2:00 lab in Loomis 141; verified the reply appears in Sent.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "which",
+        "labels": [
+          "Prof. Anna Smith (Math 241)",
+          "Prof. David Smith (Physics 212)"
+        ],
+        "title": "",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script",
+          "label": "Prof. David Smith (Physics 212)"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 6,
+    "seconds": 47.9,
+    "usd": 0.07317
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "sent to david.smith@physics.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. David Smith (Physics 212) that I'll be ten minutes late; the sent message is visible in the Sent folder.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "which",
+        "labels": [
+          "Prof. Anna Smith (Math 241)",
+          "Prof. David Smith (Physics 212)"
+        ],
+        "title": "",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script",
+          "label": "Prof. David Smith (Physics 212)"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 5,
+    "seconds": 45.6,
+    "usd": 0.05629
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "sent to david.smith@physics.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. David Smith (Physics 212) saying you'll be ten minutes late; confirmation \"Reply sent to Prof. David Smith\" is shown.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "which",
+        "labels": [
+          "Prof. Anna Smith (Math 241)",
+          "Prof. David Smith (Physics 212)"
+        ],
+        "title": "",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script",
+          "label": "Prof. David Smith (Physics 212)"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 4,
+    "seconds": 34.1,
+    "usd": 0.04957
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": false,
+    "outcome": "sent to anna.smith@math.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. Anna Smith that I'll be ten minutes late to the 2:00 meeting \u2014 sent confirmation shown.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 4,
+    "seconds": 24.4,
+    "usd": 0.0266
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": false,
+    "outcome": "sent to anna.smith@math.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. Anna Smith that I'll be ten minutes late to the 2:00 meeting \u2014 confirmation \"Reply sent to Prof. Anna Smith\" shown.\n",
+    "silent_error": true,
+    "asked": [
+      {
+        "kind": "confirm",
+        "labels": [],
+        "title": "Send \u2014 OK?",
+        "answer": {
+          "choice": "yes",
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 5,
+    "seconds": 25.2,
+    "usd": 0.0286
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": false,
+    "outcome": "sent to anna.smith@math.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. Anna Smith that I'll be ten minutes late to the 2:00 meeting, confirmed by the \"Reply sent\" notification.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 4,
+    "seconds": 40.7,
+    "usd": 0.02089
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "sent to anna.smith@math.example.edu",
+    "claimed_done": true,
+    "result": "Reply to Professor Smith has been sent and confirmed in Sent folder stating I'll be ten minutes late to the 2:00 meeting today.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 6,
+    "seconds": 31.8,
+    "usd": 0.03404
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "sent to anna.smith@math.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. Anna Smith that I'll be ten minutes late \u2014 confirmation \"Reply sent to Prof. Anna Smith\" is shown on screen.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 4,
+    "seconds": 21.4,
+    "usd": 0.01761
+  },
+  {
+    "id": "mail-smith",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "sent to anna.smith@math.example.edu",
+    "claimed_done": true,
+    "result": "Replied to Prof. Anna Smith about the 2:00 meeting in Altgeld 214, saying I'll be ten minutes late \u2014 confirmation \"Reply sent to Prof. Anna Smith\" shown.\n",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 5,
+    "seconds": 29.1,
+    "usd": 0.02582
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "booked Room 204 2026-11-13 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 13 at 2:00 PM (one hour) \u2013 confirmation is shown on screen.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "which",
+        "labels": [
+          "Fri 6 Nov",
+          "Fri 13 Nov"
+        ],
+        "title": "",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script",
+          "label": "Fri 13 Nov"
+        }
+      },
+      {
+        "kind": "ok",
+        "labels": [],
+        "title": "",
+        "answer": {
+          "choice": "no",
+          "x": 965.0,
+          "y": 463.0,
+          "how": "script"
+        }
+      },
+      {
+        "kind": "confirm",
+        "labels": [],
+        "title": "Book room \u2014 OK?",
+        "answer": {
+          "choice": "yes",
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 4,
+    "steps": 4,
+    "seconds": 30.3,
+    "usd": 0.04401
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "booked Room 204 2026-11-13 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 13 at 2:00 PM \u2013 confirmation shown on screen.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "which",
+        "labels": [
+          "Fri 6 Nov",
+          "Fri 13 Nov"
+        ],
+        "title": "",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script",
+          "label": "Fri 13 Nov"
+        }
+      },
+      {
+        "kind": "ok",
+        "labels": [],
+        "title": "",
+        "answer": {
+          "choice": "no",
+          "x": 965.0,
+          "y": 463.0,
+          "how": "script"
+        }
+      },
+      {
+        "kind": "confirm",
+        "labels": [],
+        "title": "Book room \u2014 OK?",
+        "answer": {
+          "choice": "yes",
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 4,
+    "steps": 4,
+    "seconds": 29.6,
+    "usd": 0.04594
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "booked Room 204 2026-11-13 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 13 at 2:00 PM (one hour) \u2013 confirmation shown on screen.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Friday, Nov 6",
+          "Friday, Nov 13"
+        ],
+        "title": "Which Friday do you mean by 'next Friday'?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      },
+      {
+        "kind": "confirm",
+        "labels": [],
+        "title": "Book room \u2014 OK?",
+        "answer": {
+          "choice": "yes",
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 3,
+    "steps": 4,
+    "seconds": 30.3,
+    "usd": 0.03741
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": false,
+    "outcome": "booked Room 204 2026-11-06 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 6 at 2:00 PM (one hour), as shown in the confirmation message.",
+    "silent_error": true,
+    "asked": [
+      {
+        "kind": "confirm",
+        "labels": [],
+        "title": "Book room \u2014 OK?",
+        "answer": {
+          "choice": "yes",
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 4,
+    "seconds": 27.7,
+    "usd": 0.01753
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": false,
+    "outcome": "nothing booked",
+    "claimed_done": false,
+    "result": "stopped: The 2 PM slot is selected but the Book room button still needs a successful click.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Friday, Nov 6",
+          "Friday, Nov 13"
+        ],
+        "title": "Which Friday do you mean by 'next Friday'?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 10,
+    "seconds": 96.2,
+    "usd": 0.06999
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": false,
+    "outcome": "booked Room 204 2026-11-06 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 6 at 2:00 PM \u2013 confirmation is visible on screen.",
+    "silent_error": true,
+    "asked": [
+      {
+        "kind": "confirm",
+        "labels": [],
+        "title": "Book room \u2014 OK?",
+        "answer": {
+          "choice": "yes",
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 5,
+    "seconds": 24.7,
+    "usd": 0.02331
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "booked Room 204 2026-11-06 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 6 at 2:00 PM \u2013 confirmation shown on screen.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 6,
+    "seconds": 31.7,
+    "usd": 0.02979
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "booked Room 204 2026-11-06 2:00 PM",
+    "claimed_done": true,
+    "result": "Booked Room 204 for Friday, November 6 at 2:00 PM \u2013 confirmation \"Booked: Room 204, Friday, November 6, 2:00 PM \u2013 one hour\" is shown on screen.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 9,
+    "seconds": 49.5,
+    "usd": 0.05176
+  },
+  {
+    "id": "room-friday",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "nothing booked",
+    "claimed_done": false,
+    "result": "stopped: The Friday 2 PM booking button looks available but isn't responding to clicks.",
+    "silent_error": false,
+    "asked": [],
+    "utterances": 1,
+    "steps": 7,
+    "seconds": 42.7,
+    "usd": 0.05409
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": true,
+    "result": "Downloaded the corrected Sep 17 Week 3 Lecture 3 handout (Simple harmonic motion) as confirmed by the download notification.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Original Sep 15 version",
+          "Corrected Sep 17 version"
+        ],
+        "title": "There are two Week 3 handouts (original and corrected). Which one should I download?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 2,
+    "seconds": 14.2,
+    "usd": 0.01905
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": true,
+    "result": "Downloaded the corrected Week 3 handout \"Lecture 3 handout \u2014 Simple harmonic motion (corrected).pdf\" (posted Sep 17) as confirmed by the browser's Downloaded notification.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Original Sep 15 version",
+          "Corrected Sep 17 version"
+        ],
+        "title": "There are two Week 3 handouts - original and corrected. Which should I download?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 2,
+    "seconds": 16.3,
+    "usd": 0.02143
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "full",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": true,
+    "result": "Downloaded the Week 3 \"Lecture 3 handout \u2014 Simple harmonic motion (corrected)\" PDF as shown by the download confirmation.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "which",
+        "labels": [
+          "Lecture 3 handout \u2014 Simple harmonic motion",
+          "Lecture 3 handout \u2014 Simple harmonic motion (corrected)"
+        ],
+        "title": "",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script",
+          "label": "Lecture 3 handout \u2014 Simple harmonic motion (corrected)"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 2,
+    "seconds": 20.0,
+    "usd": 0.01929
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": true,
+    "result": "Downloaded the corrected Week 3 Lecture 3 handout (Simple harmonic motion, posted Sep 17) \u2013 download confirmed by the browser toast.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Original Sep 15 version",
+          "Corrected Sep 17 version"
+        ],
+        "title": "There are two Week 3 handouts - original and corrected - which one should I download?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 2,
+    "seconds": 17.6,
+    "usd": 0.01137
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": false,
+    "result": "stopped: left PHYS 212 (in front: com.apple.finder \u00b7 PHYS 212 \u2014 Course materials - Google Chrome)",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Original Sep 15 version",
+          "Corrected Sep 17 version"
+        ],
+        "title": "There are two Week 3 handouts - original and corrected. Which one should I download?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 3,
+    "seconds": 17.9,
+    "usd": 0.01215
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "irreversible",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": true,
+    "result": "Downloaded the corrected Week 3 handout \"Lecture 3 handout \u2014 Simple harmonic motion (corrected).pdf\" (posted Sep 17) as confirmed by the download notification.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Original Sep 15 version",
+          "Corrected Sep 17 version"
+        ],
+        "title": "Which Week 3 handout should I download, original or corrected?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 2,
+    "seconds": 10.5,
+    "usd": 0.0114
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "downloaded w3-handout",
+    "claimed_done": true,
+    "result": "Downloaded the Week 3 Lecture 3 handout \"Simple harmonic motion\" PDF as confirmed by the Chrome download notification.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 2,
+    "seconds": 11.4,
+    "usd": 0.00886
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": true,
+    "outcome": "downloaded w3-handout-corrected",
+    "claimed_done": true,
+    "result": "Downloaded the corrected Sep 17 Week 3 Lecture 3 handout (Simple harmonic motion) as shown by the Chrome download confirmation.",
+    "silent_error": false,
+    "asked": [
+      {
+        "kind": "clarify",
+        "labels": [
+          "Original Sep 15 version",
+          "Corrected Sep 17 version"
+        ],
+        "title": "Week 3 has an original and a corrected handout - which one should I download?",
+        "answer": {
+          "choice": "pick",
+          "index": 1,
+          "how": "script"
+        }
+      }
+    ],
+    "utterances": 2,
+    "steps": 2,
+    "seconds": 11.9,
+    "usd": 0.00866
+  },
+  {
+    "id": "course-week3",
+    "kind": "mock",
+    "mode": "bare",
+    "ok": false,
+    "outcome": "downloaded w3-handout",
+    "claimed_done": true,
+    "result": "Downloaded Week 3 Lecture 3 handout \"Simple harmonic motion.pdf\" as confirmed by Chrome download notification.",
+    "silent_error": true,
+    "asked": [],
+    "utterances": 1,
+    "steps": 2,
+    "seconds": 10.6,
+    "usd": 0.01184
+  }
+]

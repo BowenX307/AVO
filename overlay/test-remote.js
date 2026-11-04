@@ -88,6 +88,9 @@ function open(base, token) {
   await wait(150);
   assert.strictEqual(c.ws.inbox[0]?.text, "Planning…");
 
+  // A same-length non-ASCII token must be rejected, not crash timingSafeEqual.
+  assert.strictEqual(remote.valid("é".repeat(t2.length)), false);
+
   // Turning Remote off ends the session.
   const off = new Promise((r) => c.ws.on("close", (code) => r(code)));
   remote.stop();

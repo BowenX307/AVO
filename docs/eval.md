@@ -123,7 +123,7 @@ The tasks name exactly what is meant (David, Rivera, the corrected handout), so 
 
 ## E3 · Silent errors: does asking prevent confidently wrong results?
 
-`uv run scripts/run_demo.py --modes full,irreversible,bare --runs 3`, run on 11/01 (results in `runs/demo-20261101-014421/results.json`, not in the repo). It covers the three demo tasks, each with a real ambiguity, 3 runs per setup. A script plays the user and answers what AVO asks the way the task spec says the user means it (`avo/scripted.py`). A **silent error** is a run that ends with the wrong result (sent to the wrong professor, booked the wrong Friday, downloaded the wrong handout) and reports it as done, without having asked the user anything.
+`uv run scripts/run_demo.py --modes full,irreversible,bare --runs 3`, run on 11/01 (public run records in [`eval/e3/results.json`](../eval/e3/results.json)). It covers the three demo tasks, each with a real ambiguity, 3 runs per setup. A script plays the user and answers what AVO asks the way the task spec says the user means it (`avo/scripted.py`). A **silent error** is a run that ends with the wrong result (sent to the wrong professor, booked the wrong Friday, downloaded the wrong handout) and reports it as done, without a clarification or target-check question (`which`, `clarify`, or `ok` in the evaluator). A send/book approval (`confirm`) does not count as clarification.
 
 | Setup | Mail (two Smiths) | Room (next Friday) | Course (two handouts) | Done right | Wrong without asking | Things said (median) | Cost per run |
 |---|---|---|---|---|---|---|---|
@@ -139,7 +139,12 @@ The three setups:
 All three still plan first. The planner sometimes asks its own question up front: that is why the course task comes out right without the gate, and why "the agent alone" got one course run right.
 
 **Read with care:**
+- The historical irreversible-only mode did not detect every final action: one of its three mail runs logged no confirmation. Its label describes the configured policy, not guaranteed coverage.
 - 9 runs per setup is small: these numbers show a direction, not a precise rate.
 - The tasks were built to contain an ambiguity. On tasks without one, all three setups would do about as well.
 - Asking before irreversible steps did not catch the ambiguities. The yes came after the wrong choice had already been made, and the scripted user, like a hurried person, approves a send that looks fine.
 - Total cost: $0.83.
+
+## Version and interpretation
+
+E3 records describe the November 1 build. Later reliability fixes have not been re-benchmarked. AVO is a working prototype, not a validated assistive technology. No evaluation with the intended users has been completed. Screenshots and private runtime logs are excluded from the public repository. The public E3 export contains all 27 task outcomes and scripted questions/answers from the original run.

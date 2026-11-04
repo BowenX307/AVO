@@ -78,6 +78,11 @@ class GateTest(unittest.TestCase):
     def test_unsure_sam_and_no_review_asks(self):
         self.assertTrue(assess(0.6, rev=None).flagged)
 
+    def test_missing_review_asks_even_when_location_is_clear(self):
+        for place in (None, "on"):
+            with self.subTest(place=place):
+                self.assertTrue(assess(0.99, rev=None, place=place).flagged)
+
     def test_a_gap_overrides_a_sure_sam(self):
         # 10/29: a click between the date and category fields scored 0.949 in SAM.
         self.assertTrue(assess(0.95, rev=MISS, place="gap").flagged)

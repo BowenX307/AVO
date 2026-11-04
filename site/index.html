@@ -40,6 +40,7 @@
         <nav>
           <a class="wide" href="#how">How it works</a>
           <a class="wide" href="#evidence">Evidence</a>
+          <a href="try.html">Try it</a>
           <a href="docs.html">Docs</a>
           <a href="https://github.com/BowenX307/AVO">GitHub</a>
         </nav>
@@ -54,19 +55,20 @@
           <div class="hero-grid">
             <div class="row">
               <p class="lede">For people who find using a mouse or trackpad difficult.</p>
-              <a class="hero-num" href="#m-e1" data-open="m-e1">
-                <span class="fig us"><b><span data-eval="e1.avo_right">8</span><i>/<span data-eval="e1.tasks">8</span></i></b><small>AVO</small></span>
-                <span class="fig"><b><span data-eval="e1.vc_right">2</span><i>/<span data-eval="e1.tasks">8</span></i></b><small>macOS Voice Control</small></span>
-                <span class="cap">everyday tasks done right, by voice<sup>1</sup></span>
+              <a class="hero-num" href="#m-e3" data-open="m-e3">
+                <span class="fig us"><b><span data-eval="e3.avo_pct">0</span><i>%</i></b><small>AVO</small></span>
+                <span class="fig"><b><span data-eval="e3.bare_pct">78</span><i>%</i></b><small>Agent alone</small></span>
+                <span class="cap">wrong result, reported done without clarification<br />3 tasks · 9 runs per setup · scripted answers</span>
               </a>
               <div class="ctas">
                 <a class="btn solid" href="#demo"><svg class="play" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 Z" fill="currentColor" /></svg>Watch the demo</a>
+                <a class="btn line" href="try.html">Explore without a key</a>
                 <a class="btn line" href="docs.html#install">Install for macOS</a>
                 <a class="btn line" href="https://github.com/BowenX307/AVO">GitHub</a>
               </div>
             </div>
             <div class="hero-clip">
-              <figure class="media clip" id="demo" data-clip="smith">
+              <figure class="media clip" id="hero-demo" data-clip="smith">
                 <i class="corners"></i>
                 <video autoplay muted loop playsinline preload="metadata" poster="media/smith.jpg?v=202611021711" width="1600" height="1064" aria-label="AVO, run by voice: “Reply to Professor Smith, say I’ll be ten minutes late.” It circles the two Professor Smiths and asks which; “two”. It writes the reply and asks before sending; “yes”. Sent.">
                   <source src="media/smith.mp4?v=202611021711" type="video/mp4" />
@@ -77,7 +79,7 @@
             </div>
           </div>
           <div class="what">
-            <p class="whatis">AVO is a Mac app that works your computer for you. Say what you want done, and it plans the steps, then clicks and types on your screen. Before every step it checks that it has the right target. When two things could fit, it circles both and asks. You answer with one word.</p>
+            <p class="whatis">AVO is a Mac app that works your computer for you. Say what you want done, and it plans the steps, then clicks and types on your screen. Before pointer actions it checks target location and ambiguity. When two things could fit, it circles both and asks. You answer with one word.</p>
             <ol class="steps3">
               <li><span class="mono">1</span><b>Say it</b><p>Tap right <kbd>⌥</kbd> and say what you want, or type it.</p></li>
               <li><span class="mono">2</span><b>AVO does it</b><p>It plans the steps and operates the apps on your screen.</p></li>
@@ -92,8 +94,8 @@
         <div class="wrap">
           <div class="head">
             <span class="label">How it works</span>
-            <h2 data-reveal>One sentence in. Checked before every step.</h2>
-            <p class="lede">Computer-use models don’t say how sure they are. AVO checks every step before it happens.</p>
+            <h2 data-reveal>One sentence in. Clarify before acting.</h2>
+            <p class="lede">AVO reviews proposed pointer actions for ambiguity and target location before executing them.</p>
           </div>
           <div class="diagram-wrap">
             <figure class="diagram" aria-label="Your request (spoken, typed, or a rough box) goes to Muse Spark, which plans the steps and operates the screen; Muse Wonder re-plans complex or stalled tasks. Before each action, a pre-action check asks: is the target ambiguous, is it located precisely (SAM 3.1), is the action irreversible? Ambiguous: AVO circles each option and asks which. Clear and reversible: it highlights the target and proceeds after 1 second unless you say no. Irreversible: it shows a preview and requires an explicit yes. Your answer refines the plan.">
@@ -185,6 +187,8 @@
         </div>
       </section>
 
+      <section id="demo"><div class="wrap"><div class="head"><span class="label">Submitted demo</span><h2>From one hand to a new interaction.</h2><p class="lede">Watch the complete three-minute film. A working prototype, with limited real-world testing.</p></div><video controls playsinline preload="none" poster="media/smith.jpg" width="1920" height="1080" style="width:100%;height:auto;border-radius:20px" aria-label="AVO submitted demo, narrated by Bowen"><source src="media/demo.mp4" type="video/mp4"></video><p class="aside-note"><a href="media/demo.mp4">Open the video</a> · <a href="try.html">Explore the scripted interaction without installing</a> · <a href="docs.html#install">Run the actual agent on Mac</a></p></div></section>
+
       <!-- ④ AVO Remote -->
       <section id="remote">
         <div class="wrap">
@@ -196,7 +200,7 @@
           <div class="phones">
             <figure class="phone"><img src="media/remote-idle.jpg?v=202611021856" width="750" height="1520" loading="lazy" alt="The phone page: a box for the task, Send to AVO, and a Stop button." /><figcaption>Say it, or type it</figcaption></figure>
             <figure class="phone"><img src="media/remote-ask.jpg?v=202611021856" width="750" height="1520" loading="lazy" alt="The phone shows just the part of the Mac’s screen with the two Professor Smiths circled and numbered, and a big button for each." /><figcaption>Only the part it’s asking about</figcaption></figure>
-            <figure class="phone"><img src="media/remote-confirm.jpg?v=202611021856" width="750" height="1520" loading="lazy" alt="The phone shows the reply before sending, with Yes, send and No." /><figcaption>Nothing irreversible without your yes</figcaption></figure>
+            <figure class="phone"><img src="media/remote-confirm.jpg?v=202611021856" width="750" height="1520" loading="lazy" alt="The phone shows the reply before sending, with Yes, send and No." /><figcaption>Review before detected final actions</figcaption></figure>
           </div>
           <p class="aside-note">Same Wi‑Fi only · pair with a QR code · stops if the phone disconnects. <a href="docs.html#remote">How it works</a></p>
           <p class="thesis">Built for people for whom every click costs. Useful to anyone whose hands are busy.</p>
@@ -249,8 +253,8 @@
           <div class="strip">
             <div>
               <div class="pairnums"><div class="us"><b><span data-eval="e1.avo_right">8</span>/<span data-eval="e1.tasks">8</span></b><small>AVO</small></div><div><b><span data-eval="e1.vc_right">2</span>/<span data-eval="e1.tasks">8</span></b><small>Voice Control</small></div></div>
-              <span>Done right by voice</span>
-              <small class="ss"><span data-eval="e1.tasks">8</span> everyday tasks · <a href="#m-e1" data-open="m-e1">Details →</a></small>
+              <span>Exploratory task completion</span>
+              <small class="ss"><span data-eval="e1.tasks">8</span> tasks · novice Voice Control user / scripted AVO · <a href="#m-e1" data-open="m-e1">Details →</a></small>
             </div>
             <div>
               <div class="pairnums"><div class="us"><b><span data-eval="e3.avo_pct">0</span>%</b><small>AVO</small></div><div><b><span data-eval="e3.bare_pct">78</span>%</b><small>Agent alone</small></div></div>
@@ -259,8 +263,8 @@
             </div>
             <div>
               <div class="pairnums"><div class="us"><b><span data-eval="e2.avo_pct">100</span>%</b><small>AVO</small></div><div><b><span data-eval="e2.alone_pct">33</span>%</b><small>Clicking alone</small></div></div>
-              <span>Tiny button, shaky hand</span>
-              <small class="ss"><span data-eval="e2.button_px">12</span> px button · <span data-eval="e2.tremor_px">8</span> px tremor · <a href="#m-e2" data-open="m-e2">Details →</a></small>
+              <span>Simulated pointing offsets</span>
+              <small class="ss"><span data-eval="e2.button_px">12</span> px button · <span data-eval="e2.tremor_px">8</span> px offset σ · name + target bounds · <a href="#m-e2" data-open="m-e2">Details →</a></small>
             </div>
           </div>
 
@@ -313,13 +317,13 @@
           </figure>
               </div>
               <div>
-                <p><b>What happened:</b> Asked to “reply to Professor Smith”, the agent alone picked Prof. Anna Smith (Math 241) without asking. The reply was meant for Prof. David Smith (Physics 212). No permission prompt fired, because replying isn’t “sensitive”. It was just wrong. AVO would have circled both Smiths and asked.</p>
-                <div class="trio" id="e3" role="img" aria-label="Finished the task wrong without asking: the agent alone 78% of runs, asking only before send or book 56%, AVO 0%.">
+                <p><b>What happened:</b> Asked to “reply to Professor Smith”, the agent alone picked Prof. Anna Smith (Math 241) without asking. The reply was meant for Prof. David Smith (Physics 212). This baseline had AVO’s gate and confirmations disabled. It was wrong without asking. Full AVO adds a separate check for which Smith the user means.</p>
+                <div class="trio" id="e3" role="img" aria-label="Wrong result reported done without clarification: the agent alone 78% of runs, asking only before send or book 56%, AVO 0%.">
                   <div><b><span data-eval="e3.bare_pct">78</span>%</b><i data-eval-w="e3.bare_pct" style="--w: 78%"></i><span>the agent alone</span></div>
                   <div><b><span data-eval="e3.irr_pct">56</span>%</b><i data-eval-w="e3.irr_pct" style="--w: 56%"></i><span>asks only before send / book</span></div>
                   <div class="us"><b><span data-eval="e3.avo_pct">0</span>%</b><i data-eval-w="e3.avo_pct" style="--w: 0%"></i><span>AVO</span></div>
                 </div>
-                <p class="aside-note">Finished wrong without asking · <span data-eval="e3.tasks">3</span> ambiguous tasks · <span data-eval="e3.runs_per_setup">9</span> runs each. <a href="#m-e3" data-open="m-e3">How we measured</a></p>
+                <p class="aside-note">Wrong result, reported done without clarification · <span data-eval="e3.tasks">3</span> ambiguous tasks · <span data-eval="e3.runs_per_setup">9</span> runs per setup · scripted answers, not a user study. <a href="#m-e3" data-open="m-e3">How we measured</a></p>
               </div>
             </div>
           </div>
@@ -373,8 +377,8 @@
               <span class="label">Privacy &amp; safety</span>
               <h2 data-reveal>Your screen, your call.</h2>
               <ul class="limit-list">
-                <li>Screenshots go to the Meta Model API, in Standard mode: not used for training.</li>
-                <li>Anything irreversible needs you to say “yes”.</li>
+                <li>Screenshots and task context go to Meta for inference; see the data details below.</li>
+                <li>Detected irreversible actions require “yes”; detection is heuristic.</li>
                 <li>Say “stop” any time; if Remote’s phone disconnects, AVO pauses.</li>
               </ul>
               <p><a href="docs.html#privacy" class="muted">More in the docs →</a></p>
@@ -412,11 +416,11 @@
             <p><b><span data-eval="e2.alone_pct">33</span>% vs <span data-eval="e2.avo_pct">100</span>%:</b> a <span data-eval="e2.button_px">12</span> px button with <span data-eval="e2.tremor_px">8</span> px of simulated tremor, hit when clicking alone vs with AVO, which finds the button by its name. When the app names its buttons (most do), AVO doesn’t need to aim at all: you box roughly and say the name. <b><span data-eval="e2.alone_pct">33</span>% vs <span data-eval="e2.sam_pct">47</span>%:</b> the same with AVO aiming with SAM&nbsp;3.1 only, for buttons without a name.</p>
           </details>
           <details id="m-e3">
-            <summary>E3 · Finished wrong without asking</summary>
-            <p>Three demo tasks, each with a real ambiguity: two Professor Smiths, “next Friday” said on a Saturday, two near-identical handouts. Three setups, <span data-eval="e3.runs_per_task">3</span> runs each per task: AVO as built; an agent that asks only before sending or booking; the agent alone. A script answered for the user, the way the task meant it. A run counts when it ends with the wrong result and reports it as done, without having asked anything.</p>
-            <p>Limits: <span data-eval="e3.runs_per_setup">9</span> runs per setup, so a direction, not a rate. All three setups plan first, and the plan sometimes asks a question, so “the agent alone” isn’t completely silent. The tasks were chosen to contain an ambiguity.</p>
+            <summary>E3 · Wrong result, reported done without clarification</summary>
+            <p>Three demo tasks, each with a real ambiguity: two Professor Smiths, “next Friday” said on a Saturday, two near-identical handouts. Three setups, <span data-eval="e3.runs_per_task">3</span> runs each per task: AVO as built; an agent that asks only before sending or booking; the agent alone. A script answered for the user, the way the task meant it. A run counts when it ends with the wrong result and reports it as done, without a clarification or target-check question. A final-action yes/no approval does not count as clarification.</p>
+            <p>Limits: <span data-eval="e3.runs_per_setup">9</span> runs per setup, so a direction, not a rate. All three setups plan first, and the plan sometimes asks a question, so “the agent alone” isn’t completely silent. The tasks were chosen to contain an ambiguity. Results describe the November 1 build; later fixes have not been re-benchmarked. <a href="https://github.com/BowenX307/AVO/blob/main/eval/e3/results.json">All 27 run records</a>.</p>
           
-            <p>Why it matters: a reply to the wrong professor sets off no permission prompt, and fixing it by hand is exactly what costs the most. So AVO asks a one-word question first (“Which Smith?” “Two.”). Across these runs AVO asked about one more thing per task.</p>
+            <p>Why it matters: approving a send does not resolve which professor the user meant, and correcting the wrong choice can require extra manual work. So AVO asks a one-word question first (“Which Smith?” “Two.”). Across these runs AVO asked about one more thing per task.</p>
           </details>
           <details id="m-limits">
             <summary>Known limits, in full</summary>
@@ -432,6 +436,7 @@
         <nav>
           <a href="https://github.com/BowenX307/AVO">GitHub</a>
           <a href="https://github.com/BowenX307/AVO/blob/main/LICENSE">License</a>
+          <a href="try.html">Try it</a>
           <a href="docs.html">Docs</a>
         </nav>
       </div>

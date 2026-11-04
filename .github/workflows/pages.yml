@@ -31,6 +31,12 @@ jobs:
       # site/brand is a link to brand/ (shared with the overlay); copy the real files.
       - name: Assemble the site
         run: cp -RL site _site
+      - name: Verify public evidence and site links
+        run: |
+          python3 scripts/check_site.py
+          python3 scripts/check_evidence.py
+          node --check site/assets/site.js
+          node --check site/assets/try.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

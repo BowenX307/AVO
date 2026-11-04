@@ -66,14 +66,12 @@
 
         <section id="install">
           <h2><span class="mono">02</span>Install</h2>
-          <div class="note"><b>Download for macOS</b>A packaged app (DMG) isn’t available yet — for now, AVO runs from source. When the DMG ships unsigned, the first open needs right-click → Open, then Open again in the dialog.</div>
+          <div class="note"><b>Try it without installing</b><a href="try.html">Explore the scripted interaction</a> or <a href="./#demo">watch the real demo</a>. These require no key. Actual Mac control requires a Meta API key; no shared key is included. A packaged DMG is not available yet.</div>
           <h3>From source</h3>
 <pre><code>git clone https://github.com/BowenX307/AVO.git
 cd AVO
-uv sync                         <span class="c"># Python side: the agent</span>
-cp .env.example .env            <span class="c"># then put your key after MODEL_API_KEY=</span>
-cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay (Electron)</span></code></pre>
-          <p>The key can also live in the <code>MODEL_API_KEY</code> environment variable. <code>.env</code> is git-ignored; never commit your key.</p>
+./scripts/setup.sh</code></pre>
+          <p>Setup installs locked dependencies and asks for your key once, without displaying it. It is saved in the git-ignored <code>.env</code> on your Mac. An existing <code>MODEL_API_KEY</code> environment variable also works. Run the following commands from the repository root.</p>
         </section>
 
         <section id="first-run">
@@ -83,7 +81,7 @@ cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay 
             <li><b>Check the key.</b>
 <pre><code>uv run scripts/smoke_api.py     <span class="c"># expects: AVO smoke test OK</span></code></pre></li>
             <li><b>Start the overlay.</b> A small black capsule appears at the top of the screen and draws the AVO logo.
-<pre><code>cd overlay &amp;&amp; npm start</code></pre></li>
+<pre><code>./scripts/start.sh</code></pre></li>
             <li><b>Run a test task.</b> Open <code>demo/mail.html</code> in Chrome, tap right <kbd>⌥</kbd> and say <i>Reply to Professor Smith, say I’ll be ten minutes late.</i> Or click the capsule and type it. Or from the terminal:
 <pre><code>uv run scripts/run_task.py "Reply to Professor Smith, say I'll be ten minutes late."</code></pre></li>
           </ol>
@@ -95,23 +93,18 @@ cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay 
           <ol class="steps">
             <li>
               <div><h3>Summon</h3><p>Tap right <kbd>⌥</kbd> once — a tap, not a hold. The capsule at the top of the screen opens and says <i>Listening</i>.</p></div>
-              <div class="ph" role="img" aria-label="Placeholder for a screenshot"><b>Screenshot needed</b><span>The capsule open, reading “Listening”</span></div>
             </li>
             <li>
               <div><h3>Say it</h3><p>Say what you want done, as you’d ask a person: <i>Reply to Professor Smith, say I’ll be ten minutes late.</i> The words appear in large type as you speak. Stop talking, or tap right <kbd>⌥</kbd> again, and AVO starts.</p></div>
-              <div class="ph" role="img" aria-label="Placeholder for a screen recording"><b>Clip needed · 3–5 s</b><span>The sentence appearing in large type</span></div>
             </li>
             <li>
               <div><h3>Answer with a word</h3><p>When more than one thing fits, AVO rings each with a number and asks. Say <i>two</i>, <i>the physics one</i> or <i>none of these</i>, press the number, or click the right spot yourself.</p></div>
-              <div class="ph" role="img" aria-label="Placeholder for a screen recording"><b>Clip needed · 5–10 s</b><span>“Which one did you mean?” — the two Smiths ringed; “two”</span></div>
             </li>
             <li>
               <div><h3>Say yes before anything final</h3><p>Before sending, submitting, deleting, paying or booking, AVO shows what it will do — the reply it wrote, say — and waits for <i>yes</i>. Say <i>stop</i>, or tap right <kbd>⌥</kbd>, any time.</p></div>
-              <div class="ph" role="img" aria-label="Placeholder for a screenshot"><b>Screenshot needed</b><span>“Send — OK?” with the drafted reply</span></div>
             </li>
             <li>
               <div><h3>Or type, or box it</h3><p>Click the capsule and type the task instead. To point at something first, press <kbd>⌥</kbd> <kbd>Space</kbd> and drag a rough box over it (A), and over where it goes (B) if anything goes somewhere; SAM&nbsp;3.1 finds what you meant inside the box.</p></div>
-              <div class="ph" role="img" aria-label="Placeholder for a screen recording"><b>Clip needed · 3–5 s</b><span>Dragging a rough box A over a note, B over a card, and typing one line</span></div>
             </li>
           </ol>
         </section>
@@ -154,8 +147,8 @@ cd overlay &amp;&amp; npm install       <span class="c"># the on-screen overlay 
           <h2><span class="mono">07</span>Privacy &amp; safety</h2>
           <h3>What leaves your Mac</h3>
           <ul>
-            <li>Screenshots of your screen (without AVO’s own overlay), your typed task and the boxes you drew go to the Meta Model API (<code>api.meta.ai</code>) — nowhere else.</li>
-            <li>AVO calls <code>muse-spark-1.3</code> in Standard mode. Meta’s docs say Standard-mode content <a href="https://dev.meta.ai/docs/pricing-rate-limits">isn’t used to train Meta models</a>. Targets are found with <code>sam-3.1</code>, which Meta’s docs don’t place in either mode.</li>
+            <li>Screenshots of your screen (without AVO’s own overlay), your typed task and the boxes you drew go to the Meta Model API (<code>api.meta.ai</code>) for inference. With Remote enabled, the paired phone also receives task status and cropped question context on your local network.</li>
+            <li>AVO calls <code>muse-spark-1.3</code> in Standard mode. Meta’s docs say Standard-mode content <a href="https://dev.meta.ai/docs/pricing-rate-limits">isn’t used to train Meta models</a>. Meta’s current pricing documentation lists all models on that page as available in Standard mode. AVO does not use Contributor model IDs.</li>
             <li>When you speak to AVO, your voice — only while the island shows it’s listening — and names read from the front window (button labels, names on the page, which help recognition) go to Meta’s speech recognition, <code>muse-voice-transcribe-1.0</code>.</li>
             <li>Turn on Do Not Disturb before a task: a notification that pops up gets into the screenshots.</li>
           </ul>

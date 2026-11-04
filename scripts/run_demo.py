@@ -150,7 +150,7 @@ def one(spec: dict, mode: str, reports: Reports, effort: str) -> dict:
     return {
         "id": spec["id"], "kind": spec["kind"], "mode": mode, "ok": ok, "outcome": what,
         "claimed_done": claimed, "result": result,
-        # Done wrong and reported as done, without asking the user anything: a silent error (E3).
+        # Done wrong and reported as done, without clarification/target-check questions; confirm-only prompts do not count (E3).
         "silent_error": (not ok) and claimed and not asked,
         "asked": user.asked, "utterances": summary.get("counts", {}).get("utterances"),
         "steps": summary.get("steps"), "seconds": round(time.time() - t0, 1),

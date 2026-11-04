@@ -202,7 +202,10 @@ def assess(
         meant = controls[k - 1]
     reasons, plain = [], []
     others_clear = all(clear_at(p, seg, place) for p, seg, place in list(zip(points, best, places))[1:])
-    if candidates:
+    if rev is None:
+        reasons.append("The target review is unavailable; please check before proceeding")
+        plain.append("I couldn’t check whether this is the right choice.")
+    elif candidates:
         reasons.append("More than one fits: " + " or ".join(c["label"] for c in candidates))
         plain.append("Your task fits more than one of these.")
     elif not clear and meant and others_clear:
