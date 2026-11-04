@@ -79,6 +79,8 @@
       .suggest, .files { margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; background: #fafbfc; }
       .suggest button, .files button { text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font: inherit; cursor: pointer; }
       .suggest button small, .files button small { color: var(--muted); margin-left: 8px; }
+      .suggest b { font-size: 12px; color: var(--muted); padding: 2px 2px 4px; }
+      .suggest button.picked { border-color: #2f6fdf; background: #eef4ff; font-weight: 600; }
       .files b { font-size: 12px; color: var(--muted); padding: 2px 2px 4px; }
       .att { padding: 8px 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
       .att:empty { display: none; }
@@ -182,14 +184,13 @@
         },
       ];
       const sent = [];
-      // The address book and the Documents folder for "New message" (all made up).
+      // The address book for "New message" (all made up).
       const CONTACTS = [
         { name: "Alex Chen", team: "Design team", email: "alex.chen@design.example.edu" },
         { name: "Alex Rivera", team: "Finance", email: "alex.rivera@finance.example.edu" },
         { name: "Maya Chen", team: "Roommate", email: "maya.chen@student.example.edu" },
         { name: "Jordan Park", team: "Study group", email: "jordan.park@student.example.edu" },
       ];
-      const DOCUMENTS = ["AVO project brief.pdf", "AVO budget draft.xlsx", "Lab report week 3.docx", "Resume 2026.pdf", "Hiking trip photos.zip"];
       let box = "inbox";
       let openId = null;
       const $ = (id) => document.getElementById(id);
@@ -222,7 +223,7 @@
         renderList();
         const meta = box === "inbox" ? `From ${name(m)} &lt;${m.email}&gt; · ${m.time}` : `To ${m.to} · ${m.time}`;
         $("reader").innerHTML = `<h1>${m.subject}</h1><div class="meta">${meta}</div><div class="body"></div>`;
-        $("reader").querySelector(".body").textContent = m.body + (m.attachments && m.attachments.length ? `\n\n📎 ${m.attachments.join(", ")}` : "");
+        $("reader").querySelector(".body").textContent = m.body;
         if (box === "inbox") {
           const actions = document.createElement("div");
           actions.className = "actions";
@@ -261,53 +262,32 @@
         };
       }
 
-      // A new message: the To field suggests contacts as you type; Attach opens Documents.
+      // A new message: pick the recipient from the contacts under To (the picked one is ticked).
       function newMessage() {
         openId = null;
         $("reader").innerHTML = `<h1>New message</h1>`;
         const c = document.createElement("form");
         c.className = "compose";
-        c.innerHTML = `<label>To <input name="to" aria-label="To" autocomplete="off" placeholder="Name or email" /></label>
-          <div class="suggest" hidden></div>
+        c.innerHTML = `<label>To <input name="to" aria-label="To" autocomplete="off" placeholder="Pick a contact below" /></label>
+          <div class="suggest" aria-label="Contacts"><b>Contacts</b></div>
           <label>Subject <input name="subject" aria-label="Subject" /></label>
-          <label class="att-row" hidden>Attached <input name="attached" aria-label="Attached" readonly /></label>
-          <div class="files" hidden><b>Documents</b></div>
           <textarea name="body" aria-label="Message" placeholder="Write your message"></textarea>
           <div class="actions"><button class="btn primary" type="submit">Send</button>
-          <button class="btn" type="button" id="attach">Attach</button>
           <button class="btn" type="button" id="discard">Discard</button></div>`;
         $("reader").appendChild(c);
-        const to = c.querySelector('[name="to"]'), suggest = c.querySelector(".suggest"), files = c.querySelector(".files");
-        const attached = [];
-        to.addEventListener("input", () => {
-          const q = to.value.trim().toLowerCase();
-          const hits = q ? CONTACTS.filter((p) => p.name.toLowerCase().includes(q) || p.email.includes(q)) : [];
-          suggest.innerHTML = "";
-          suggest.hidden = !hits.length;
-          for (const p of hits) {
-            const b = document.createElement("button");
-            b.type = "button";
-            b.innerHTML = `${p.name} · ${p.team}<small>${p.email}</small>`;
-            b.onclick = () => { to.value = `${p.name} <${p.email}>`; suggest.hidden = true; }; // the name stays visible: the recipient is clearly set
-            suggest.appendChild(b);
-          }
-        });
-        c.querySelector("#attach").onclick = () => {
-          files.innerHTML = "<b>Documents</b>";
-          for (const f of DOCUMENTS) {
-            const b = document.createElement("button");
-            b.type = "button";
-            b.textContent = f;
-            b.onclick = () => {
-              if (!attached.includes(f)) attached.push(f);
-              c.querySelector(".att-row").hidden = false;
-              c.querySelector('[name="attached"]').value = attached.join(", ");
-              files.hidden = true;
-            };
-            files.appendChild(b);
-          }
-          files.hidden = false;
-        };
+        const to = c.querySelector('[name="to"]'), list = c.querySelector(".suggest");
+        for (const p of CONTACTS) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.innerHTML = `<span class="tick"></span>${p.name} · ${p.team}<small>${p.email}</small>`;
+          b.onclick = () => {
+            to.value = `${p.name} <${p.email}>`;
+            list.querySelectorAll("button").forEach((x) => { x.classList.remove("picked"); x.querySelector(".tick").textContent = ""; });
+            b.classList.add("picked");
+            b.querySelector(".tick").textContent = "✓ ";
+          };
+          list.appendChild(b);
+        }
         c.querySelector("#discard").onclick = () => ($("reader").innerHTML = `<p class="empty">Select a message to read it.</p>`);
         c.onsubmit = (e) => {
           e.preventDefault();
@@ -315,16 +295,16 @@
           const p = CONTACTS.find((x) => String(f.get("to")).includes(x.email));
           const msg = {
             id: 100 + sent.length, to: p ? p.email : f.get("to"), subject: f.get("subject") || "(no subject)", body: f.get("body"),
-            attachments: [...attached], time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+            time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
           };
           sent.unshift(msg);
           $("reader").innerHTML = `<p class="empty">Message sent.</p>`;
-          toast(`Sent to ${p ? p.name : msg.to}` + (attached.length ? ` with ${attached.join(", ")}` : ""));
+          toast(`Sent to ${p ? p.name : msg.to}`);
           document.title = `Campus Mail — Sent to ${p ? p.name : msg.to}`;
-          report({ sent: sent.map(({ to, subject, body, attachments }) => ({ to, subject, body, attachments })) });
+          report({ sent: sent.map(({ to, subject, body }) => ({ to, subject, body })) });
           renderList();
         };
-        to.focus();
+        c.querySelector('[name="subject"]').focus();
         document.title = "Campus Mail — New message";
       }
 
