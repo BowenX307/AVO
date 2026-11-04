@@ -4,7 +4,7 @@ These are the deployed request handler, policy and database schema. The Mac app 
 
 A Worker fetch entry point calls `gateway(request, env, ctx)` and returns its non-null response; other routes may serve a status page. Apply `schema.sql` through migrations before accepting requests. Never seed or reset `budget.used` during redeployment. Existing reservations and spending must persist. `policy.mjs` pins the allowance, expiry, allowed models and cost bounds; do not raise them without the owner's authorization and updated price checks.
 
-The hosted source revision is `41c82ddcea6481ac69d127192be148bd6e7d406e`. See [reviewer trial documentation](../../docs/reviewer-trial.md) for data flow, limits and verification. The invitation is deliberately distributed outside this public repository.
+The hosted source revision is `41c82ddcea6481ac69d127192be148bd6e7d406e`. See [reviewer trial documentation](../../docs/reviewer-trial.md) for data flow, limits and verification. The limited invitation is published in the trial documentation with the owner’s authorization; the provider key remains server-only.
 
 Run the policy and ledger checks with Node.js 24 (SQLite and type stripping):
 

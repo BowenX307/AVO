@@ -2,7 +2,7 @@
 
 **Say what you want done. AVO handles the clicks—and asks when your meaning is unclear.**
 
-[Watch the 3-minute demo on YouTube](https://www.youtube.com/watch?v=u7045Y1N5V0) · [Website](https://bowenx307.github.io/AVO/) · [Install on Mac](https://bowenx307.github.io/AVO/docs.html#install) · [Evaluation](docs/eval.md)
+[Watch the 3-minute demo on YouTube](https://www.youtube.com/watch?v=u7045Y1N5V0) · [Website](https://bowenx307.github.io/AVO/) · [Install on Mac](https://bowenx307.github.io/AVO/docs.html#install) · [Evaluation](docs/eval.md) · [Try without an API key](docs/reviewer-trial.md#public-reviewer-invitation)
 
 I broke my hand while climbing during a summer software engineering internship at Lenovo. I still needed to use my computer. AVO began with that experience: a Mac app for people who can speak clearly but find precise mouse or trackpad use difficult.
 
@@ -64,7 +64,7 @@ Setup installs the locked dependencies and prompts once for your key without ech
 
 Grant Screen Recording, Accessibility and Input Monitoring to the terminal you launch from, then quit and reopen that terminal. Microphone permission is requested when speaking. Tap right Option to speak, or click the top capsule to type. Start with `demo/mail.html` in Chrome and the Smith task above. Use fictional data while trying it. [Permissions, shortcuts and troubleshooting](https://bowenx307.github.io/AVO/docs.html).
 
-**Invited reviewers do not need a Meta API key.** Run `./scripts/setup.sh --reviewer` instead and paste the invitation supplied privately with the submission. The funded trial supports all four models, including speech, through an authenticated gateway. It has a shared spending limit and expires November 18, 2026. Mac installation and permissions are still required. Screenshots, requests and speech pass through the gateway to Meta; use non-sensitive tasks. [Reviewer setup and limits](docs/reviewer-trial.md).
+**Reviewers do not need a Meta API key.** Run `./scripts/setup.sh --reviewer` instead and paste the [public reviewer invitation](docs/reviewer-trial.md#public-reviewer-invitation). The funded trial supports all four models, including speech, through an authenticated gateway. It has a shared spending limit and expires November 18, 2026. Mac installation and permissions are still required. Screenshots, requests and speech pass through the gateway to Meta; use non-sensitive tasks. [Reviewer setup and limits](docs/reviewer-trial.md).
 
 ## Current limits
 

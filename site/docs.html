@@ -51,7 +51,7 @@
           <h2><span class="mono">01</span>Requirements</h2>
           <ul>
             <li><b>macOS 15 (Sequoia)</b> on Apple silicon. That’s what AVO is built and tested on (15.5); older versions are untested.</li>
-            <li><b>A Meta Model API key</b> from <a href="https://dev.meta.ai/">dev.meta.ai</a>, or the reviewer invitation supplied with the submission.</li>
+            <li><b>A Meta Model API key</b> from <a href="https://dev.meta.ai/">dev.meta.ai</a>, or the public reviewer invitation linked below.</li>
             <li><b>Python 3.11+</b> with <a href="https://docs.astral.sh/uv/">uv</a>, and <b>Node.js</b> (tested with 24) for the on-screen overlay.</li>
             <li>Four macOS permissions, for the app you start AVO from (Terminal, iTerm, VS Code…):
               <ul>
@@ -71,7 +71,7 @@
 <pre><code>git clone https://github.com/BowenX307/AVO.git
 cd AVO
 ./scripts/setup.sh</code></pre>
-          <div class="note"><b>Invited reviewers: no Meta API key needed</b>Use <code>./scripts/setup.sh --reviewer</code> instead of the setup command above, then paste the invitation supplied with the submission. This runs real AVO on your Mac. All four models, including speech, use a funded gateway with shared limits, available through November 18, 2026. Installation and macOS permissions are still required. <a href="https://github.com/BowenX307/AVO/blob/main/docs/reviewer-trial.md">Trial details</a>.</div>
+          <div class="note"><b>Reviewers: no Meta API key needed</b>Use <code>./scripts/setup.sh --reviewer</code> instead of the setup command above, then paste the <a href="https://github.com/BowenX307/AVO/blob/main/docs/reviewer-trial.md#public-reviewer-invitation">public reviewer invitation</a>. This runs real AVO on your Mac. All four models, including speech, use a funded gateway with shared limits, available through November 18, 2026. Installation and macOS permissions are still required. <a href="https://github.com/BowenX307/AVO/blob/main/docs/reviewer-trial.md">Trial details</a>.</div>
           <p>Setup installs locked dependencies and asks for your key once, without displaying it. It is saved in the git-ignored <code>.env</code> on your Mac. An existing <code>MODEL_API_KEY</code> environment variable also works. Run the following commands from the repository root.</p>
         </section>
 

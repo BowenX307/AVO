@@ -1,16 +1,32 @@
 # Reviewer trial
 
-Invited reviewers can run **real AVO on their own Mac without obtaining a Meta API key**. This is not a simulated browser demo. Installation and macOS Screen Recording, Accessibility, Input Monitoring and microphone permissions are still required.
+Reviewers can run **real AVO on their own Mac without obtaining a Meta API key**. This is not a simulated browser demo. Installation and macOS Screen Recording, Accessibility, Input Monitoring and microphone permissions are still required.
 
-After cloning the repository, run:
+Clone the repository and install reviewer mode:
 
 ```sh
+git clone https://github.com/BowenX307/AVO.git
 cd AVO
 ./scripts/setup.sh --reviewer
+```
+
+## Public reviewer invitation
+
+When setup asks for the reviewer invitation, paste:
+
+```text
+JwkGTLR_txA1atdRec9pTb86zqjIjFV7jbzIMETJm9Y
+```
+
+This public invitation accesses a limited shared trial funded with Meta-provided credits. It is not a Meta API key and does not grant access to the provider account. Everyone using it shares the same allowance; availability is not guaranteed.
+
+Follow the [macOS permissions guide](https://bowenx307.github.io/AVO/docs.html), then launch:
+
+```sh
 ./scripts/start.sh
 ```
 
-Paste the invitation supplied privately with the submission when setup asks. Do not post the invitation in GitHub issues. The provider key stays on the server; the invitation is saved only in your local, ignored `.env` as `AVO_TRIAL_TOKEN`.
+The provider key stays on the server. Setup saves the invitation in your local, ignored `.env` as `AVO_TRIAL_TOKEN`.
 
 Start with fictional tasks, such as the two-Smith inbox at `demo/mail.html`. Remote still pairs with your own Mac on the same trusted Wi-Fi; the inference gateway does not make Remote internet-accessible.
 
@@ -28,7 +44,7 @@ The server uses a persistent D1 transaction to reserve money **before** contacti
 
 At Meta's November 4 published rates, a full 1,048,576-token input plus the 8,192-token output cap costs less than the $2 Spark / $5 Wonder reservation. Successful responses reconcile with reported usage, without assuming cache discounts. SAM accepts exactly one inline image and reserves $0.0025. Speech reserves $0.003 and cannot forward more than 60 seconds of 24 kHz, 16-bit mono PCM. Hosted search, image generation, video, streaming Responses, background jobs and arbitrary proxy destinations are excluded. Pricing changes would require revisiting these bounds. Limits apply only to this gateway, not unrelated calls using the same Meta account.
 
-Source for the gateway's request validation, reservation ledger and speech relay is in [`services/reviewer-gateway`](../services/reviewer-gateway). The deployment uses Sites with a D1 database and server-only secrets. No provider key or reviewer invitation is checked into this repository.
+Source for the gateway's request validation, reservation ledger and speech relay is in [`services/reviewer-gateway`](../services/reviewer-gateway). The deployment uses Sites with a D1 database and server-only secrets. The limited reviewer invitation is public above; the Meta provider key is never included in this repository.
 
 ## Verification on November 4
 
