@@ -288,7 +288,7 @@
             const b = document.createElement("button");
             b.type = "button";
             b.innerHTML = `${p.name} · ${p.team}<small>${p.email}</small>`;
-            b.onclick = () => { to.value = p.email; suggest.hidden = true; };
+            b.onclick = () => { to.value = `${p.name} <${p.email}>`; suggest.hidden = true; }; // the name stays visible: the recipient is clearly set
             suggest.appendChild(b);
           }
         });
@@ -312,9 +312,9 @@
         c.onsubmit = (e) => {
           e.preventDefault();
           const f = new FormData(c);
-          const p = CONTACTS.find((x) => x.email === f.get("to"));
+          const p = CONTACTS.find((x) => String(f.get("to")).includes(x.email));
           const msg = {
-            id: 100 + sent.length, to: f.get("to"), subject: f.get("subject") || "(no subject)", body: f.get("body"),
+            id: 100 + sent.length, to: p ? p.email : f.get("to"), subject: f.get("subject") || "(no subject)", body: f.get("body"),
             attachments: [...attached], time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
           };
           sent.unshift(msg);

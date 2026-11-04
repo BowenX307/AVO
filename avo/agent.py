@@ -35,7 +35,7 @@ from avo.permissions import missing as missing_permissions
 from avo.planner import REPLAN_MODEL, Plan, make_plan
 from avo.regions import Region, highlight, mark, prepare
 from avo.regions import describe as describe_regions
-from avo.snap import location, nearby, snap, warm_up
+from avo.snap import location, nearby, snap, wake, warm_up
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
 
@@ -754,7 +754,7 @@ def run(
                 overlay.send("status", text="Checking this step…", busy=True)
                 with timed("checks"):
                     a = assess(client, checked_task(), past, done, png, actions, note, driver.geometry.shot_size,
-                               where=(lambda x, y: location(*driver.to_screen(x, y))) if snap_to_controls else None,
+                               where=(lambda x, y: (wake(), location(*driver.to_screen(x, y)))[1]) if snap_to_controls else None,
                                near=(lambda x, y: controls_near(driver, x, y)) if snap_to_controls else None)
                 stop = interrupted()  # the user may have taken over during the check
                 if a and not stop:

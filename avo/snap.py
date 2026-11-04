@@ -225,8 +225,32 @@ def nearby(x: float, y: float, radius: float = RADIUS) -> list[Target]:
     return sorted(seen.values(), key=lambda t: t.distance(x, y))
 
 
+def wake() -> None:
+    """Keep the front app's web content in the accessibility tree.
+
+    Chrome builds it lazily, and recent versions switch it off again when no
+    assistive app has read it for a while; a point lookup alone doesn't bring it
+    back, reading the tree down to the web page does (11/04: every lookup on a
+    Chrome page came back empty until something walked the tree). A few dozen
+    AX calls; run before each check.
+    """
+    app = _attr(_system, "AXFocusedApplication")
+    if app is None:
+        return
+    for win in (_attr(app, "AXWindows") or [])[:2]:
+        stack = [(win, 0)]
+        while stack:
+            el, depth = stack.pop()
+            if _attr(el, "AXRole") == "AXWebArea":
+                _attr(el, "AXChildren")
+                break
+            if depth < 12:
+                stack.extend((k, depth + 1) for k in (_attr(el, "AXChildren") or [])[:40])
+
+
 def warm_up(x: float, y: float) -> None:
     """Chrome builds its accessibility tree lazily, on the first AX query."""
+    wake()
     clickable_at(x, y)
 
 
